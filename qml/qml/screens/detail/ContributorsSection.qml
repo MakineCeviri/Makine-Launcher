@@ -9,9 +9,10 @@ pragma ComponentBehavior: Bound
 
 /**
  * ContributorsSection — who made the Turkish patch, grouped by role, and
- * where a patch published by another team lives.
+ * where a patch published by another team lives. The last part of the
+ * detail page's one container (HeroSection).
  */
-Card {
+Item {
     id: contribRoot
 
     required property var contributors  // [{name, role}]
@@ -22,7 +23,6 @@ Card {
 
     Layout.fillWidth: true
     implicitHeight: contentLayout.implicitHeight + 40
-    radius: Dimensions.radiusLG
 
     // Group contributors by role for display (filter out placeholder)
     readonly property var _grouped: {
@@ -88,6 +88,7 @@ Card {
                         textFormat: Text.PlainText
                         text: modelData.role
                         font.pixelSize: Dimensions.caption1
+                        font.family: Dimensions.fontText
                         font.weight: Font.DemiBold
                         font.letterSpacing: 0.4
                         font.capitalization: Font.AllUppercase

@@ -16,7 +16,8 @@ Text {
 
     text: glyph
     textFormat: Text.PlainText
-    font.family: Icons.family
+    // Brands (Icons.symbolsOnly) live in the symbols font only
+    font.family: Icons.symbolsOnly.indexOf(glyph) >= 0 ? Icons.symbolsFamily : Icons.family
     font.pixelSize: size
     color: Theme.textPrimary
     horizontalAlignment: Text.AlignHCenter

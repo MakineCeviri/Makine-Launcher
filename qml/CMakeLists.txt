@@ -207,7 +207,6 @@ qt_add_qml_module(MakineLauncher
         qml/SettingsScreen.qml
         qml/GameDetailScreen.qml
         qml/OnboardingWizard.qml
-        qml/screens/onboarding/OnboardingButton.qml
         qml/screens/onboarding/WelcomeStep.qml
         qml/screens/onboarding/GamesStep.qml
         qml/screens/onboarding/PreferencesStep.qml
@@ -222,6 +221,7 @@ qt_add_qml_module(MakineLauncher
         qml/screens/AllGames.qml
         qml/screens/HelpScreen.qml
         qml/screens/WhatsNewScreen.qml
+        qml/screens/CommunityScreen.qml
 
         # Screens - Game Detail Sections
         qml/screens/detail/HeroSection.qml
@@ -229,7 +229,6 @@ qt_add_qml_module(MakineLauncher
         qml/screens/detail/AboutSection.qml
         qml/screens/detail/UpdateBanner.qml
         qml/screens/detail/GameFolderBar.qml
-        qml/screens/detail/InstallExplainer.qml
         qml/screens/detail/ProgramConsole.qml
         qml/screens/detail/ContributorsSection.qml
         qml/screens/detail/RuntimeSection.qml
@@ -288,6 +287,8 @@ qt_add_qml_module(MakineLauncher
         qml/components/AppButton.qml
         qml/components/AppSwitch.qml
         qml/components/SegmentedControl.qml
+        qml/components/MenuButton.qml
+        qml/components/AppLogo.qml
         qml/components/SearchField.qml
         qml/components/Card.qml
         qml/components/EdgeFade.qml
@@ -296,6 +297,10 @@ qt_add_qml_module(MakineLauncher
         qml/components/ListSection.qml
         qml/components/ListRow.qml
         qml/components/IconTile.qml
+        qml/components/NavIcon.qml
+        qml/components/PagerButton.qml
+        qml/components/MotionIcon.qml
+        qml/components/GlassButton.qml
         qml/components/StatusBadge.qml
         qml/components/PageHeader.qml
 
@@ -327,17 +332,20 @@ qt_add_qml_module(MakineLauncher
         # PNG images
         resources/images/logo.png
         resources/images/logo_white.png
-        resources/images/onboarding_gradient.png
+        resources/images/logo_anim.webp
         resources/images/apex_logo.svg
         # Fonts (Inter - Google Fonts)
         resources/fonts/Inter-Regular.ttf
         resources/fonts/Inter-Medium.ttf
         resources/fonts/Inter-SemiBold.ttf
         resources/fonts/Inter-Bold.ttf
+        resources/fonts/InterDisplay-Regular.ttf
+        resources/fonts/InterDisplay-Medium.ttf
         resources/fonts/InterDisplay-SemiBold.ttf
         resources/fonts/InterDisplay-Bold.ttf
-        # Icons (Lucide subset, scripts/build_ui_fonts.py)
+        # Icons (Lucide subset + Phosphor fill for tiles, scripts/build_ui_fonts.py)
         resources/fonts/MakineIcons.ttf
+        resources/fonts/MakineSymbols.ttf
         # The launcher's release notes and plan (releasenotes.h)
         resources/whatsnew.json
 )

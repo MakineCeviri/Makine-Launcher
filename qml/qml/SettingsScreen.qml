@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Layouts
 import MakineLauncher 1.0
 import "components"
@@ -137,69 +138,146 @@ Item {
                     subtitle: root._current.description
                 }
 
-                // Toolbar tabs: icon over label, the chosen one raised
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: 6
+                // Toolbar tabs: icon over label, centred as System Settings
+                // centres its toolbar. One raised plate slides to the chosen
+                // tab (a little past, then back); a tab's icon answers the
+                // pointer and the choice (MotionIcon).
+                Item {
+                    id: tabBar
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: tabRow.implicitWidth
+                    implicitHeight: tabRow.implicitHeight
+                    property Item _sel: null
 
-                    Repeater {
-                        model: root.categories
+                    RectangularShadow {
+                        anchors.fill: plate
+                        visible: plate.visible
+                        radius: plate.radius
+                        offset.y: 4
+                        blur: 16
+                        spread: -4
+                        color: Qt.rgba(0, 0, 0, Theme.darkMode ? 0.45 : 0.12)
+                    }
+                    Rectangle {
+                        id: plate
+                        visible: tabBar._sel !== null
+                        x: tabBar._sel ? tabBar._sel.x : 0
+                        width: tabBar._sel ? tabBar._sel.width : 0
+                        height: tabRow.height
+                        radius: Dimensions.radiusLG
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: Theme.fillSecondary }
+                            GradientStop { position: 1.0; color: Theme.fillTertiary }
+                        }
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, Theme.darkMode ? 0.08 : 0)
+                        Behavior on x { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
+                        Behavior on width { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
 
-                        Item {
-                            id: tab
-                            required property var modelData
-                            required property int index
-                            readonly property bool selected: root.selectedCategory === tab.index
-
-                            width: Math.max(76, tabLabel.implicitWidth + 24)
-                            height: 58
-
-                            activeFocusOnTab: true
-                            Accessible.role: Accessible.PageTab
-                            Accessible.name: tab.modelData.name
-                            Accessible.checked: tab.selected
-                            Keys.onReturnPressed: root.selectedCategory = tab.index
-                            Keys.onSpacePressed: root.selectedCategory = tab.index
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: Dimensions.radiusMD
-                                color: tab.selected ? Theme.fillTertiary
-                                     : tabHover.hovered ? Theme.fillQuaternary : "transparent"
-                                Behavior on color { ColorAnimation { duration: Dimensions.animVeryFast } }
+                        // Lit along the top
+                        Rectangle {
+                            x: plate.radius
+                            width: plate.width - plate.radius * 2
+                            height: 1
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0.0; color: "transparent" }
+                                GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, Theme.darkMode ? 0.18 : 0.6) }
+                                GradientStop { position: 1.0; color: "transparent" }
                             }
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: -2
-                                radius: Dimensions.radiusMD + 2
-                                color: "transparent"
-                                border.width: 2
-                                border.color: Theme.withAlpha(Theme.primary, 0.5)
-                                visible: tab.activeFocus
-                            }
-                            Column {
-                                anchors.centerIn: parent
-                                spacing: 5
-                                Icon {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    glyph: root._icon(tab.modelData)
-                                    size: 20
-                                    color: tab.selected ? Theme.primary : Theme.textSecondary
+                        }
+                        // The accent underline of the chosen tab
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 5
+                            width: 18
+                            height: 3
+                            radius: 1.5
+                            color: Theme.primary
+                        }
+                    }
+
+                    Row {
+                        id: tabRow
+                        spacing: 6
+
+                        Repeater {
+                            model: root.categories
+
+                            Item {
+                                id: tab
+                                required property var modelData
+                                required property int index
+                                readonly property bool selected: root.selectedCategory === tab.index
+
+                                width: Math.max(80, tabLabel.implicitWidth + 28)
+                                height: 62
+
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.PageTab
+                                Accessible.name: tab.modelData.name
+                                Accessible.checked: tab.selected
+                                Keys.onReturnPressed: root.selectedCategory = tab.index
+                                Keys.onSpacePressed: root.selectedCategory = tab.index
+
+                                onSelectedChanged: if (selected) {
+                                    tabBar._sel = tab
+                                    tabIcon.play()
                                 }
-                                Text {
-                                    id: tabLabel
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    textFormat: Text.PlainText
-                                    text: tab.modelData.name
-                                    font.pixelSize: Dimensions.footnote
-                                    font.weight: tab.selected ? Font.DemiBold : Font.Medium
-                                    color: tab.selected ? Theme.textPrimary : Theme.textSecondary
+                                Component.onCompleted: if (selected) tabBar._sel = tab
+
+                                scale: tabTap.pressed ? 0.94 : 1
+                                Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutBack } }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: Dimensions.radiusLG
+                                    color: !tab.selected && tabHover.hovered ? Theme.fillQuaternary : "transparent"
+                                    Behavior on color { ColorAnimation { duration: Dimensions.animVeryFast } }
                                 }
-                            }
-                            HoverHandler { id: tabHover; cursorShape: Qt.PointingHandCursor }
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: root.selectedCategory = tab.index
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -2
+                                    radius: Dimensions.radiusLG + 2
+                                    color: "transparent"
+                                    border.width: 2
+                                    border.color: Theme.withAlpha(Theme.primary, 0.5)
+                                    visible: tab.activeFocus
+                                }
+                                Column {
+                                    anchors.centerIn: parent
+                                    anchors.verticalCenterOffset: -2
+                                    spacing: 5
+                                    MotionIcon {
+                                        id: tabIcon
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        glyph: root._icon(tab.modelData)
+                                        size: 20
+                                        color: tab.selected ? Theme.primaryText
+                                             : tabHover.hovered ? Theme.textPrimary : Theme.textSecondary
+                                        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                                    }
+                                    Text {
+                                        id: tabLabel
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        textFormat: Text.PlainText
+                                        text: tab.modelData.name
+                                        font.pixelSize: Dimensions.footnote
+                                        font.weight: tab.selected ? Font.DemiBold : Font.Medium
+                                        color: tab.selected ? Theme.textPrimary : Theme.textSecondary
+                                    }
+                                }
+                                HoverHandler {
+                                    id: tabHover
+                                    cursorShape: Qt.PointingHandCursor
+                                    onHoveredChanged: if (hovered && !tab.selected) tabIcon.play()
+                                }
+                                MouseArea {
+                                    id: tabTap
+                                    anchors.fill: parent
+                                    onClicked: root.selectedCategory = tab.index
+                                }
                             }
                         }
                     }
@@ -236,17 +314,24 @@ Item {
                     }
 
                     // Entry animation (same visual as before)
+                    // Entry: a fade, and a slide from the side of the tab it
+                    // came from (from below on the first visit)
                     opacity: 0
                     transform: Translate { id: contentTranslate; y: 8 }
+                    property int _shownCategory: 0
                     ParallelAnimation {
                         id: contentEntryAnim
                         NumberAnimation {
                             target: pageContainer; property: "opacity"
-                            from: 0; to: 1; duration: 220; easing.type: Easing.OutCubic
+                            to: 1; duration: Dimensions.animNormal; easing.type: Easing.OutCubic
                         }
                         NumberAnimation {
                             target: contentTranslate; property: "y"
-                            from: 8; to: 0; duration: 220; easing.type: Easing.OutCubic
+                            to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutExpo
+                        }
+                        NumberAnimation {
+                            target: contentTranslate; property: "x"
+                            to: 0; duration: Dimensions.animSlow; easing.type: Easing.OutExpo
                         }
                     }
 
@@ -264,8 +349,12 @@ Item {
                         target: root
                         function onSelectedCategoryChanged() {
                             settingsScrollView.ScrollBar.vertical.position = 0
+                            const dir = root.selectedCategory > pageContainer._shownCategory ? 1
+                                      : root.selectedCategory < pageContainer._shownCategory ? -1 : 0
+                            pageContainer._shownCategory = root.selectedCategory
                             pageContainer.opacity = 0
-                            contentTranslate.y = 8
+                            contentTranslate.x = dir * 36
+                            contentTranslate.y = dir === 0 ? 8 : 0
 
                             // Activate page on first visit
                             if (!pageContainer._visited[root.selectedCategory]) {

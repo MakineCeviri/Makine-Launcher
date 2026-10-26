@@ -77,6 +77,7 @@ Item {
         spacing: 12
 
         IconTile {
+            id: rowTile
             visible: row.icon !== ""
             Layout.alignment: Qt.AlignVCenter
             glyph: row.icon
@@ -128,6 +129,10 @@ Item {
         id: hover
         enabled: row.clickable
         cursorShape: Qt.PointingHandCursor
+    }
+    // Any row, clickable or not: its tile answers the pointer
+    HoverHandler {
+        onHoveredChanged: if (hovered && row.icon !== "") rowTile.play()
     }
     TapHandler {
         id: tap

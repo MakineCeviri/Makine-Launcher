@@ -14,6 +14,10 @@ pragma ComponentBehavior: Bound
  * catching the light (brightest in the middle, gone at the corners) — the
  * edge 0.1.5's containers had. `glow` adds a soft accent light in a corner
  * for the container that leads a page. Light: white with a soft shadow.
+ *
+ * Each time it comes into view (its page opens) it rises into place: a
+ * short fade and lift, later the lower it sits, so a page assembles from
+ * the top down. `reveal: false` keeps it still.
  */
 Rectangle {
     id: card
@@ -24,7 +28,27 @@ Rectangle {
     property bool glow: false
     // "topRight" | "topLeft" | "bottomLeft" | "bottomRight"
     property string glowCorner: "topRight"
-    property real glowStrength: 0.13
+    property real glowStrength: 0.18
+    property bool reveal: true
+
+    transform: Translate { id: rise }
+    onVisibleChanged: if (visible) _reveal()
+    Component.onCompleted: _reveal()
+    function _reveal() {
+        if (!card.reveal || Dimensions.animSlow === 0) return
+        card.opacity = 0
+        rise.y = 14
+        arrive.restart()
+    }
+    SequentialAnimation {
+        id: arrive
+        // Lower on the page, a little later (capped: a long page does not wait)
+        PauseAnimation { duration: Math.round(Math.min(Math.max(card.y, 0) * 0.12, 200)) }
+        ParallelAnimation {
+            NumberAnimation { target: card; property: "opacity"; to: 1; duration: 320; easing.type: Easing.OutCubic }
+            NumberAnimation { target: rise; property: "y"; to: 0; duration: 560; easing.type: Easing.OutExpo }
+        }
+    }
 
     radius: Dimensions.radiusCard
     color: Theme.container

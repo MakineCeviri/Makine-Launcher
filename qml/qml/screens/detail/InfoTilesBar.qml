@@ -59,6 +59,7 @@ Card {
                 Layout.fillWidth: true
                 text: tile.label
                 font.pixelSize: Dimensions.caption2
+                font.family: Dimensions.fontText
                 font.weight: Font.DemiBold
                 font.letterSpacing: 0.6
                 font.capitalization: Font.AllUppercase
@@ -122,6 +123,7 @@ Card {
             color: Theme.textMuted
         }
         AppButton {
+            icon: Icons.refreshCw
             visible: !root._loading
             size: "small"
             style: "plain"

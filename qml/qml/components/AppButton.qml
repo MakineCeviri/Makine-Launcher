@@ -19,7 +19,8 @@ pragma ComponentBehavior: Bound
  *   size   "small" 28 · "regular" 34 · "large" 44
  *
  * No text → a round icon-only button. `busy` swaps the icon for a spinner
- * and ignores clicks.
+ * and ignores clicks. Under the pointer the icon plays its motion
+ * (MotionIcon: refresh turns, download drops, an arrow goes its way).
  */
 Item {
     id: btn
@@ -35,6 +36,8 @@ Item {
     // Stretch the label across the width (sheets, stacked buttons)
     property bool fillWidth: false
     property color tint: Theme.primary
+    // Turns the trailing icon (a menu's chevron while its menu is open)
+    property real trailingRotation: 0
 
     signal clicked()
 
@@ -86,7 +89,10 @@ Item {
     implicitHeight: btn._h
     implicitWidth: btn._iconOnly ? btn._h : Math.max(btn._h, content.implicitWidth + btn._padX * 2)
     Layout.preferredHeight: implicitHeight
-    opacity: btn._pressed ? 0.72 : 1.0
+    opacity: btn._pressed ? 0.8 : 1.0
+    // A press gives a little, and springs back on release
+    scale: btn._pressed ? 0.96 : 1.0
+    Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
     Behavior on opacity { NumberAnimation { duration: Dimensions.animVeryFast } }
 
     activeFocusOnTab: btn.enabled
@@ -142,7 +148,8 @@ Item {
             Layout.preferredHeight: btn._iconSize
             Layout.alignment: Qt.AlignVCenter
 
-            Icon {
+            MotionIcon {
+                id: leadIcon
                 anchors.centerIn: parent
                 visible: !btn.busy
                 glyph: btn.icon
@@ -170,8 +177,11 @@ Item {
             color: btn._labelColor
         }
 
-        Icon {
+        MotionIcon {
+            id: trailIcon
             visible: btn.trailingIcon !== "" && !btn._iconOnly
+            rotation: btn.trailingRotation
+            Behavior on rotation { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutBack } }
             Layout.alignment: Qt.AlignVCenter
             glyph: btn.trailingIcon
             size: btn._iconSize - 2
@@ -182,6 +192,11 @@ Item {
     HoverHandler {
         id: hover
         cursorShape: btn.enabled && !btn.busy ? Qt.PointingHandCursor : Qt.ArrowCursor
+        // Under the pointer its icon moves the way it shows (MotionIcon)
+        onHoveredChanged: if (hovered && btn.enabled && !btn.busy) {
+            leadIcon.play()
+            trailIcon.play()
+        }
     }
     // A MouseArea, not a TapHandler: it takes the press, so a clickable row
     // or card under the button does not act on the same click.

@@ -13,10 +13,13 @@ ToolTip {
     id: tip
     delay: 500
     timeout: 6000
+    // The window's fit-to-size factor (Main.qml)
+    scale: Dimensions.uiZoom
 
     contentItem: Text {
         text: tip.text
         font.pixelSize: Dimensions.caption1
+        font.family: Dimensions.fontText
         font.weight: Font.Medium
         color: Theme.textPrimary
         textFormat: Text.PlainText

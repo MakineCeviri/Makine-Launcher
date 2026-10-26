@@ -68,6 +68,7 @@ Card {
                 }
             }
             AppButton {
+                icon: Icons.gamepad2
                 visible: card.gameDetected
                 style: "gray"
                 text: qsTr("Kütüphaneye git")

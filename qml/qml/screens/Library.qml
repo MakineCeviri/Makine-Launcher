@@ -3,7 +3,9 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Layouts
+import QtQuick.Shapes
 import MakineLauncher 1.0
 import "../components"
 pragma ComponentBehavior: Bound
@@ -11,10 +13,12 @@ pragma ComponentBehavior: Bound
 /**
  * Library.qml - This PC's games with a Turkish patch, and what each needs next
  *
- * One grouped list, the way the App Store lists updates: each row carries
- * the game's state and its one action — install, update, the patch's own
- * site — and opens the game's page. The segmented control on top filters;
- * GameService.library orders the rows: what needs a step first.
+ * A shelf of the games themselves, the way a console's library looks: each
+ * one a card of its Steam art with its name, where it was found, its state
+ * and its one action — install, update, the patch's own site, its page — and
+ * the card opens the game's page. The last tile adds a game the scan missed.
+ * The segmented control filters; GameService.library orders the cards: what
+ * needs a step first.
  */
 Item {
     id: libraryRoot
@@ -111,175 +115,38 @@ Item {
                     toolTip: qsTr("Steam, Epic, GOG ve Xbox kütüphanelerine yeniden bak")
                     onClicked: GameService.scanAllLibraries()
                 }
-                AppButton {
-                    style: "gray"
-                    icon: Icons.plus
-                    text: qsTr("Oyun ekle")
-                    toolTip: qsTr("Listede olmayan bir oyunun klasörünü seç")
-                    onClicked: libraryRoot.manualFolderRequested()
+            }
+
+            SegmentedControl {
+                visible: libraryRoot._lib.length > 0 && libraryRoot._filters.length > 1
+                model: libraryRoot._filters
+                currentValue: libraryRoot.filter
+                onActivated: (value) => libraryRoot.filter = value
+            }
+
+            // The games
+            GridLayout {
+                id: grid
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+                visible: libraryRoot._lib.length > 0
+                columns: contentColumn.width >= 960 ? 3 : 2
+                columnSpacing: 20
+                rowSpacing: 20
+
+                readonly property real _cardW: (contentColumn.width - columnSpacing * (columns - 1)) / columns
+                readonly property real _cardH: Math.round(Math.max(200, Math.min(300, _cardW * 0.52)))
+
+                Repeater {
+                    model: libraryRoot._rows
+                    delegate: GameCard {}
                 }
             }
 
-            // The games, their filters on the container's top bar
-            Card {
-                Layout.fillWidth: true
-                Layout.topMargin: 2
-                visible: libraryRoot._rows.length > 0
-                implicitHeight: libCol.implicitHeight
-                radius: Dimensions.radiusSection
-                glow: true
-
-                ColumnLayout {
-                    id: libCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    spacing: 0
-
-                SegmentedControl {
-                    visible: libraryRoot._lib.length > 0 && libraryRoot._filters.length > 1
-                    Layout.topMargin: 14
-                    Layout.leftMargin: 16
-                    Layout.bottomMargin: 12
-                    model: libraryRoot._filters
-                    currentValue: libraryRoot.filter
-                    onActivated: (value) => libraryRoot.filter = value
-                }
-                FadeLine {
-                    visible: libraryRoot._lib.length > 0 && libraryRoot._filters.length > 1
-                    Layout.leftMargin: 12
-                    Layout.rightMargin: 12
-                }
-
-                ColumnLayout {
-                    id: rowsCol
-                    Layout.fillWidth: true
-                    spacing: 0
-
-                    Repeater {
-                        model: libraryRoot._rows
-
-                        delegate: Item {
-                            id: row
-                            required property var modelData
-                            required property int index
-
-                            readonly property string status: row.modelData.status || "ready"
-                            readonly property color tone: row.status === "update" ? Theme.warning
-                                                        : row.status === "installed" ? Theme.success
-                                                        : row.status === "external" ? Theme.textMuted
-                                                        : Theme.primary
-                            readonly property bool _first: row.index === 0
-                            readonly property bool _last: row.index === libraryRoot._rows.length - 1
-                            function open() {
-                                libraryRoot.gameSelected(row.modelData.id, row.modelData.name || "",
-                                                         row.modelData.installPath || "", row.modelData.engine || "")
-                            }
-                            function act() {
-                                if (row.status === "external")
-                                    Qt.openUrlExternally(row.modelData.externalUrl)
-                                else if (row.status === "installed")
-                                    row.open()
-                                else
-                                    libraryRoot.installRequested(row.modelData.id, row.modelData.name || "",
-                                                                 row.modelData.installPath || "", row.modelData.engine || "")
-                            }
-
-                            Layout.fillWidth: true
-                            implicitHeight: 92
-
-                            activeFocusOnTab: true
-                            Accessible.role: Accessible.Button
-                            Accessible.name: row.modelData.name || ""
-                            Keys.onReturnPressed: row.open()
-                            Keys.onSpacePressed: row.open()
-
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: 1
-                                visible: rowHover.hovered || row.activeFocus
-                                color: rowTap.pressed ? Theme.fillTertiary : Theme.fillQuaternary
-                                topLeftRadius: row._first ? Dimensions.radiusLG - 1 : 0
-                                topRightRadius: row._first ? Dimensions.radiusLG - 1 : 0
-                                bottomLeftRadius: row._last ? Dimensions.radiusLG - 1 : 0
-                                bottomRightRadius: row._last ? Dimensions.radiusLG - 1 : 0
-                            }
-                            Rectangle {
-                                visible: !row._first
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.leftMargin: 16 + 48 + 16
-                                height: 1
-                                color: Theme.separator
-                            }
-
-                            HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { id: rowTap; onTapped: row.open() }
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 16
-                                anchors.rightMargin: 16
-                                spacing: 16
-
-                                Thumb {
-                                    Layout.alignment: Qt.AlignVCenter
-                                    gameId: row.modelData.id || ""
-                                    steamAppId: row.modelData.steamAppId || ""
-                                }
-
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 3
-
-                                    Text {
-                                        Layout.fillWidth: true
-                                        textFormat: Text.PlainText
-                                        text: row.modelData.name || ""
-                                        elide: Text.ElideRight
-                                        font.pixelSize: Dimensions.headline
-                                        font.weight: Font.DemiBold
-                                        color: Theme.textPrimary
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        textFormat: Text.PlainText
-                                        text: libraryRoot._source(row.modelData) + "  ·  "
-                                              + libraryRoot._shownPath(row.modelData.installPath)
-                                        elide: Text.ElideMiddle
-                                        font.pixelSize: Dimensions.footnote
-                                        color: Theme.textMuted
-                                    }
-                                    StatusBadge {
-                                        Layout.topMargin: 3
-                                        tint: row.tone
-                                        text: row.status === "update" ? qsTr("Güncelleme var")
-                                            : row.status === "installed" ? qsTr("Yama kurulu")
-                                            : row.status === "external" ? qsTr("Yaması başka sitede")
-                                            : qsTr("Yama hazır, kurulmadı")
-                                    }
-                                }
-
-                                AppButton {
-                                    Layout.alignment: Qt.AlignVCenter
-                                    style: row.status === "ready" ? "filled"
-                                         : row.status === "update" ? "filled" : "gray"
-                                    tint: row.status === "update" ? Theme.warning : Theme.primary
-                                    icon: row.status === "ready" ? Icons.download
-                                        : row.status === "update" ? Icons.refreshCw
-                                        : row.status === "external" ? Icons.arrowUpRight : ""
-                                    trailingIcon: row.status === "installed" ? Icons.chevronRight : ""
-                                    text: row.status === "ready" ? qsTr("Türkçe Yamayı Kur")
-                                        : row.status === "update" ? qsTr("Güncelle")
-                                        : row.status === "external" ? qsTr("Sitesine git")
-                                        : qsTr("Sayfasını aç")
-                                    onClicked: row.act()
-                                }
-                            }
-                        }
-                    }
-                }
-                }
+            // Under them, the way to add one the scan missed
+            AddTile {
+                visible: libraryRoot._lib.length > 0
+                Layout.topMargin: 4
             }
 
             // Nothing yet: what to do about it
@@ -330,60 +197,349 @@ Item {
                     }
                 }
             }
+        }
+    }
 
-            Text {
+    // ── Parts ────────────────────────────────────────────────────────────
+
+    // A game: its art, its name and where it lives, its state, its one action
+    component GameCard: Item {
+        id: card
+        required property var modelData
+        required property int index
+
+        readonly property string status: card.modelData.status || "ready"
+        readonly property color tone: card.status === "update" ? Theme.warning
+                                    : card.status === "installed" ? Theme.success
+                                    : card.status === "external" ? Theme.textMuted
+                                    : Theme.primary
+        readonly property string appId: card.modelData.steamAppId || ""
+        readonly property bool _lifted: cardHover.hovered || card.activeFocus
+
+        function open() {
+            libraryRoot.gameSelected(card.modelData.id, card.modelData.name || "",
+                                     card.modelData.installPath || "", card.modelData.engine || "")
+        }
+        function act() {
+            if (card.status === "external")
+                Qt.openUrlExternally(card.modelData.externalUrl)
+            else if (card.status === "installed")
+                card.open()
+            else
+                libraryRoot.installRequested(card.modelData.id, card.modelData.name || "",
+                                             card.modelData.installPath || "", card.modelData.engine || "")
+        }
+
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1
+        implicitHeight: grid._cardH
+
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: card.modelData.name || ""
+        Keys.onReturnPressed: card.open()
+        Keys.onSpacePressed: card.open()
+
+        // The cover from the image cache, for a game without Steam art
+        property string _cover: ""
+        function _resolveCover() {
+            const id = card.appId || card.modelData.id || ""
+            card._cover = id ? ImageCache.resolve(id) : ""
+        }
+        readonly property bool fallback: card.appId === "" || shot.status === Image.Error
+        onFallbackChanged: if (fallback) _resolveCover()
+        Component.onCompleted: {
+            if (fallback) _resolveCover()
+            _arrive()
+        }
+        // Fixed target, gated by `enabled` (NATIVE-74).
+        Connections {
+            target: ImageCache
+            enabled: card.fallback && card._cover === ""
+            function onImageReady(readyId) {
+                if (readyId === (card.appId || card.modelData.id)) card._resolveCover()
+            }
+        }
+
+        // Rises into place when it arrives, and a little under the pointer
+        transform: [
+            Translate { id: rise; y: 0 },
+            Translate {
+                y: card._lifted ? -4 : 0
+                Behavior on y { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
+            }
+        ]
+
+        RectangularShadow {
+            anchors.fill: art
+            radius: Dimensions.radiusSection
+            offset.y: card._lifted ? 14 : 8
+            blur: card._lifted ? 36 : 26
+            spread: -6
+            color: Qt.rgba(0, 0, 0, Theme.darkMode ? (card._lifted ? 0.6 : 0.45) : 0.18)
+            Behavior on offset.y { NumberAnimation { duration: Dimensions.animNormal } }
+        }
+
+        // ── Art (rounded by a mask) ──
+        Item {
+            id: art
+            anchors.fill: parent
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: artMask
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
+            }
+
+            Rectangle { anchors.fill: parent; color: Theme.surface }
+
+            Image {
+                id: shot
+                anchors.fill: parent
+                source: card.appId !== "" ? GameService.steamHeroUrl(card.appId) : ""
+                fillMode: Image.PreserveAspectCrop
+                sourceSize.width: 1000
+                asynchronous: true
+                opacity: status === Image.Ready ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow } }
+                // A slow push in while the card is lifted
+                scale: card._lifted ? 1.05 : 1
+                Behavior on scale { NumberAnimation { duration: 900; easing.type: Easing.OutCubic } }
+            }
+
+            // No Steam art: the cover blurred into a backdrop, the cover beside it
+            Image {
+                id: backdrop
+                anchors.fill: parent
+                visible: false
+                source: card.fallback ? card._cover : ""
+                fillMode: Image.PreserveAspectCrop
+                sourceSize: Qt.size(260, 370)
+                asynchronous: true
+            }
+            MultiEffect {
+                anchors.fill: parent
+                visible: card.fallback && backdrop.status === Image.Ready
+                source: backdrop
+                blurEnabled: true
+                blurMax: 64
+                blur: 1.0
+                brightness: -0.2
+                saturation: 0.2
+            }
+            Image {
+                visible: card.fallback
+                anchors.right: parent.right
+                anchors.rightMargin: 22
+                anchors.verticalCenter: parent.verticalCenter
+                height: parent.height - 44
+                width: height * 130 / 185
+                source: card._cover
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+                mipmap: true
+            }
+
+            // Legibility: the state on a dark head, the name on a dark foot
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.35) }
+                    GradientStop { position: 0.28; color: Qt.rgba(0, 0, 0, 0.0) }
+                    GradientStop { position: 0.5; color: Qt.rgba(0, 0, 0, 0.08) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.86) }
+                }
+            }
+        }
+        Item {
+            id: artMask
+            anchors.fill: art
+            visible: false
+            layer.enabled: true
+            Rectangle { anchors.fill: parent; radius: Dimensions.radiusSection; color: "black" }
+        }
+
+        // Hairline, lit along the top
+        Rectangle {
+            anchors.fill: parent
+            radius: Dimensions.radiusSection
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, card._lifted ? 0.2 : 0.1)
+            Behavior on border.color { ColorAnimation { duration: Dimensions.animFast } }
+        }
+        Rectangle {
+            x: Dimensions.radiusSection
+            width: parent.width - Dimensions.radiusSection * 2
+            height: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.3; color: Qt.rgba(1, 1, 1, 0.24) }
+                GradientStop { position: 0.7; color: Qt.rgba(1, 1, 1, 0.24) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+
+        // Focus ring
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -3
+            radius: Dimensions.radiusSection + 3
+            color: "transparent"
+            border.width: 3
+            border.color: Theme.withAlpha(Theme.primary, 0.5)
+            visible: card.activeFocus
+        }
+
+        // The state, on the art's head
+        StatusBadge {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: 14
+            onArt: true
+            tint: card.tone
+            text: card.status === "update" ? qsTr("Güncelleme var")
+                : card.status === "installed" ? qsTr("Yama kurulu")
+                : card.status === "external" ? qsTr("Yaması başka sitede")
+                : qsTr("Yama hazır, kurulmadı")
+        }
+
+        // The name, where it was found, and the one action
+        RowLayout {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            spacing: 14
+
+            ColumnLayout {
                 Layout.fillWidth: true
-                visible: libraryRoot._lib.length > 0
-                horizontalAlignment: Text.AlignHCenter
-                textFormat: Text.PlainText
-                wrapMode: Text.WordWrap
-                font.pixelSize: Dimensions.footnote
-                color: Theme.textMuted
-                text: qsTr("Bir oyunun listede yok mu? Klasörünü pencereye sürükleyip bırak ya da \"Oyun ekle\"yi kullan.")
+                Layout.alignment: Qt.AlignBottom
+                spacing: 3
+                Text {
+                    Layout.fillWidth: true
+                    textFormat: Text.PlainText
+                    text: card.modelData.name || ""
+                    elide: Text.ElideRight
+                    maximumLineCount: 2
+                    wrapMode: Text.WordWrap
+                    font.family: Dimensions.fontDisplay
+                    font.pixelSize: Dimensions.title3
+                    font.weight: Font.Bold
+                    font.letterSpacing: Dimensions.trackingHeadline
+                    color: "#FFFFFF"
+                }
+                Text {
+                    Layout.fillWidth: true
+                    textFormat: Text.PlainText
+                    text: libraryRoot._source(card.modelData) + "  ·  " + libraryRoot._shownPath(card.modelData.installPath)
+                    elide: Text.ElideMiddle
+                    font.pixelSize: Dimensions.footnote
+                    font.family: Dimensions.fontText
+                    color: Qt.rgba(1, 1, 1, 0.62)
+                }
+            }
+            AppButton {
+                Layout.alignment: Qt.AlignBottom
+                style: card.status === "ready" || card.status === "update" ? "filled" : "glass"
+                tint: card.status === "update" ? Theme.warning : Theme.primary
+                icon: card.status === "ready" ? Icons.download
+                    : card.status === "update" ? Icons.refreshCw
+                    : card.status === "external" ? Icons.arrowUpRight : ""
+                trailingIcon: card.status === "installed" ? Icons.chevronRight : ""
+                text: card.status === "ready" ? qsTr("Türkçe Yamayı Kur")
+                    : card.status === "update" ? qsTr("Güncelle")
+                    : card.status === "external" ? qsTr("Sitesine git")
+                    : qsTr("Sayfasını aç")
+                onClicked: card.act()
+            }
+        }
+
+        HoverHandler { id: cardHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: card.open() }
+
+        // Cards rise into place one after another
+        opacity: 0
+        function _arrive() {
+            if (Dimensions.animSlow === 0) { card.opacity = 1; return }
+            arrive.restart()
+        }
+        SequentialAnimation {
+            id: arrive
+            PauseAnimation { duration: Math.min(card.index, 8) * 60 }
+            ParallelAnimation {
+                NumberAnimation { target: card; property: "opacity"; from: 0; to: 1; duration: 320; easing.type: Easing.OutCubic }
+                NumberAnimation { target: rise; property: "y"; from: 18; to: 0; duration: 560; easing.type: Easing.OutExpo }
             }
         }
     }
 
-    // A small cover for a list row (pre-rounded art from the image cache)
-    component Thumb: Item {
-        id: thumb
-        property string gameId: ""
-        property string steamAppId: ""
-        property string _src: ""
-        function _resolve() {
-            const id = thumb.steamAppId || thumb.gameId
-            thumb._src = id ? ImageCache.resolve(id) : ""
-        }
-        onSteamAppIdChanged: _resolve()
-        onGameIdChanged: _resolve()
-        Component.onCompleted: _resolve()
+    // A dashed drop zone: a game the scan did not find
+    component AddTile: Item {
+        id: add
+        Layout.fillWidth: true
+        implicitHeight: 84
 
-        implicitWidth: 48
-        implicitHeight: 68
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Oyun ekle")
+        Keys.onReturnPressed: libraryRoot.manualFolderRequested()
+        Keys.onSpacePressed: libraryRoot.manualFolderRequested()
 
-        // Fixed target, gated by `enabled` (NATIVE-74).
-        Connections {
-            target: ImageCache
-            enabled: thumb._src === ""
-            function onImageReady(readyId) {
-                if (readyId === (thumb.steamAppId || thumb.gameId)) thumb._resolve()
+        readonly property bool _hot: addHover.hovered || add.activeFocus
+
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeColor: add._hot ? Theme.withAlpha(Theme.primary, 0.75) : Theme.separatorStrong
+                strokeWidth: 1.5
+                strokeStyle: ShapePath.DashLine
+                dashPattern: [4, 3]
+                fillColor: add._hot ? Theme.withAlpha(Theme.primary, 0.07) : Theme.withAlpha(Theme.textPrimary, 0.02)
+                PathRectangle {
+                    x: 0.75; y: 0.75
+                    width: add.width - 1.5
+                    height: add.height - 1.5
+                    radius: Dimensions.radiusSection
+                }
             }
         }
-        Rectangle {
-            anchors.fill: parent
-            radius: width * 0.118
-            color: Theme.surfaceLight
-            visible: img.status !== Image.Ready
+
+        RowLayout {
+            anchors.centerIn: parent
+            spacing: 14
+
+            IconTile {
+                size: 38
+                glyph: Icons.plus
+                tint: Theme.primary
+                scale: add._hot ? 1.08 : 1
+                Behavior on scale { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutBack } }
+            }
+            ColumnLayout {
+                spacing: 2
+                Text {
+                    textFormat: Text.PlainText
+                    text: qsTr("Oyunun listede yok mu?")
+                    font.pixelSize: Dimensions.headline
+                    font.weight: Font.DemiBold
+                    color: Theme.textPrimary
+                }
+                Text {
+                    textFormat: Text.PlainText
+                    text: qsTr("Klasörünü seçmek için tıkla ya da pencereye sürükleyip bırak.")
+                    font.pixelSize: Dimensions.footnote
+                    font.family: Dimensions.fontText
+                    color: Theme.textMuted
+                }
+            }
         }
-        Image {
-            id: img
-            anchors.fill: parent
-            source: thumb._src
-            fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(96, 136)
-            asynchronous: true
-            mipmap: true
-        }
+
+        HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: libraryRoot.manualFolderRequested() }
     }
 
     // A scrolled page sinks into the background under the top strip

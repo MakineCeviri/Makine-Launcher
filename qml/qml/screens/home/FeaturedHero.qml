@@ -232,6 +232,7 @@ Item {
                         text: hero._eyebrow(slide.modelData)
                         elide: Text.ElideRight
                         font.pixelSize: Dimensions.caption1
+                        font.family: Dimensions.fontText
                         font.weight: Font.Bold
                         font.letterSpacing: 0.8
                         font.capitalization: Font.AllUppercase
@@ -308,7 +309,7 @@ Item {
                 anchors.leftMargin: 32
                 anchors.bottomMargin: 30
                 style: "glass"
-                icon: Icons.messagesSquare
+                icon: Icons.discord
                 text: qsTr("Discord topluluğuna katıl")
                 onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
             }
@@ -347,25 +348,23 @@ Item {
     }
 
     // ── Controls ─────────────────────────────────────────────────────────
-    AppButton {
+    PagerButton {
         anchors.left: parent.left
-        anchors.leftMargin: 14
+        anchors.leftMargin: 18
         anchors.verticalCenter: parent.verticalCenter
-        style: "glass"
-        icon: Icons.chevronLeft
-        toolTip: qsTr("Önceki")
+        direction: -1
+        size: 42
         opacity: heroHover.hovered && hero._count > 1 ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
         onClicked: hero.go(-1)
     }
-    AppButton {
+    PagerButton {
         anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.rightMargin: 18
         anchors.verticalCenter: parent.verticalCenter
-        style: "glass"
-        icon: Icons.chevronRight
-        toolTip: qsTr("Sonraki")
+        direction: 1
+        size: 42
         opacity: heroHover.hovered && hero._count > 1 ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }

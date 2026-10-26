@@ -47,11 +47,11 @@ Rectangle {
 
     Orb {
         cx: bg.width * 0.78; cy: bg.height * 0.12; r: bg._dim * 0.85
-        tint: bg._a; strength: 0.15 * bg._k
+        tint: bg._a; strength: 0.22 * bg._k
     }
     Orb {
         cx: bg.width * 0.16; cy: bg.height * 0.92; r: bg._dim * 0.75
-        tint: bg._b; strength: 0.13 * bg._k
+        tint: bg._b; strength: 0.19 * bg._k
     }
 
     // Vignette: the rim a touch darker, the way a lit room falls off

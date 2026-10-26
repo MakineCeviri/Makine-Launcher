@@ -80,6 +80,9 @@
     { "status": "next", "title": "Xbox (Game Pass) ve EA app", "text": "Bu iki mağazanın kütüphanelerindeki oyunları da kendiliğinden bulmak." },
     { "status": "next", "title": "Kurmadan önce boş alan", "text": "Yamanın ihtiyaç duyduğu boş alanı kurulumdan önce denetlemek; yer yetmiyorsa oyuna dokunmadan söylemek." },
     { "status": "next", "title": "Oyunu yamayla başlatmak", "text": "Mod yükleyiciyle açılması gereken oyunlarda (Elden Ring gibi) oyunun sayfasından tek tıkla başlatmak." },
+    { "status": "later", "title": "Eklentiler", "text": "Launcher'a topluluğun yazdığı eklentilerle yeni özellikler eklemek. Her eklenti kendi ayrı sürecinde çalışır; biri çökse de launcher'a bir şey olmaz." },
+    { "status": "later", "title": "Ana sayfada yama haberleri", "text": "Yeni çıkan ve güncellenen yamaları, çeviri ekiplerinin kısa notlarıyla birlikte ana sayfada görmek." },
+    { "status": "later", "title": "Oyun sürümüne uygun yama", "text": "Birden çok sürümü olan yamalarda oyununun sürümüne uyanı kendiliğinden seçmek." },
     { "status": "later", "title": "Yama istekleri", "text": "Hangi oyunun Türkçe yamasını beklediğini launcher'dan bildirmek ve isteklerin durumunu görmek." },
     { "status": "later", "title": "Daha küçük yama güncellemeleri", "text": "Bir yama güncellenince yalnız değişen dosyaları indirmek." },
     { "status": "later", "title": "Arşivden kuranlara tek tıkla güncelleme", "text": "ZIP ile kuranlar için launcher'ın yeni sürümünü kendisinin indirip kurması." }

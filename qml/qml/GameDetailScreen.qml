@@ -24,6 +24,8 @@ Item {
 
     // Single entry point — all game state accessed via viewModel
     required property var viewModel
+    // The page the back button returns to, its label
+    property string backTitle: qsTr("Geri")
 
     // UI-only state (not game data)
     readonly property bool _animEnabled: Dimensions.animSlow > 0
@@ -516,15 +518,14 @@ Item {
     // BACK — a toolbar button over the page's top strip
     // =========================================================================
 
-    AppButton {
-        x: Dimensions.pageMargin - 6
-        y: 10
+    // On the hero's left edge, in the middle of the gap above it
+    GlassButton {
+        x: Math.round((root.width - heroSection._width) / 2)
+        y: Math.round((heroSection.topGap - height) / 2)
         z: 100
-        size: "small"
-        style: "gray"
-        icon: Icons.chevronLeft
-        text: qsTr("Geri")
-        toolTip: qsTr("Geldiğin sayfaya dön (Esc)")
+        backdrop: mainFlick
+        // Opens under the pointer to where it leads; no tooltip on top of that
+        text: root.backTitle
         onClicked: root.backClicked()
     }
 

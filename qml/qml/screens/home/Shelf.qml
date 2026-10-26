@@ -16,7 +16,7 @@ pragma ComponentBehavior: Bound
  * Shift + wheel, or a drag) the row.
  *
  * model: a JS array of { id/gameId, name, steamAppId, installPath, engine,
- * status?, badge?, badgeColor?, subtitle? } or a CatalogProxyModel.
+ * status?, subtitle? } or a CatalogProxyModel.
  */
 Card {
     id: shelf
@@ -144,8 +144,6 @@ Card {
                             ?? (cell.model.packageInstalled ? "installed"
                                 : cell.model.isInstalled ? "installable"
                                 : (cell.model.externalUrl ?? "") !== "" ? "external" : "")
-                    badge: cell.model.badge ?? ""
-                    badgeColor: cell.model.badgeColor ?? Theme.primary
                     onClicked: shelf.gameClicked(cell._gameKey, cell.model.name ?? "",
                                                  cell.model.installPath ?? "", cell.model.engine ?? "")
                 }
@@ -199,41 +197,34 @@ Card {
 
         // Tiles fade out at the container's sides
         EdgeFade {
-            edge: "left"; size: 40
-            anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
-            active: !view.atStart
-        }
-        EdgeFade {
-            edge: "right"; size: 40
-            anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
-            active: !view.atEnd && view.overflows
+            target: view
+            leftFade: view.atStart ? 0 : 40
+            rightFade: !view.atEnd && view.overflows ? 40 : 0
         }
 
         HoverHandler { id: rowHover }
 
-        // Paging arrows: glass circles on the row's ends, over the art and
-        // over the fades (z 5) they sit in
-        AppButton {
+        // Paging arrows: glass circles on the row's ends, over the art where
+        // it fades out
+        PagerButton {
             z: 6
             anchors.left: parent.left
-            anchors.leftMargin: shelf.inset - 16
+            anchors.leftMargin: shelf.inset - 18
             y: 8 + Math.round(shelf.tileWidth * 185 / 130) / 2 - height / 2
-            style: "glass"
-            icon: Icons.chevronLeft
-            toolTip: qsTr("Önceki")
+            direction: -1
+            size: 38
             opacity: rowHover.hovered && !view.atStart ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }
             onClicked: view._page(-1)
         }
-        AppButton {
+        PagerButton {
             z: 6
             anchors.right: parent.right
-            anchors.rightMargin: shelf.inset - 16
+            anchors.rightMargin: shelf.inset - 18
             y: 8 + Math.round(shelf.tileWidth * 185 / 130) / 2 - height / 2
-            style: "glass"
-            icon: Icons.chevronRight
-            toolTip: qsTr("Sonraki")
+            direction: 1
+            size: 38
             opacity: rowHover.hovered && !view.atEnd && view.overflows ? 1 : 0
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Dimensions.animFast } }

@@ -28,10 +28,7 @@ Item {
     signal manualFolderRequested()
     signal settingsRequested()
     signal libraryRequested()
-    signal allGamesRequested(string filter, string sort, string query)
-
-    // Ctrl+F → the search box at the top
-    function focusSearch() { search.focusField() }
+    signal allGamesRequested(string filter, string sort)
 
     onVisibleChanged: if (visible) page.contentY = 0
 
@@ -62,9 +59,9 @@ Item {
         for (const e of GameService.recentlyUpdatedGames(24)) {
             out.push({ id: e.id || e.steamAppId, name: e.name || "", steamAppId: e.steamAppId || "",
                        installPath: e.installPath || "", engine: e.engine || "",
-                       badge: _dateText(e.version),
-                       badgeColor: e.packageInstalled ? Theme.success
-                                 : e.isInstalled ? Theme.primary : Theme.textSecondary })
+                       // When, under the name; the state, as the cover's mark
+                       subtitle: _dateText(e.version),
+                       status: e.packageInstalled ? "installed" : e.isInstalled ? "ready" : "" })
         }
         _recent = out
     }
@@ -122,19 +119,6 @@ Item {
                 title: qsTr("Ana Sayfa")
                 subtitle: homePage._summary
 
-                SearchField {
-                    id: search
-                    Layout.preferredWidth: 240
-                    placeholder: qsTr("Oyun ara")
-                    // The catalogue's search lives on "Tüm Oyunlar": the
-                    // first letter takes the query there.
-                    onTextChanged: {
-                        if (text === "") return
-                        const q = text
-                        Qt.callLater(() => search.clear())
-                        homePage.allGamesRequested("", "", q)
-                    }
-                }
                 AppButton {
                     style: "gray"
                     icon: Icons.folderSearch
@@ -179,7 +163,7 @@ Item {
                 Layout.fillWidth: true
                 visible: homePage._mine.length > 0
                 title: qsTr("Bilgisayarındaki oyunlar")
-                subtitle: qsTr("Türkçe yaması olan oyunların; kapaktaki etiket yamanın durumunu söyler.")
+                subtitle: qsTr("Türkçe yaması olan oyunların; adın önündeki işaret yamanın durumunu söyler (üstüne gelince yazar).")
                 seeAllText: qsTr("Kütüphanem")
                 model: homePage._mine
                 onGameClicked: (gameId, gameName, installPath, engine) =>
@@ -241,7 +225,7 @@ Item {
                 model: homePage._recent
                 onGameClicked: (gameId, gameName, installPath, engine) =>
                     homePage.gameSelected(gameId, gameName, installPath, engine)
-                onSeeAllClicked: homePage.allGamesRequested("", "newest", "")
+                onSeeAllClicked: homePage.allGamesRequested("", "newest")
             }
 
             Shelf {
@@ -252,7 +236,7 @@ Item {
                 model: localProxy
                 onGameClicked: (gameId, gameName, installPath, engine) =>
                     homePage.gameSelected(gameId, gameName, installPath, engine)
-                onSeeAllClicked: homePage.allGamesRequested("local", "", "")
+                onSeeAllClicked: homePage.allGamesRequested("local", "")
             }
 
             // Recognising a started game: what it does, switched right here

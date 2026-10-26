@@ -35,18 +35,20 @@ Dialog {
 
     x: parent ? Math.round((parent.width - width) / 2) : 0
     y: parent ? Math.round((parent.height - height) / 2) : 0
+    // The window's fit-to-size factor (Main.qml), like everything else in it
+    scale: Dimensions.uiZoom
 
     enter: Transition {
         ParallelAnimation {
             NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Dimensions.animMedium; easing.type: Easing.OutCubic }
-            NumberAnimation { property: "scale"; from: 0.94; to: 1; duration: Dimensions.animNormal; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+            NumberAnimation { property: "scale"; from: 0.94 * Dimensions.uiZoom; to: Dimensions.uiZoom; duration: Dimensions.animNormal; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
         }
     }
 
     exit: Transition {
         ParallelAnimation {
             NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Dimensions.animFast }
-            NumberAnimation { property: "scale"; from: 1; to: 0.97; duration: Dimensions.animFast }
+            NumberAnimation { property: "scale"; from: Dimensions.uiZoom; to: 0.97 * Dimensions.uiZoom; duration: Dimensions.animFast }
         }
     }
 

@@ -3,7 +3,9 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Layouts
+import QtQuick.Shapes
 import MakineLauncher 1.0
 import "../components"
 pragma ComponentBehavior: Bound
@@ -12,10 +14,14 @@ pragma ComponentBehavior: Bound
  * WhatsNewScreen.qml - "Yenilikler": the launcher's own news
  *
  * Whether a newer launcher is out and how to get it (the Store's page in the
- * Store build, the download page for the ZIP), what changed in each version,
- * and what we are working on next. Opens by itself on the first start after
- * an update. Notes and plan come from UpdateService: built into the app
- * (qml/resources/whatsnew.json) and refreshed from the CDN's copy.
+ * Store build, the download page for the ZIP), then one timeline that rises
+ * like a branch graph: the plan at the top on a dashed line (later, next,
+ * what we are on), the version in use glowing below it, older versions
+ * further down; each change branches off the trunk in its kind's colour.
+ * The nodes rise into place one after another when the page opens. Opens by
+ * itself on the first start after an update. Notes and plan come from
+ * UpdateService: built into the app (qml/resources/whatsnew.json) and
+ * refreshed from the CDN's copy.
  */
 Item {
     id: news
@@ -28,7 +34,7 @@ Item {
     readonly property bool _update: _state !== UpdateService.Idle && _state !== UpdateService.Checking
     readonly property bool _failed: _state === UpdateService.Idle && UpdateService.error !== ""
 
-    onVisibleChanged: if (visible) UpdateService.markNotesSeen()
+    onVisibleChanged: if (visible) { UpdateService.markNotesSeen(); revealTick++ }
     Component.onCompleted: if (visible) UpdateService.markNotesSeen()
 
     function _kindLabel(type) {
@@ -61,210 +67,329 @@ Item {
         color: Theme.textSecondary
     }
 
-    // One version: its number and date, what it is about, and every change
-    // with its kind. Older versions open on a tap.
-    component Release: Card {
-        id: rel
-        property var release: ({})
+    // ── Timeline ─────────────────────────────────────────────────────────────
+    // x of the trunk in a node, and where a node's content starts
+    readonly property real _trunkX: 15
+    readonly property real _gutter: 44
+    // Bumped each time the page shows: the nodes rise in again
+    property int revealTick: 0
+
+    // One stop on the trunk: the line through its gutter, its dot, its
+    // content to the right. `future` draws the line dashed and the dot
+    // hollow; `current` lights the dot. The first node's line starts at its
+    // dot, the last one's ends there.
+    component Node: Item {
+        id: node
+        property bool future: false
+        property bool current: false
+        property bool first: false
+        property bool last: false
+        property color tint: Theme.primary
+        property int order: 0
+        // A stage of the plan wears its sign on the trunk instead of a ring
+        property string glyph: ""
+        // Its branches shown (Fold); the head opens and shuts it
         property bool open: true
+        default property alias content: body.data
 
         Layout.fillWidth: true
-        implicitHeight: relCol.implicitHeight + 40
-        radius: Dimensions.radiusLG
-        glow: rel.release.newer === true
+        implicitHeight: body.implicitHeight + 30
+
+        readonly property real _dotY: 13
+
+        // The trunk
+        Shape {
+            id: trunk
+            x: news._trunkX - 1
+            y: node.first ? node._dotY : 0
+            width: 2
+            height: node.last ? node._dotY - y : node.height - y
+            visible: height > 0
+            ShapePath {
+                strokeColor: node.future ? Theme.withAlpha(Theme.textMuted, 0.45) : Theme.withAlpha(node.tint, 0.45)
+                strokeWidth: 2
+                strokeStyle: node.future ? ShapePath.DashLine : ShapePath.SolidLine
+                dashPattern: [2, 3]
+                fillColor: "transparent"
+                capStyle: ShapePath.FlatCap
+                startX: 1; startY: 0
+                PathLine { x: 1; y: trunk.height }
+            }
+        }
+
+        // The dot, and the version in use lit
+        RectangularShadow {
+            visible: node.current
+            x: news._trunkX - 9; y: node._dotY - 9
+            width: 18; height: 18
+            radius: 9
+            blur: 14
+            spread: 2
+            color: Theme.withAlpha(node.tint, 0.7)
+        }
+        Rectangle {
+            visible: node.glyph !== ""
+            x: news._trunkX - width / 2
+            y: node._dotY - height / 2
+            width: 26; height: 26
+            radius: 13
+            color: Qt.tint(Theme.bgPrimary, Theme.withAlpha(node.tint, 0.16))
+            border.width: 1.5
+            border.color: Theme.withAlpha(node.tint, 0.8)
+            Icon {
+                anchors.centerIn: parent
+                glyph: node.glyph
+                size: 14
+                color: node.tint
+            }
+        }
+        Rectangle {
+            visible: node.glyph === ""
+            x: news._trunkX - width / 2
+            y: node._dotY - height / 2
+            width: node.current ? 16 : 12
+            height: width
+            radius: width / 2
+            color: node.future ? Theme.bgPrimary : node.tint
+            border.width: node.future ? 2 : node.current ? 3 : 0
+            border.color: node.future ? Theme.withAlpha(node.tint, 0.8) : Qt.rgba(1, 1, 1, 0.85)
+        }
 
         ColumnLayout {
-            id: relCol
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 20
-            spacing: 10
+            id: body
+            x: news._gutter
+            width: node.width - news._gutter
+            spacing: 8
+        }
 
-            Item {
-                id: relHead
-                Layout.fillWidth: true
-                implicitHeight: headCol.implicitHeight
-
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Sürüm %1").arg(rel.release.version)
-                Keys.onReturnPressed: rel.open = !rel.open
-                Keys.onSpacePressed: rel.open = !rel.open
-
-                ColumnLayout {
-                    id: headCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    spacing: 4
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
-                        Text {
-                            textFormat: Text.PlainText
-                            text: qsTr("Sürüm %1").arg(rel.release.version)
-                            font.family: Dimensions.fontDisplay
-                            font.pixelSize: Dimensions.title3
-                            font.weight: Font.Bold
-                            color: Theme.textPrimary
-                        }
-                        StatusBadge {
-                            visible: rel.release.running === true
-                            text: qsTr("Kullandığın sürüm")
-                            tint: Theme.success
-                        }
-                        StatusBadge {
-                            visible: rel.release.newer === true
-                            text: qsTr("Yeni sürüm")
-                            tint: Theme.primary
-                        }
-                        Item { Layout.fillWidth: true }
-                        Text {
-                            textFormat: Text.PlainText
-                            text: rel.release.dateText || ""
-                            font.pixelSize: Dimensions.footnote
-                            color: Theme.textMuted
-                        }
-                        Icon {
-                            glyph: Icons.chevronDown
-                            size: 15
-                            color: Theme.textTertiary
-                            rotation: rel.open ? 180 : 0
-                            Behavior on rotation { NumberAnimation { duration: Dimensions.animNormal; easing.type: Easing.OutCubic } }
-                        }
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: (rel.release.title || "") !== ""
-                        textFormat: Text.PlainText
-                        wrapMode: Text.WordWrap
-                        text: rel.release.title || ""
-                        font.pixelSize: Dimensions.headline
-                        font.weight: Font.DemiBold
-                        color: Theme.textSecondary
-                    }
-                }
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: rel.open = !rel.open }
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: rel.open && (rel.release.summary || "") !== ""
-                textFormat: Text.PlainText
-                wrapMode: Text.WordWrap
-                lineHeight: 1.3
-                text: rel.release.summary || ""
-                font.pixelSize: Dimensions.callout
-                color: Theme.textSecondary
-            }
-
-            Repeater {
-                model: rel.open ? (rel.release.changes || []) : []
-                delegate: RowLayout {
-                    id: change
-                    required property var modelData
-                    Layout.fillWidth: true
-                    Layout.topMargin: 2
-                    spacing: 12
-                    Item {
-                        Layout.preferredWidth: 78
-                        Layout.alignment: Qt.AlignTop
-                        implicitHeight: kind.implicitHeight
-                        StatusBadge {
-                            id: kind
-                            text: news._kindLabel(change.modelData.type)
-                            tint: news._kindTint(change.modelData.type)
-                        }
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignTop
-                        textFormat: Text.PlainText
-                        wrapMode: Text.WordWrap
-                        lineHeight: 1.3
-                        text: change.modelData.text
-                        font.pixelSize: Dimensions.callout
-                        color: Theme.textSecondary
-                    }
-                }
+        // Rising into place, top first, one after another
+        opacity: 0
+        transform: Translate { id: lift; y: 28 }
+        function _arrive() {
+            if (Dimensions.animSlow === 0) { node.opacity = 1; lift.y = 0; return }
+            node.opacity = 0; lift.y = 28
+            arrive.restart()
+        }
+        Component.onCompleted: _arrive()
+        Connections { target: news; function onRevealTickChanged() { node._arrive() } }
+        SequentialAnimation {
+            id: arrive
+            PauseAnimation { duration: Math.min(node.order, 10) * 70 }
+            ParallelAnimation {
+                NumberAnimation { target: node; property: "opacity"; to: 1; duration: 380; easing.type: Easing.OutCubic }
+                NumberAnimation { target: lift; property: "y"; to: 0; duration: 620; easing.type: Easing.OutExpo }
             }
         }
     }
 
-    // One column of the plan: what we are on, what is next, what is later
-    component Stage: Card {
-        id: stage
-        property string status: ""
-        property string title: ""
-        property string glyph: ""
+    // A change (or a plan item) branching off the trunk: a curve from the
+    // trunk into a small dot in its kind's colour, then its words
+    component Branch: RowLayout {
+        id: branch
         property color tint: Theme.primary
-        readonly property var items: UpdateService.roadmap.filter(i => i.status === stage.status)
+        property string label: ""
+        property string text: ""
+        property string detail: ""
+        property bool dashed: false
 
-        visible: stage.items.length > 0
         Layout.fillWidth: true
-        Layout.preferredWidth: 1
-        Layout.fillHeight: true
-        implicitHeight: stageCol.implicitHeight + 40
-        radius: Dimensions.radiusLG
+        spacing: 10
 
+        Item {
+            Layout.preferredWidth: 10
+            Layout.alignment: Qt.AlignTop
+            implicitHeight: 18
+            // From the trunk (left, out of this row) down and right into the dot
+            Shape {
+                x: -(news._gutter - news._trunkX) - 10 + 10
+                y: -12
+                width: news._gutter - news._trunkX
+                height: 21
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeColor: Theme.withAlpha(branch.tint, 0.55)
+                    strokeWidth: 1.5
+                    strokeStyle: branch.dashed ? ShapePath.DashLine : ShapePath.SolidLine
+                    dashPattern: [2, 3]
+                    fillColor: "transparent"
+                    startX: 0; startY: 0
+                    PathQuad { x: 12; y: 21; controlX: 0; controlY: 21 }
+                    PathLine { x: news._gutter - news._trunkX + 2; y: 21 }
+                }
+            }
+            Rectangle {
+                x: 2; y: 5
+                width: 8; height: 8; radius: 4
+                color: branch.tint
+            }
+        }
         ColumnLayout {
-            id: stageCol
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 20
-            spacing: 14
-
+            Layout.fillWidth: true
+            spacing: 2
             RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Text {
+                    visible: branch.label !== ""
+                    Layout.alignment: Qt.AlignTop
+                    textFormat: Text.PlainText
+                    text: branch.label
+                    font.pixelSize: Dimensions.footnote
+                    font.weight: Font.DemiBold
+                    color: branch.tint
+                }
+                Text {
+                    Layout.fillWidth: true
+                    textFormat: Text.PlainText
+                    wrapMode: Text.WordWrap
+                    lineHeight: 1.25
+                    text: branch.text
+                    font.pixelSize: Dimensions.callout
+                    font.weight: branch.detail !== "" ? Font.DemiBold : Font.Normal
+                    color: branch.detail !== "" ? Theme.textPrimary : Theme.textSecondary
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: branch.detail !== ""
+                textFormat: Text.PlainText
+                wrapMode: Text.WordWrap
+                lineHeight: 1.25
+                text: branch.detail
+                font.pixelSize: Dimensions.callout
+                color: Theme.textSecondary
+            }
+        }
+    }
+
+    // A stop's heading: a title, a line under it, badges and a date
+    component NodeHead: ColumnLayout {
+        id: head
+        property string title: ""
+        property string subtitle: ""
+        property string date: ""
+        property bool large: false
+        // Folds its node: the whole head is the switch, a count and a
+        // chevron on its right say what is inside and which way it goes
+        property bool foldable: false
+        property bool open: true
+        property string countText: ""
+        signal toggled()
+        default property alias badges: badgeRow.data
+        Layout.fillWidth: true
+        spacing: 2
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            RowLayout {
+                id: badgeRow
                 spacing: 10
-                IconTile { size: 30; glyph: stage.glyph; tint: stage.tint }
                 Text {
                     textFormat: Text.PlainText
-                    text: stage.title
-                    font.pixelSize: Dimensions.headline
-                    font.weight: Font.DemiBold
+                    text: head.title
+                    font.family: Dimensions.fontDisplay
+                    font.pixelSize: head.large ? Dimensions.title2 : Dimensions.title3
+                    font.weight: Font.Bold
+                    font.letterSpacing: Dimensions.trackingHeadline
                     color: Theme.textPrimary
-                    Accessible.role: Accessible.Heading
-                    Accessible.name: text
                 }
             }
-            Repeater {
-                model: stage.items
-                delegate: ColumnLayout {
-                    id: item
-                    required property var modelData
-                    required property int index
-                    Layout.fillWidth: true
-                    spacing: 4
-                    Rectangle {
-                        visible: item.index > 0
-                        Layout.fillWidth: true
-                        Layout.bottomMargin: 10
-                        implicitHeight: 1
-                        color: Theme.separator
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        textFormat: Text.PlainText
-                        wrapMode: Text.WordWrap
-                        text: item.modelData.title
-                        font.pixelSize: Dimensions.body
-                        font.weight: Font.DemiBold
-                        color: Theme.textPrimary
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        textFormat: Text.PlainText
-                        wrapMode: Text.WordWrap
-                        lineHeight: 1.3
-                        text: item.modelData.text || ""
-                        font.pixelSize: Dimensions.callout
-                        color: Theme.textSecondary
-                    }
+            Item { Layout.fillWidth: true }
+            Rectangle {
+                visible: head.foldable && head.countText !== ""
+                implicitWidth: countLabel.implicitWidth + 18
+                implicitHeight: 24
+                radius: 12
+                color: headHover.hovered ? Theme.fillSecondary : Theme.fillTertiary
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Text {
+                    id: countLabel
+                    anchors.centerIn: parent
+                    textFormat: Text.PlainText
+                    text: head.countText
+                    font.pixelSize: Dimensions.caption1
+                    font.family: Dimensions.fontText
+                    font.weight: Font.DemiBold
+                    color: Theme.textSecondary
                 }
             }
+            Rectangle {
+                visible: head.foldable
+                implicitWidth: 28
+                implicitHeight: 28
+                radius: 14
+                color: head.open ? Theme.withAlpha(Theme.primary, headHover.hovered ? 0.22 : 0.14)
+                     : headHover.hovered ? Theme.fillSecondary : Theme.fillTertiary
+                Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+                Icon {
+                    anchors.centerIn: parent
+                    glyph: Icons.chevronDown
+                    size: 15
+                    color: head.open ? Theme.primaryText : Theme.textSecondary
+                    rotation: head.open ? 180 : 0
+                    Behavior on rotation { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutBack } }
+                }
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: head.subtitle !== "" || head.date !== ""
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                visible: head.subtitle !== ""
+                textFormat: Text.PlainText
+                wrapMode: Text.WordWrap
+                text: head.subtitle
+                font.pixelSize: Dimensions.callout
+                font.weight: Font.Medium
+                color: Theme.textSecondary
+            }
+            Text {
+                visible: head.date !== ""
+                textFormat: Text.PlainText
+                text: head.date
+                font.pixelSize: Dimensions.footnote
+                color: Theme.textMuted
+            }
+        }
+
+        HoverHandler {
+            id: headHover
+            enabled: head.foldable
+            cursorShape: Qt.PointingHandCursor
+        }
+        TapHandler {
+            enabled: head.foldable
+            onTapped: head.toggled()
+        }
+    }
+
+    // What a node holds, folding away: the room for it grows and shrinks, the
+    // branches fade in after it. It reaches into the gutter and a little
+    // above, so the curves from the trunk are inside what it clips.
+    component Fold: Item {
+        id: fold
+        property bool open: true
+        default property alias content: foldCol.data
+        readonly property real _reach: 14
+        Layout.fillWidth: true
+        Layout.leftMargin: -news._gutter
+        Layout.topMargin: -fold._reach
+        implicitHeight: fold.open ? foldCol.implicitHeight + fold._reach : 0
+        Behavior on implicitHeight { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+        clip: true
+
+        ColumnLayout {
+            id: foldCol
+            x: news._gutter
+            y: fold._reach + (fold.open ? 0 : -10)
+            width: fold.width - news._gutter
+            spacing: 8
+            opacity: fold.open ? 1 : 0
+            Behavior on y { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutExpo } }
+            Behavior on opacity { NumberAnimation { duration: fold.open ? Dimensions.animSlow : Dimensions.animFast } }
         }
     }
 
@@ -371,6 +496,7 @@ Item {
                         onClicked: UpdateService.check()
                     }
                     AppButton {
+                        icon: Icons.download
                         visible: UpdateService.actionable
                         style: news._state === UpdateService.Available || news._state === UpdateService.Ready ? "filled" : "gray"
                         text: UpdateService.actionText
@@ -387,33 +513,118 @@ Item {
                 }
             }
 
-            // ── Notes ──
-            SectionTitle { text: qsTr("Sürüm notları") }
-            Repeater {
-                model: UpdateService.releases
-                delegate: Release {
-                    required property var modelData
-                    required property int index
-                    release: modelData
-                    // The newest few open, older ones on a tap
-                    open: index < 2 || modelData.newer === true || modelData.running === true
-                }
-            }
-
-            // ── Plan ──
-            SectionTitle { text: qsTr("Sırada ne var?") }
+            // ── The timeline: the plan above, the versions below ──
+            SectionTitle { text: qsTr("Yol haritası") }
             Body {
-                text: qsTr("Üzerinde çalıştığımız ve sıraya aldığımız işler. Plan Discord'daki isteklerle ve hata raporlarıyla değişebilir; tarih vermiyoruz, hazır olanı yayınlıyoruz.")
+                text: qsTr("Yukarısı gelecek: kesik çizgide sıraya aldıklarımız ve üzerinde çalıştıklarımız. Parlayan nokta kullandığın sürüm; aşağı indikçe eski sürümler ve her birinde neyin değiştiği. Plan Discord'daki isteklerle ve hata raporlarıyla değişebilir; tarih vermiyoruz, hazır olanı yayınlıyoruz.")
             }
-            GridLayout {
-                Layout.fillWidth: true
-                columns: page.width > 860 ? 3 : 1
-                columnSpacing: 14
-                rowSpacing: 14
 
-                Stage { status: "doing"; title: qsTr("Üzerinde çalışıyoruz"); glyph: Icons.wrench; tint: Theme.primary }
-                Stage { status: "next"; title: qsTr("Sırada"); glyph: Icons.listOrdered; tint: Theme.info }
-                Stage { status: "later"; title: qsTr("Daha sonra"); glyph: Icons.hourglass; tint: Theme.textMuted }
+            ColumnLayout {
+                id: timeline
+                Layout.fillWidth: true
+                Layout.topMargin: 10
+                spacing: 0
+
+                readonly property var _stages: [
+                    { status: "later", title: qsTr("Daha sonra"), tint: Theme.textSecondary, glyph: Icons.calendarClock },
+                    { status: "next", title: qsTr("Sırada"), tint: Theme.info, glyph: Icons.listOrdered },
+                    { status: "doing", title: qsTr("Üzerinde çalışıyoruz"), tint: Theme.primary, glyph: Icons.wrench }
+                ].filter(st => UpdateService.roadmap.some(i => i.status === st.status))
+
+                // The future, furthest first
+                Repeater {
+                    model: timeline._stages
+                    delegate: Node {
+                        id: stageNode
+                        required property var modelData
+                        required property int index
+                        future: true
+                        first: index === 0
+                        tint: modelData.tint
+                        glyph: modelData.glyph
+                        order: index
+                        // What is under way shows; the rest opens on a click
+                        open: modelData.status === "doing"
+                        readonly property var _items: UpdateService.roadmap.filter(i => i.status === stageNode.modelData.status)
+
+                        NodeHead {
+                            title: stageNode.modelData.title
+                            foldable: true
+                            open: stageNode.open
+                            countText: qsTr("%1 başlık").arg(stageNode._items.length)
+                            onToggled: stageNode.open = !stageNode.open
+                        }
+                        Fold {
+                            open: stageNode.open
+                            Repeater {
+                                model: stageNode._items
+                                delegate: Branch {
+                                    required property var modelData
+                                    dashed: true
+                                    tint: stageNode.modelData.tint
+                                    text: modelData.title
+                                    detail: modelData.text || ""
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // The versions, newest first
+                Repeater {
+                    model: UpdateService.releases
+                    delegate: Node {
+                        id: rel
+                        required property var modelData
+                        required property int index
+                        open: index < 2 || modelData.newer === true || modelData.running === true
+                        readonly property var _changes: rel.modelData.changes || []
+                        first: timeline._stages.length === 0 && index === 0
+                        last: index === UpdateService.releases.length - 1
+                        current: modelData.running === true
+                        tint: modelData.newer === true ? Theme.primary
+                            : modelData.running === true ? Theme.success : Theme.primaryText
+                        order: timeline._stages.length + index
+
+                        NodeHead {
+                            title: qsTr("Sürüm %1").arg(rel.modelData.version)
+                            subtitle: rel.modelData.title || ""
+                            date: rel.modelData.dateText || ""
+                            large: rel.current || rel.modelData.newer === true
+                            foldable: rel._changes.length > 0 || (rel.modelData.summary || "") !== ""
+                            open: rel.open
+                            countText: rel._changes.length > 0 ? qsTr("%1 değişiklik").arg(rel._changes.length) : ""
+                            onToggled: rel.open = !rel.open
+                            StatusBadge {
+                                visible: rel.current
+                                text: qsTr("Kullandığın sürüm")
+                                tint: Theme.success
+                            }
+                            StatusBadge {
+                                visible: rel.modelData.newer === true
+                                text: qsTr("Yeni sürüm")
+                                tint: Theme.primary
+                            }
+                        }
+                        Fold {
+                            open: rel.open
+                            Body {
+                                visible: (rel.modelData.summary || "") !== ""
+                                text: rel.modelData.summary || ""
+                                font.pixelSize: Dimensions.callout
+                            }
+                            Repeater {
+                                model: rel._changes
+                                delegate: Branch {
+                                    required property var modelData
+                                    tint: news._kindTint(modelData.type)
+                                    label: news._kindLabel(modelData.type)
+                                    text: modelData.text
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Body {
@@ -423,7 +634,7 @@ Item {
             AppButton {
                 Layout.bottomMargin: 8
                 style: "gray"
-                icon: Icons.messagesSquare
+                icon: Icons.discord
                 text: qsTr("Discord'da yaz")
                 onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
             }

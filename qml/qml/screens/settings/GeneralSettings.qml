@@ -112,6 +112,7 @@ ColumnLayout {
 
             Spinner { visible: generalRoot._state === UpdateService.Checking || generalRoot._state === UpdateService.Installing }
             AppButton {
+                icon: Icons.refreshCw
                 visible: generalRoot._state === UpdateService.Idle
                 size: "small"
                 style: "gray"
@@ -119,6 +120,7 @@ ColumnLayout {
                 onClicked: UpdateService.check()
             }
             AppButton {
+                icon: Icons.download
                 visible: generalRoot._state === UpdateService.Available
                 size: "small"
                 style: "filled"
@@ -127,6 +129,7 @@ ColumnLayout {
                 onClicked: UpdateService.download()
             }
             AppButton {
+                icon: Icons.x
                 visible: generalRoot._downloading
                 size: "small"
                 style: "gray"
@@ -134,6 +137,7 @@ ColumnLayout {
                 onClicked: UpdateService.cancel()
             }
             AppButton {
+                icon: Icons.download
                 visible: generalRoot._state === UpdateService.Ready
                 size: "small"
                 style: "filled"
@@ -196,7 +200,7 @@ ColumnLayout {
             AppButton {
                 size: "small"
                 style: cacheRow.cleared ? "plain" : "gray"
-                icon: cacheRow.cleared ? Icons.check : ""
+                icon: cacheRow.cleared ? Icons.check : Icons.trash2
                 tint: Theme.success
                 enabled: !cacheRow.cleared
                 text: cacheRow.cleared ? qsTr("Temizlendi") : qsTr("Temizle")

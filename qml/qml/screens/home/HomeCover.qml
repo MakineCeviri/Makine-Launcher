@@ -12,8 +12,10 @@ pragma ComponentBehavior: Bound
  * under it. Used by the home shelves, "Tüm Oyunlar" and the welcome flow.
  *
  * Covers come from the image cache as pre-rounded PNGs (corner ≈ 11.8 % of
- * the width), so no mask is needed. The badge carries the patch's state on
- * this PC, so a tile says what a click leads to before it is made.
+ * the width), so no mask is needed; the art stays clean. A small filled
+ * symbol before the name carries the patch's state on this PC — a tick when
+ * it is installed — so a tile says what a click leads to before it is made;
+ * its word shows on hover and to screen readers.
  */
 Item {
     id: card
@@ -27,9 +29,6 @@ Item {
     // "" | "ready" (on this PC, patch not installed) | "installable" (same,
     // where "on this PC" is the news) | "installed" | "update" | "external"
     property string status: ""
-    // Overrides the status wording (a date on "Yeni güncellenen")
-    property string badge: ""
-    property color badgeColor: Theme.primary
     // Keyboard position in a grid that keeps focus itself
     property bool highlighted: false
 
@@ -38,18 +37,22 @@ Item {
     readonly property real coverHeight: Math.round(width * 185 / 130)
     readonly property real _corner: width * 0.118
     readonly property bool _lifted: card.interactive && (hover.hovered || card.activeFocus)
-    readonly property string _statusText: card.badge !== "" ? card.badge
-                                        : card.status === "installed" ? qsTr("Kurulu")
+    readonly property string _statusText: card.status === "installed" ? qsTr("Kurulu")
                                         : card.status === "update" ? qsTr("Güncelleme var")
                                         : card.status === "ready" ? qsTr("Yama hazır")
                                         : card.status === "installable" ? qsTr("Bilgisayarında")
                                         : card.status === "external" ? qsTr("Dış sitede")
                                         : ""
-    readonly property color _statusColor: card.badge !== "" ? card.badgeColor
-                                        : card.status === "installed" ? Theme.success
+    readonly property color _statusColor: card.status === "installed" ? Theme.success
                                         : card.status === "update" ? Theme.warning
-                                        : card.status === "external" ? Theme.textSecondary
-                                        : Theme.primary
+                                        : card.status === "external" ? Theme.textMuted
+                                        : Theme.primaryText
+    readonly property string _statusGlyph: card.status === "installed" ? Icons.circleCheck
+                                         : card.status === "update" ? Icons.circleArrowUp
+                                         : card.status === "ready" ? Icons.circleArrowDown
+                                         : card.status === "installable" ? Icons.monitor
+                                         : card.status === "external" ? Icons.externalLink
+                                         : ""
 
     implicitHeight: coverHeight + 10 + nameLabel.implicitHeight
                     + (subtitleLabel.visible ? subtitleLabel.implicitHeight + 2 : 0)
@@ -108,7 +111,7 @@ Item {
             anchors.fill: parent
             radius: card._corner
             color: Theme.surfaceLight
-            visible: cover.status !== Image.Ready
+            visible: cover.opacity < 1
 
             Text {
                 anchors.centerIn: parent
@@ -133,6 +136,9 @@ Item {
             sourceSize: Qt.size(260, 370)
             asynchronous: true
             mipmap: true
+            // The art fades up over its placeholder as it arrives
+            opacity: status === Image.Ready ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
         }
 
         // Keyboard focus: the macOS accent ring around the art
@@ -145,14 +151,26 @@ Item {
             border.color: Theme.withAlpha(Theme.primary, 0.6)
             visible: card.activeFocus || card.highlighted
         }
+    }
 
-        StatusBadge {
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.margins: 8
-            onArt: true
+    // The state, before the name's first line
+    FontMetrics { id: nameMetrics; font: nameLabel.font }
+    Icon {
+        id: stateMark
+        readonly property real _line: nameMetrics.height * nameLabel.lineHeight
+        visible: card._statusGlyph !== ""
+        anchors.left: parent.left
+        anchors.top: coverBox.bottom
+        anchors.topMargin: 10 + Math.round((_line - size) / 2)
+        glyph: card._statusGlyph
+        font.family: Icons.filled.indexOf(card._statusGlyph) >= 0 ? Icons.symbolsFamily : Icons.family
+        size: 16
+        color: card._statusColor
+
+        HoverHandler { id: markHover }
+        StyledToolTip {
+            visible: markHover.hovered
             text: card._statusText
-            tint: card._statusColor
         }
     }
 
@@ -160,7 +178,9 @@ Item {
         id: nameLabel
         anchors.top: coverBox.bottom
         anchors.topMargin: 10
-        width: card.width
+        anchors.left: stateMark.visible ? stateMark.right : parent.left
+        anchors.leftMargin: stateMark.visible ? 5 : 0
+        width: card.width - (stateMark.visible ? stateMark.width + 5 : 0)
         textFormat: Text.PlainText
         text: card.name
         // Two lines: "Assassin's Creed IV: Black Flag" cut at one read as
@@ -178,7 +198,8 @@ Item {
         id: subtitleLabel
         anchors.top: nameLabel.bottom
         anchors.topMargin: 2
-        width: card.width
+        anchors.left: nameLabel.left
+        width: nameLabel.width
         visible: card.subtitle !== ""
         textFormat: Text.PlainText
         text: card.subtitle

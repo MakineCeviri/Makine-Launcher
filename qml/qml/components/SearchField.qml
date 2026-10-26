@@ -14,6 +14,13 @@ Item {
 
     property alias text: input.text
     property string placeholder: qsTr("Ara")
+    // The same capsule for other short entries (an address, a code)
+    property string glyph: Icons.search
+    property alias validator: input.validator
+    property alias maximumLength: input.maximumLength
+    // Examples that roll by in the empty field ("Elden Ring", …), so it is
+    // plain what to type; none: the placeholder stands still
+    property var suggestions: []
     property bool large: false
     readonly property bool editing: input.activeFocus
 
@@ -60,9 +67,10 @@ Item {
         anchors.left: parent.left
         anchors.leftMargin: field.large ? 14 : 11
         anchors.verticalCenter: parent.verticalCenter
-        glyph: Icons.search
+        glyph: field.glyph
         size: field.large ? 17 : 15
-        color: Theme.textMuted
+        color: input.activeFocus || field.suggestions.length > 0 ? Theme.primaryText : Theme.textMuted
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
     }
 
     TextInput {
@@ -85,15 +93,69 @@ Item {
             event.accepted = true
         }
 
-        Text {
+        // The placeholder; with suggestions, an example rolls up into its
+        // place every few seconds while the field waits empty
+        Item {
+            id: hint
             anchors.fill: parent
-            verticalAlignment: Text.AlignVCenter
-            textFormat: Text.PlainText
-            text: field.placeholder
-            elide: Text.ElideRight
-            font: input.font
-            color: Theme.textTertiary
             visible: input.text === ""
+            clip: true
+
+            readonly property bool rolling: field.suggestions.length > 0 && !input.activeFocus
+                                             && field.visible && Dimensions.animSlow > 0
+            property int _next: 0
+            property string _shown: field.placeholder
+
+            function _roll() {
+                const list = field.suggestions
+                if (list.length === 0) return
+                hintOld.text = hintNew.text
+                hintNew.text = list[hint._next % list.length]
+                hint._next++
+                rollAnim.restart()
+            }
+            onRollingChanged: if (!rolling) {
+                rollAnim.stop()
+                hintNew.text = field.placeholder
+                hintNew.y = 0; hintNew.opacity = 1
+                hintOld.opacity = 0
+            }
+            Timer {
+                interval: 2600
+                repeat: true
+                running: hint.rolling && hint.visible
+                onTriggered: hint._roll()
+            }
+
+            Text {
+                id: hintOld
+                width: parent.width
+                height: parent.height
+                verticalAlignment: Text.AlignVCenter
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                font: input.font
+                color: Theme.textTertiary
+                opacity: 0
+            }
+            Text {
+                id: hintNew
+                width: parent.width
+                height: parent.height
+                verticalAlignment: Text.AlignVCenter
+                textFormat: Text.PlainText
+                text: field.placeholder
+                elide: Text.ElideRight
+                font: input.font
+                color: Theme.textTertiary
+            }
+            ParallelAnimation {
+                id: rollAnim
+                NumberAnimation { target: hintOld; property: "y"; from: 0; to: -hint.height * 0.6; duration: 420; easing.type: Easing.InOutCubic }
+                NumberAnimation { target: hintOld; property: "opacity"; from: 1; to: 0; duration: 300; easing.type: Easing.OutCubic }
+                NumberAnimation { target: hintNew; property: "y"; from: hint.height * 0.6; to: 0; duration: 520; easing.type: Easing.OutBack }
+                NumberAnimation { target: hintNew; property: "opacity"; from: 0; to: 1; duration: 420; easing.type: Easing.OutCubic }
+            }
         }
     }
 

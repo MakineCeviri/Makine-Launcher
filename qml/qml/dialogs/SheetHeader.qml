@@ -24,6 +24,11 @@ Item {
 
     implicitHeight: row.implicitHeight + 40
 
+    // The sheet opens, then its sign answers (IconTile.play)
+    onVisibleChanged: if (visible) greet.restart()
+    Component.onCompleted: if (visible) greet.restart()
+    Timer { id: greet; interval: 220; onTriggered: headerTile.play() }
+
     RowLayout {
         id: row
         anchors.left: parent.left
@@ -35,6 +40,7 @@ Item {
         spacing: 12
 
         IconTile {
+            id: headerTile
             Layout.alignment: Qt.AlignTop
             size: 36
             glyph: header.glyph

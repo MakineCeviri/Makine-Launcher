@@ -5,6 +5,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import MakineLauncher 1.0
+import "../../components"
 import "../home"
 pragma ComponentBehavior: Bound
 
@@ -16,12 +17,15 @@ pragma ComponentBehavior: Bound
  * step asked them to press "Taramayı Başlat" anyway, played three timed
  * captions ("Steam… Epic… GOG…") that had nothing to do with the scan, and
  * reported every game found — 16 — when two had a patch.
+ *
+ * In the page's language: a display title, and one lit container that shows
+ * the scan running, then the games themselves rising in one after another,
+ * or what to do when there are none.
  */
 Item {
     id: step
 
     signal next()
-    signal back()
 
     function primaryAction() { step.next() }
 
@@ -34,7 +38,7 @@ Item {
     readonly property var _games: step._sorted(GameService.library)
     readonly property int _catalogCount: GameService.supportedGamesModel
                                          ? GameService.supportedGamesModel.count : 0
-    readonly property int _shown: Math.min(step._games.length, 6)
+    readonly property int _shown: Math.min(step._games.length, 5)
 
     function _sorted(library) {
         const out = []
@@ -59,7 +63,7 @@ Item {
 
     ColumnLayout {
         anchors.centerIn: parent
-        width: Math.min(step.width - 96, 880)
+        width: Math.min(step.width - 96, 860)
         spacing: 0
 
         Text {
@@ -70,10 +74,11 @@ Item {
                 : step._games.length > 0 ? qsTr("Türkçe yaması olan %1 oyunun var").arg(step._games.length)
                 : qsTr("Henüz Türkçe yaması olan bir oyun bulamadık")
             wrapMode: Text.WordWrap
-            font.pixelSize: 32
+            font.family: Dimensions.fontDisplay
+            font.pixelSize: 34
             font.weight: Font.Bold
-            font.letterSpacing: -0.6
-            color: "#FFFFFF"
+            font.letterSpacing: -0.8
+            color: Theme.textPrimary
         }
 
         Text {
@@ -87,96 +92,147 @@ Item {
                 ? qsTr("Steam, Epic, GOG ve diğer kütüphanelerin taranıyor. Bu birkaç saniye sürer.")
                 : step._games.length > 0
                 ? qsTr("Kurulmaya hazır olanları ana sayfadan tek tıkla Türkçe yapabilirsin.")
-                : qsTr("Katalogda %1 oyun var. Yeni bir oyun kurduğunda launcher onu kendiliğinden bulur; başka bir klasördeki oyunu ana sayfadaki “Oyun ekle” ile ekleyebilirsin.").arg(step._catalogCount)
+                : qsTr("Katalogda %1 oyun var. Yeni bir oyun kurduğunda launcher onu kendiliğinden bulur; başka bir klasördeki oyunu Kütüphanem'deki \"Oyun ekle\" ile ekleyebilirsin.").arg(step._catalogCount)
             wrapMode: Text.WordWrap
             lineHeight: 1.4
-            font.pixelSize: 15
-            color: Qt.rgba(1, 1, 1, 0.65)
+            font.pixelSize: Dimensions.headline
+            color: Theme.textSecondary
         }
 
-        // While scanning: a quiet indeterminate bar, not fake captions.
-        Rectangle {
+        Card {
             Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 36
-            Layout.preferredWidth: 240
-            Layout.preferredHeight: 4
-            radius: 2
-            color: Qt.rgba(1, 1, 1, 0.08)
-            visible: step._scanning
-            clip: true
+            Layout.topMargin: 34
+            Layout.preferredWidth: step._scanning || step._games.length === 0
+                                   ? 460 : Math.min(step.width - 96, shelf.implicitWidth + 64)
+            implicitHeight: step._scanning ? 132
+                          : step._games.length > 0 ? shelf.implicitHeight + 56 + (moreText.visible ? 26 : 0)
+                          : 132
+            radius: Dimensions.radiusSection
+            glow: !step._scanning && step._games.length > 0
+            Behavior on implicitHeight { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
 
-            Rectangle {
-                id: runner
-                width: parent.width * 0.35
-                height: parent.height
-                radius: parent.radius
-                color: Theme.accentBase
-                NumberAnimation on x {
-                    running: step._scanning && step.visible
-                    loops: Animation.Infinite
-                    from: -runner.width
-                    to: 240
-                    duration: 1100
-                    easing.type: Easing.InOutQuad
+            // While scanning: what is looked at, and a quiet running line
+            ColumnLayout {
+                anchors.centerIn: parent
+                width: parent.width - 64
+                visible: step._scanning
+                spacing: 16
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 10
+                    Spinner { size: 18; color: Theme.primaryText }
+                    Text {
+                        textFormat: Text.PlainText
+                        text: qsTr("Kütüphaneler taranıyor")
+                        font.pixelSize: Dimensions.body
+                        font.weight: Font.DemiBold
+                        color: Theme.textPrimary
+                    }
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 4
+                    radius: 2
+                    color: Theme.fillTertiary
+                    clip: true
+                    Rectangle {
+                        id: runner
+                        width: parent.width * 0.32
+                        height: parent.height
+                        radius: parent.radius
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0) }
+                            GradientStop { position: 0.5; color: Theme.primary }
+                            GradientStop { position: 1.0; color: Theme.withAlpha(Theme.primary, 0) }
+                        }
+                        NumberAnimation on x {
+                            running: step._scanning && step.visible
+                            loops: Animation.Infinite
+                            from: -runner.width
+                            to: runner.parent.width
+                            duration: 1300
+                            easing.type: Easing.InOutQuad
+                        }
+                    }
+                }
+            }
+
+            // Found: the games, rising in one after another
+            Row {
+                id: shelf
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: 28
+                visible: !step._scanning && step._games.length > 0
+                spacing: 20
+
+                Repeater {
+                    model: step._scanning ? [] : step._games.slice(0, step._shown)
+
+                    HomeCover {
+                        id: cover
+                        required property var modelData
+                        required property int index
+                        width: 124
+                        gameId: cover.modelData.gameId
+                        steamAppId: cover.modelData.steamAppId
+                        name: cover.modelData.name
+                        status: cover.modelData.status
+                        interactive: false
+                        opacity: 0
+                        transform: Translate { id: coverLift; y: 18 }
+                        Component.onCompleted: coverIn.start()
+                        SequentialAnimation {
+                            id: coverIn
+                            PauseAnimation { duration: cover.index * 80 }
+                            ParallelAnimation {
+                                NumberAnimation { target: cover; property: "opacity"; to: 1; duration: 420; easing.type: Easing.OutCubic }
+                                NumberAnimation { target: coverLift; property: "y"; to: 0; duration: 700; easing.type: Easing.OutExpo }
+                            }
+                        }
+                    }
+                }
+            }
+            Text {
+                id: moreText
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 18
+                visible: !step._scanning && step._games.length > step._shown
+                textFormat: Text.PlainText
+                text: qsTr("ve %1 oyun daha").arg(step._games.length - step._shown)
+                font.pixelSize: Dimensions.footnote
+                color: Theme.textMuted
+            }
+
+            // None: where the launcher looks, and what else to do
+            RowLayout {
+                anchors.centerIn: parent
+                width: parent.width - 56
+                visible: !step._scanning && step._games.length === 0
+                spacing: 16
+                IconTile { size: 44; glyph: Icons.folderSearch; tint: Theme.primary }
+                Text {
+                    Layout.fillWidth: true
+                    textFormat: Text.PlainText
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Steam, Epic, GOG, Xbox ve Ubisoft kütüphanelerine baktık. Bir oyunu kurduğunda burada görürsün.")
+                    font.pixelSize: Dimensions.callout
+                    lineHeight: 1.3
+                    color: Theme.textSecondary
                 }
             }
         }
 
-        // Found: the games themselves, with what each one needs.
-        Row {
+        AppButton {
             Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 36
-            visible: !step._scanning && step._games.length > 0
-            spacing: 20
-
-            Repeater {
-                model: step._games.slice(0, step._shown)
-
-                HomeCover {
-                    id: cover
-                    required property var modelData
-                    width: 128
-                    gameId: cover.modelData.gameId
-                    steamAppId: cover.modelData.steamAppId
-                    name: cover.modelData.name
-                    status: cover.modelData.status
-                    interactive: false
-                }
-            }
-        }
-
-        Text {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 14
-            visible: !step._scanning && step._games.length > step._shown
-            textFormat: Text.PlainText
-            text: qsTr("ve %1 oyun daha").arg(step._games.length - step._shown)
-            font.pixelSize: 13
-            color: Qt.rgba(1, 1, 1, 0.55)
-        }
-
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 40
-            spacing: 12
-
-            OnboardingButton {
-                kind: "quiet"
-                text: qsTr("Geri")
-                onClicked: step.back()
-            }
-            OnboardingButton {
-                kind: "quiet"
-                visible: !step._scanning
-                text: qsTr("Yeniden tara")
-                onClicked: GameService.scanAllLibraries()
-            }
-            OnboardingButton {
-                kind: "primary"
-                text: qsTr("Devam")
-                trailingIcon: Icons.arrowRight
-                onClicked: step.next()
-            }
+            Layout.topMargin: 18
+            visible: !step._scanning
+            style: "gray"
+            icon: Icons.refreshCw
+            text: qsTr("Yeniden tara")
+            onClicked: GameService.scanAllLibraries()
         }
     }
 }

@@ -70,6 +70,7 @@ ColumnLayout {
                         text: UpdateService.version !== "" ? "v" + UpdateService.version : UpdateService.statusText
                         elide: Text.ElideRight
                         font.pixelSize: Dimensions.caption1
+                        font.family: Dimensions.fontText
                         color: Theme.textMuted
                     }
                 }
@@ -92,6 +93,7 @@ ColumnLayout {
             }
 
             AppButton {
+                icon: Icons.download
                 Layout.fillWidth: true
                 visible: UpdateService.actionable
                 size: "small"
@@ -114,6 +116,7 @@ ColumnLayout {
                 visible: status._state === UpdateService.Available
                 spacing: 4
                 AppButton {
+                    icon: Icons.sparkles
                     Layout.fillWidth: true
                     size: "small"
                     style: "plain"
@@ -122,6 +125,7 @@ ColumnLayout {
                     onClicked: status.openWhatsNew()
                 }
                 AppButton {
+                    icon: Icons.clock
                     Layout.fillWidth: true
                     size: "small"
                     style: "plain"
@@ -146,6 +150,7 @@ ColumnLayout {
             text: GameService.isScanning ? qsTr("Oyunların taranıyor…") : qsTr("Güncellemeler denetleniyor…")
             elide: Text.ElideRight
             font.pixelSize: Dimensions.caption1
+            font.family: Dimensions.fontText
             color: Theme.textMuted
         }
     }
@@ -157,6 +162,7 @@ ColumnLayout {
         text: qsTr("Sürüm %1").arg(Dimensions.appVersion)
         elide: Text.ElideMiddle
         font.pixelSize: Dimensions.caption2
+        font.family: Dimensions.fontText
         color: Theme.textTertiary
     }
 }

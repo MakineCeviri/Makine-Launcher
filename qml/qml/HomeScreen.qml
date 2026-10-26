@@ -26,7 +26,7 @@ Item {
     signal manualFolderRequested()
     signal libraryRequested()
     // "Tümünü gör" on the home page, with what it was showing
-    signal allGamesRequested(string filter, string sort, string query)
+    signal allGamesRequested(string filter, string sort)
     signal helpRequested()
 
     Component.onCompleted: {
@@ -40,18 +40,24 @@ Item {
 
     // Update check handled by UpdateService in main.cpp startup.
 
-    // Current sub-page index: 0=Home, 1=Library, 2=Tüm Oyunlar, 3=Nasıl çalışır?, 4=Yenilikler
+    // Current sub-page index: 0=Home, 1=Library, 2=Tüm Oyunlar, 3=Nasıl çalışır?, 4=Yenilikler, 5=Topluluk
     property int currentPage: 0
 
     function showHomePage() { currentPage = 0 }
     function showLibraryPage() { currentPage = 1 }
-    // With arguments: open on that filter, order and search (see AllGames.open).
+    // With arguments: open on that filter and order (see AllGames.open).
     property var _allGamesArgs: null
-    function showAllGamesPage(filter, sort, query) {
+    function showAllGamesPage(filter, sort) {
         currentPage = 2
         if (filter === undefined) return
-        if (allGamesLoader.item) allGamesLoader.item.open(filter, sort, query)
-        else _allGamesArgs = [filter, sort, query]
+        if (allGamesLoader.item) allGamesLoader.item.open(filter, sort)
+        else _allGamesArgs = [filter, sort]
+    }
+    // The sidebar's search, shown on Tüm Oyunlar (Main.qml sets it)
+    property string allGamesQuery: ""
+    signal searchClearRequested()
+    function focusAllGamesResults() {
+        if (allGamesLoader.item) allGamesLoader.item.focusResults()
     }
     function showHelpPage() {
         currentPage = 3
@@ -61,16 +67,9 @@ Item {
         currentPage = 4
         if (whatsNewLoader.item) whatsNewLoader.item.scrollToTop()
     }
-
-    // Ctrl+F → the search of the page on show: Tüm Oyunlar, else the home page's
-    function focusSearch() {
-        if (currentPage === 2) {
-            if (allGamesLoader.item) allGamesLoader.item.focusSearch()
-            return
-        }
-        currentPage = 0
-        if (homePageLoader.item)
-            homePageLoader.item.focusSearch()
+    function showCommunityPage() {
+        currentPage = 5
+        if (communityLoader.item) communityLoader.item.scrollToTop()
     }
 
     // Sub-pages share the same slot, switched by visibility
@@ -95,7 +94,7 @@ Item {
                 onManualFolderRequested: root.manualFolderRequested()
                 onSettingsRequested: root.settingsRequested()
                 onLibraryRequested: root.libraryRequested()
-                onAllGamesRequested: (filter, sort, query) => root.allGamesRequested(filter, sort, query)
+                onAllGamesRequested: (filter, sort) => root.allGamesRequested(filter, sort)
             }
         }
     }
@@ -130,16 +129,18 @@ Item {
         asynchronous: true
         onLoaded: {
             if (root._allGamesArgs) {
-                item.open(root._allGamesArgs[0], root._allGamesArgs[1], root._allGamesArgs[2])
+                item.open(root._allGamesArgs[0], root._allGamesArgs[1])
                 root._allGamesArgs = null
             }
         }
         sourceComponent: Component {
             AllGames {
                 contentMargin: root.contentMargin
+                query: root.allGamesQuery
                 onGameSelected: function(gameId, gameName, installPath, engine) {
                     root.gameSelected(gameId, gameName, installPath, engine)
                 }
+                onSearchClearRequested: root.searchClearRequested()
             }
         }
     }
@@ -153,7 +154,7 @@ Item {
         sourceComponent: Component {
             HelpScreen {
                 contentMargin: root.contentMargin
-                onAllGamesRequested: root.allGamesRequested("", "", "")
+                onAllGamesRequested: root.allGamesRequested("", "")
                 onLibraryRequested: root.libraryRequested()
             }
         }
@@ -167,6 +168,19 @@ Item {
         asynchronous: true
         sourceComponent: Component {
             WhatsNewScreen {
+                contentMargin: root.contentMargin
+            }
+        }
+    }
+
+    Loader {
+        id: communityLoader
+        anchors.fill: parent
+        active: root.currentPage === 5 || communityLoader.status === Loader.Ready
+        visible: root.currentPage === 5
+        asynchronous: true
+        sourceComponent: Component {
+            CommunityScreen {
                 contentMargin: root.contentMargin
             }
         }

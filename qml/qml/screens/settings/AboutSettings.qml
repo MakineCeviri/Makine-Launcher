@@ -17,19 +17,17 @@ ColumnLayout {
     spacing: 28
 
     // ── Identity ─────────────────────────────────────────────────────────
+    // The app's card, centred on the page
     ColumnLayout {
         Layout.fillWidth: true
+        Layout.alignment: Qt.AlignHCenter
         Layout.topMargin: 6
         spacing: 6
 
-        Image {
+        AppLogo {
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 72
-            Layout.preferredHeight: 72
-            source: "qrc:/qt/qml/MakineLauncher/resources/images/logo.png"
-            sourceSize: Qt.size(144, 144)
-            fillMode: Image.PreserveAspectFit
-            mipmap: true
+            size: 72
+            playing: true
         }
         Text {
             Layout.alignment: Qt.AlignHCenter
@@ -48,21 +46,111 @@ ColumnLayout {
             font.pixelSize: Dimensions.callout
             color: Theme.textMuted
         }
+        // Who makes it and why, in a sentence
         Text {
             Layout.alignment: Qt.AlignHCenter
-            Layout.maximumWidth: 460
-            Layout.topMargin: 4
+            Layout.fillWidth: true
+            Layout.maximumWidth: 540
+            Layout.topMargin: 10
             horizontalAlignment: Text.AlignHCenter
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
-            text: qsTr("Bilgisayarındaki oyunları bulur, Türkçe yamalarını tek tıkla kurar ve kaldırır. Makine Çeviri topluluğunun ücretsiz aracıdır.")
+            lineHeight: 1.12
+            text: qsTr("Makine Çeviri oyunları senin için Türkçeye çevirir; daha keyifli bir deneyim yaşaman için de Makine Launcher'ı kâr amacı gütmeden, açık kaynak olarak geliştirir.")
+            font.family: Dimensions.fontDisplay
+            font.pixelSize: Dimensions.title3
+            font.weight: Font.Medium
+            color: Theme.textPrimary
+        }
+        Text {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
+            Layout.maximumWidth: 480
+            Layout.topMargin: 2
+            horizontalAlignment: Text.AlignHCenter
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            text: qsTr("Bilgisayarındaki oyunları bulur, Türkçe yamalarını tek tıkla kurar ve istediğin an kaldırır.")
             font.pixelSize: Dimensions.callout
             color: Theme.textSecondary
         }
     }
 
+    // What that means, side by side under one lit edge
+    Card {
+        Layout.fillWidth: true
+        radius: Dimensions.radiusSection
+        implicitHeight: pillars.implicitHeight + 40
+
+        RowLayout {
+            id: pillars
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
+            spacing: 0
+
+            Pillar {
+                glyph: Icons.languages
+                tint: Theme.primary
+                title: qsTr("Türkçe oyna")
+                text: qsTr("Türkçesi olmayan oyunları gönüllü çevirmenlerimiz dilimize uyarlar.")
+            }
+            Divider {}
+            Pillar {
+                glyph: Icons.handHeart
+                tint: "#FF375F"
+                title: qsTr("Kâr amacı yok")
+                text: qsTr("Yamalar da launcher da ücretsiz; sunucu masraflarına destekçilerimiz katkı verir.")
+            }
+            Divider {}
+            Pillar {
+                glyph: Icons.github
+                tint: "#30D158"
+                title: qsTr("Açık kaynak")
+                text: qsTr("Kodu herkese açık: GitHub'da inceleyebilir, hata bildirip katkı verebilirsin.")
+                link: "https://github.com/MakineCeviri/Makine-Launcher"
+            }
+        }
+    }
+
+    // Where else to find us, each in its own colour
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: 12
+        Text {
+            Layout.alignment: Qt.AlignHCenter
+            textFormat: Text.PlainText
+            text: qsTr("Bizi takip et")
+            font.pixelSize: Dimensions.callout
+            font.weight: Font.DemiBold
+            color: Theme.textSecondary
+        }
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: socialRow.implicitHeight
+            Row {
+                id: socialRow
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 10
+                Repeater {
+                    model: [
+                        { glyph: Icons.discord, name: "Discord", tint: Theme.discordColor, url: Dimensions.discordUrl },
+                        { glyph: Icons.youtube, name: "YouTube", tint: Theme.youtubeColor, url: Dimensions.youtubeUrl },
+                        { glyph: Icons.instagram, name: "Instagram", tint: "#E1306C", url: Dimensions.instagramUrl },
+                        { glyph: Icons.xLogo, name: "X", tint: Theme.textPrimary, url: Dimensions.xUrl },
+                        { glyph: Icons.linkedin, name: "LinkedIn", tint: "#2D8CFF", url: Dimensions.linkedinUrl },
+                        { glyph: Icons.github, name: "GitHub", tint: Theme.textPrimary, url: Dimensions.githubUrl }
+                    ]
+                    delegate: SocialChip {}
+                }
+            }
+        }
+    }
+
     ListSection {
-        title: qsTr("Bu kopya")
+        title: qsTr("Sürüm ve lisans")
 
         ListRow {
             title: qsTr("Sürüm")
@@ -91,12 +179,20 @@ ColumnLayout {
         title: qsTr("Yardım ve topluluk")
 
         ListRow {
-            icon: Icons.messagesSquare
+            icon: Icons.discord
             iconTint: Theme.discordColor
             clickable: true
             title: qsTr("Discord")
             subtitle: qsTr("Bir yama çalışmıyorsa ya da bir sorun varsa topluluğa sor; ekip de orada.")
             onClicked: Qt.openUrlExternally(Dimensions.discordUrl)
+        }
+        ListRow {
+            icon: Icons.youtube
+            iconTint: Theme.youtubeColor
+            clickable: true
+            title: qsTr("YouTube")
+            subtitle: qsTr("Yama kurulum videoları ve launcher rehberleri.")
+            onClicked: Qt.openUrlExternally(Dimensions.youtubeUrl)
         }
         ListRow {
             icon: Icons.messageSquareText
@@ -156,6 +252,7 @@ ColumnLayout {
                         textFormat: Text.PlainText
                         text: keyRow.modelData.key
                         font.pixelSize: Dimensions.caption1
+                        font.family: Dimensions.fontText
                         font.weight: Font.DemiBold
                         color: Theme.textSecondary
                     }
@@ -193,7 +290,9 @@ ColumnLayout {
                 { name: "zstd", license: "BSD-3-Clause", url: "https://github.com/facebook/zstd/blob/dev/LICENSE" },
                 { name: "xdelta3", license: "Apache-2.0", url: "https://github.com/jmacd/xdelta/blob/release3_1_apl/xdelta3/LICENSE" },
                 { name: "Inter", license: "OFL-1.1", url: "https://github.com/rsms/inter/blob/master/LICENSE.txt" },
-                { name: "Lucide", license: "ISC", url: "https://github.com/lucide-icons/lucide/blob/main/LICENSE" }
+                { name: "Lucide", license: "ISC", url: "https://github.com/lucide-icons/lucide/blob/main/LICENSE" },
+                { name: "Phosphor Icons", license: "MIT", url: "https://github.com/phosphor-icons/core/blob/main/LICENSE" },
+                { name: "Simple Icons", license: "CC0-1.0", url: "https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md" }
             ]
 
             ListRow {
@@ -212,6 +311,129 @@ ColumnLayout {
                 }
                 Icon { glyph: Icons.arrowUpRight; size: 13; color: Theme.textTertiary }
             }
+        }
+    }
+    // One promise: a sign, a few words, and a link when there is a page for it
+    component Pillar: ColumnLayout {
+        id: pillar
+        property string glyph: ""
+        property color tint: Theme.primary
+        property string title: ""
+        property string text: ""
+        property string link: ""
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1
+        Layout.alignment: Qt.AlignTop
+        Layout.leftMargin: 14
+        Layout.rightMargin: 14
+        spacing: 6
+
+        IconTile {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.bottomMargin: 4
+            size: 34
+            glyph: pillar.glyph
+            tint: pillar.tint
+        }
+        Text {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            textFormat: Text.PlainText
+            text: pillar.title
+            font.pixelSize: Dimensions.headline
+            font.weight: Font.DemiBold
+            color: Theme.textPrimary
+        }
+        Text {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            text: pillar.text
+            font.pixelSize: Dimensions.footnote
+            font.family: Dimensions.fontText
+            color: Theme.textSecondary
+        }
+        Row {
+            visible: pillar.link !== ""
+            Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: 2
+            spacing: 3
+            Text {
+                textFormat: Text.PlainText
+                text: qsTr("GitHub'da gör")
+                font.pixelSize: Dimensions.footnote
+                font.weight: Font.DemiBold
+                color: linkHover.hovered ? Theme.primaryHover : Theme.primaryText
+            }
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: Icons.arrowUpRight
+                size: 12
+                color: linkHover.hovered ? Theme.primaryHover : Theme.primaryText
+            }
+            HoverHandler { id: linkHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: Qt.openUrlExternally(pillar.link) }
+        }
+    }
+
+    // A place to follow us: its mark in its own colour, its name
+    component SocialChip: Rectangle {
+        id: chip
+        required property var modelData
+        implicitWidth: chipRow.implicitWidth + 28
+        implicitHeight: 38
+        radius: height / 2
+        color: chipHover.hovered ? Theme.fillSecondary : Theme.fillTertiary
+        border.width: 1
+        border.color: chipHover.hovered ? Theme.withAlpha(chip.modelData.tint, 0.5) : "transparent"
+        scale: chipTap.pressed ? 0.95 : 1
+        Behavior on color { ColorAnimation { duration: Dimensions.animFast } }
+        Behavior on scale { NumberAnimation { duration: Dimensions.animFast; easing.type: Easing.OutBack } }
+        Accessible.role: Accessible.Link
+        Accessible.name: chip.modelData.name
+
+        Row {
+            id: chipRow
+            anchors.centerIn: parent
+            spacing: 8
+            MotionIcon {
+                id: chipIcon
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: chip.modelData.glyph
+                // Brand marks drawn filled (Lucide has no GitHub mark)
+                font.family: Icons.filled.indexOf(chip.modelData.glyph) >= 0 ? Icons.symbolsFamily : Icons.family
+                size: 16
+                color: chip.modelData.tint
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                textFormat: Text.PlainText
+                text: chip.modelData.name
+                font.pixelSize: Dimensions.callout
+                font.weight: Font.Medium
+                color: Theme.textPrimary
+            }
+        }
+        HoverHandler {
+            id: chipHover
+            cursorShape: Qt.PointingHandCursor
+            onHoveredChanged: if (hovered) chipIcon.play()
+        }
+        TapHandler { id: chipTap; onTapped: Qt.openUrlExternally(chip.modelData.url) }
+        StyledToolTip { visible: chipHover.hovered; delay: 700; text: chip.modelData.url }
+    }
+
+    // A hairline between promises, faded at both ends
+    component Divider: Rectangle {
+        Layout.fillHeight: true
+        Layout.topMargin: 6
+        Layout.bottomMargin: 6
+        implicitWidth: 1
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 0.5; color: Theme.separator }
+            GradientStop { position: 1.0; color: "transparent" }
         }
     }
 }

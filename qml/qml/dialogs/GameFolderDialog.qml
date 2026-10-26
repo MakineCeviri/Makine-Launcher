@@ -148,6 +148,7 @@ BaseDialog {
                     textFormat: Text.PlainText
                     text: qsTr("Yamanın şu anki yeri")
                     font.pixelSize: Dimensions.caption1
+                    font.family: Dimensions.fontText
                     font.weight: Font.DemiBold
                     font.letterSpacing: 0.4
                     font.capitalization: Font.AllUppercase
@@ -169,6 +170,7 @@ BaseDialog {
                     textFormat: Text.PlainText
                     text: qsTr("Taşınacağı yer")
                     font.pixelSize: Dimensions.caption1
+                    font.family: Dimensions.fontText
                     font.weight: Font.DemiBold
                     font.letterSpacing: 0.4
                     font.capitalization: Font.AllUppercase
@@ -318,6 +320,7 @@ BaseDialog {
             Item { Layout.fillWidth: true }
 
             AppButton {
+                icon: Icons.folderSearch
                 style: "gray"
                 text: qsTr("Başka klasör seç")
                 onClicked: {
@@ -326,6 +329,7 @@ BaseDialog {
                 }
             }
             AppButton {
+                icon: Icons.folderInput
                 id: primaryBtn
                 visible: root._canUse
                 style: "filled"

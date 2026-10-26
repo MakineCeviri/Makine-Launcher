@@ -13,14 +13,15 @@ pragma ComponentBehavior: Bound
  * The notes come first and always show when the catalogue has any: they
  * hold what the patch needs before it is installed (an online mode to turn
  * off, a redistributable) as much as after. The description folds to three
- * lines with "devamını oku".
+ * lines with "devamını oku". Both sit in the detail page's one container
+ * (HeroSection), under a lit hairline.
  */
 ColumnLayout {
     id: aboutRoot
 
     required property var vm
 
-    spacing: 18
+    spacing: 0
     // Not notesCard.visible: a child's visible follows its parent's, so the
     // section could never turn itself on.
     readonly property bool _hasNotes: aboutRoot.vm.translationNotes !== ""
@@ -28,12 +29,11 @@ ColumnLayout {
     visible: _hasNotes || _hasDesc
 
     // ── Patch notes ──────────────────────────────────────────────────────
-    Card {
+    Item {
         id: notesCard
         Layout.fillWidth: true
         visible: aboutRoot._hasNotes
         implicitHeight: notesCol.implicitHeight + 40
-        radius: Dimensions.radiusLG
 
         ColumnLayout {
             id: notesCol
@@ -66,13 +66,17 @@ ColumnLayout {
         }
     }
 
+    FadeLine {
+        visible: aboutRoot._hasNotes && aboutRoot._hasDesc
+        lit: true
+    }
+
     // ── About the game ───────────────────────────────────────────────────
-    Card {
+    Item {
         id: descCard
         Layout.fillWidth: true
         visible: aboutRoot._hasDesc
         implicitHeight: descCol.implicitHeight + 40
-        radius: Dimensions.radiusLG
 
         // Hidden measurement — does the full text run past three lines?
         // Outside the layout: it only has to be as wide as the text below.

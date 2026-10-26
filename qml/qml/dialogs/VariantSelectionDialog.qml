@@ -162,11 +162,13 @@ BaseDialog {
             Item { Layout.fillWidth: true }
 
             AppButton {
+                icon: Icons.x
                 style: "gray"
                 text: qsTr("Vazgeç")
                 onClicked: { root.cancelled(); root.close() }
             }
             AppButton {
+                icon: Icons.download
                 style: "filled"
                 enabled: root.selectedIndex >= 0
                 text: qsTr("Bu sürümle kur")

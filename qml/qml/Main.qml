@@ -6,6 +6,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 import QtQuick.Dialogs
+import QtQuick.Shapes
 import MakineLauncher 1.0
 pragma ComponentBehavior: Bound
 
@@ -16,17 +17,27 @@ ApplicationWindow {
     id: window
     visible: true
 
-    minimumWidth: Dimensions.minWindowWidth
-    minimumHeight: Dimensions.minWindowHeight
+    // The launcher's proportions (main.cpp locks them while resizing) and
+    // the largest window of them the screen's work area holds: a small or
+    // highly scaled screen lowers the minimum instead of cutting the window.
+    readonly property real _ratio: Dimensions.minWindowWidth / Dimensions.minWindowHeight
+    // (desktopAvailable* can read 0 before the window reaches its screen)
+    readonly property real _availW: Screen.desktopAvailableWidth > 0 ? Screen.desktopAvailableWidth
+                                    : Screen.width > 0 ? Screen.width : 1366
+    readonly property real _availH: Screen.desktopAvailableHeight > 0 ? Screen.desktopAvailableHeight
+                                    : Screen.height > 0 ? Screen.height * 0.94 : 728
+    readonly property real _fitWidth: Math.min(_availW * 0.96, _availH * 0.96 * _ratio)
+    minimumWidth: Math.round(Math.min(Dimensions.minWindowWidth, _fitWidth))
+    minimumHeight: Math.round(minimumWidth / _ratio)
 
-    // Initial size — match screen proportions, centered (replaces C++ MoveWindow)
-    width: Math.min(Math.max(1100, Dimensions.minWindowWidth), Screen.width * 0.85)
-    height: Math.round(width / (Dimensions.minWindowWidth / Dimensions.minWindowHeight))
+    // Initial size — roomy, centered (replaces C++ MoveWindow)
+    width: Math.round(Math.max(minimumWidth, Math.min(Dimensions.defaultWindowWidth, _fitWidth * 0.92)))
+    height: Math.round(width / _ratio)
     x: Math.round((Screen.width - width) / 2)
     y: Math.round((Screen.height - height) / 2)
 
     title: "Makine \u00C7eviri - Makine Launcher"
-    color: !window._onboardingActive ? Theme.bgPrimary : "#0A0A0C"
+    color: Theme.chrome
 
     flags: Qt.Window | Qt.FramelessWindowHint
 
@@ -81,9 +92,90 @@ ApplicationWindow {
 
     // Shows the page behind a navigation index: 0 Ana Sayfa · 1 Kütüphanem ·
     // 2 Ayarlar · 3 Tüm Oyunlar · 4 Nasıl çalışır? · 5 Yenilikler
+    // ===== HISTORY =====
+    // Where the user has been — pages by index, games by what opened them —
+    // walked back and forward by the mouse's side buttons, Alt+← / Alt+→,
+    // Esc and the game page's back button, the way a browser walks pages.
+    readonly property var _pageTitles: [qsTr("Ana Sayfa"), qsTr("Kütüphanem"), qsTr("Ayarlar"), qsTr("Tüm Oyunlar"),
+                                        qsTr("Nasıl çalışır?"), qsTr("Yenilikler"), qsTr("Topluluk")]
+    property var _backStack: []
+    property var _forwardStack: []
+    property var _shownGame: null
+    property bool _walking: false
+
+    function _here() {
+        return contentStackContainer.currentIndex === 2 && window._shownGame
+               ? { game: window._shownGame } : { page: window.currentNavIndex }
+    }
+    function _remember() {
+        if (window._walking) return
+        const b = window._backStack.slice()
+        b.push(window._here())
+        if (b.length > 50) b.shift()
+        window._backStack = b
+        window._forwardStack = []
+    }
+    // A game chosen on Home (or one whose install was asked for): its page
+    function _openGame(gameId, gameName, installPath, engine, install) {
+        GameService.noteScreen(install ? "game-install" : "game", gameId)
+        window._remember()
+        window._shownGame = { id: gameId, name: gameName, path: installPath, engine: engine }
+        detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, install))
+        detailVM.fromLibrary = (homeView.currentPage === 1)
+        window.previousNavIndex = window.currentNavIndex
+        contentStackContainer.navigateTo(2)
+    }
+    function _show(entry) {
+        window._walking = true
+        if (entry.game) {
+            const g = entry.game
+            detailVM.loadGame(gameDataResolver.resolve(g.id, g.name, g.path, g.engine, false))
+            window._shownGame = g
+            contentStackContainer.navigateTo(2)
+        } else {
+            window._go(entry.page)
+        }
+        window._walking = false
+    }
+    function historyBack() {
+        if (window._onboardingActive) return
+        if (window._backStack.length === 0) {
+            if (contentStackContainer.currentIndex !== 0 || window.currentNavIndex !== 0)
+                window._go(contentStackContainer.currentIndex === 2 ? window.previousNavIndex : 0)
+            return
+        }
+        const b = window._backStack.slice()
+        const to = b.pop()
+        window._backStack = b
+        const f = window._forwardStack.slice()
+        f.push(window._here())
+        window._forwardStack = f
+        window._show(to)
+    }
+    function historyForward() {
+        if (window._onboardingActive || window._forwardStack.length === 0) return
+        const f = window._forwardStack.slice()
+        const to = f.pop()
+        window._forwardStack = f
+        const b = window._backStack.slice()
+        b.push(window._here())
+        window._backStack = b
+        window._show(to)
+    }
+    // Where back leads, for the game page's back button
+    readonly property string backTitle: {
+        const top = window._backStack.length > 0 ? window._backStack[window._backStack.length - 1] : null
+        if (top && top.game) return top.game.name || qsTr("Geri")
+        const page = top ? top.page : window.previousNavIndex
+        return window._pageTitles[page] ?? qsTr("Geri")
+    }
+
     function _go(index) {
+        // A move to another page is a step in the history
+        if (contentStackContainer.currentIndex === 2 || window.currentNavIndex !== index)
+            window._remember()
         window.currentNavIndex = index
-        GameService.noteScreen(["home", "library", "settings", "all-games", "help", "whats-new"][index] || "?")
+        GameService.noteScreen(["home", "library", "settings", "all-games", "help", "whats-new", "community"][index] || "?")
         if (index === 2) {
             contentStackContainer.navigateTo(1)
             return
@@ -93,6 +185,7 @@ ApplicationWindow {
         else if (index === 3) homeView.showAllGamesPage()
         else if (index === 4) homeView.showHelpPage()
         else if (index === 5) homeView.showWhatsNewPage()
+        else if (index === 6) homeView.showCommunityPage()
         else homeView.showHomePage()
     }
     property int previousNavIndex: 0  // Remember nav index before game detail
@@ -193,16 +286,22 @@ ApplicationWindow {
         sequence: "Ctrl+Q"
         onActivated: Qt.quit()
     }
-    // Back from a game's page goes where it was opened from, not always home.
+    // Back and forward walk the history (a game's page goes back where it
+    // was opened from, not always home)
     Shortcut {
-        sequences: [StandardKey.Back]
-        enabled: !window._onboardingActive && contentStackContainer.currentIndex !== 0
-        onActivated: window._go(contentStackContainer.currentIndex === 2 ? window.previousNavIndex : 0)
+        sequences: [StandardKey.Back, "Alt+Left"]
+        enabled: !window._onboardingActive
+        onActivated: window.historyBack()
+    }
+    Shortcut {
+        sequences: [StandardKey.Forward, "Alt+Right"]
+        enabled: !window._onboardingActive
+        onActivated: window.historyForward()
     }
     Shortcut {
         sequence: "Escape"
         enabled: !window._onboardingActive && contentStackContainer.currentIndex !== 0
-        onActivated: window._go(contentStackContainer.currentIndex === 2 ? window.previousNavIndex : 0)
+        onActivated: window.historyBack()
     }
     Shortcut {
         sequence: "Ctrl+,"
@@ -242,11 +341,7 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+F"
         enabled: !window._onboardingActive
-        onActivated: {
-            if (window.currentNavIndex !== 3) window.currentNavIndex = 0
-            contentStackContainer.navigateTo(0)
-            homeView.focusSearch()
-        }
+        onActivated: sidebar.focusSearch()
     }
 
     // GPU/CPU Optimization: Pause animations whenever the app is not the
@@ -280,15 +375,63 @@ ApplicationWindow {
         }
     }
 
-    // The lit page under the sidebar and every screen
+    // ===== FIT TO THE WINDOW =====
+    // The pages are laid out for a window `designWidth` wide. A smaller one
+    // shows them scaled down to fit (down to 72 %) instead of crowding them;
+    // a bigger one is never scaled up — it gets more room. Everything the
+    // window shows sits on this stage; dialogs, menus and tips follow the
+    // same factor through Dimensions.uiZoom.
+    readonly property real uiZoom: Math.max(0.72, Math.min(1, window.width / Dimensions.designWidth))
+    Binding { target: Dimensions; property: "uiZoom"; value: window.uiZoom }
+
+    Item {
+        id: stage
+        width: window.width / window.uiZoom
+        height: window.height / window.uiZoom
+        scale: window.uiZoom
+        transformOrigin: Item.TopLeft
+
+        // A press anywhere outside the text field being typed in lets it go
+        // (its ring with it). A PointHandler watches without taking the press.
+        PointHandler {
+            acceptedButtons: Qt.LeftButton
+            onActiveChanged: {
+                if (!active) return
+                const f = window.activeFocusItem
+                if (!f || !("cursorPosition" in f)) return
+                const p = f.mapFromItem(stage, point.position.x, point.position.y)
+                if (p.x < -8 || p.y < -8 || p.x > f.width + 8 || p.y > f.height + 8)
+                    stage.forceActiveFocus()
+            }
+        }
+
+        // The mouse's side buttons: back and forward through the history.
+        // Only those two buttons, so every other press goes where it went.
+        TapHandler {
+            acceptedButtons: Qt.BackButton | Qt.ForwardButton
+            onTapped: (eventPoint, button) => button === Qt.BackButton ? window.historyBack()
+                                                                       : window.historyForward()
+        }
+    }
+
+    // The window is a frame (Theme.chrome) with the sidebar standing on it and
+    // the pages in one lit, rounded panel joined to the sidebar's edge. This
+    // is the panel's floor; panelFrame below rounds and outlines it.
+    // (Items on the stage are placed by x/y, not anchored to one another:
+    // anchors are resolved before `parent: stage` lands, against the window.)
     AppBackground {
-        anchors.fill: parent
+        parent: stage
+        // Stacking on the stage follows z, not the order the items reach it
+        z: -1
+        x: mainContent.x; y: mainContent.y
+        width: mainContent.width; height: mainContent.height
         visible: !window._onboardingActive
     }
 
     // ===== SIDEBAR =====
     Sidebar {
         id: sidebar
+        parent: stage
         visible: !window._onboardingActive
         x: 8
         y: 8
@@ -297,15 +440,24 @@ ApplicationWindow {
         windowRef: window
         currentIndex: window.currentNavIndex
         onNavigate: (index) => window._go(index)
+        // The search searches the catalogue: typing shows "Tüm Oyunlar"
+        onSearchEdited: (text) => {
+            homeView.allGamesQuery = text
+            if (text.trim() !== "" && (window.currentNavIndex !== 3 || contentStackContainer.currentIndex !== 0))
+                window._go(3)
+        }
+        onSearchAccepted: if (window.currentNavIndex === 3) homeView.focusAllGamesResults()
     }
 
     Item {
         id: mainContent
+        parent: stage
+        z: 1
         visible: !window._onboardingActive
-        anchors.left: sidebar.right
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
+        x: sidebar.x + sidebar.width
+        y: 8
+        width: stage.width - x - 8
+        height: stage.height - 16
 
         // ===== CONTENT STACK - crossfade between pages =====
         Item {
@@ -433,27 +585,21 @@ ApplicationWindow {
                 animationsEnabled: window.animationsEnabled
 
                 onGameSelected: function(gameId, gameName, installPath, engine) {
-                    GameService.noteScreen("game", gameId)
-                    detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, false))
-                    detailVM.fromLibrary = (homeView.currentPage === 1)
-                    window.previousNavIndex = window.currentNavIndex
-                    contentStackContainer.navigateTo(2)
+                    window._openGame(gameId, gameName, installPath, engine, false)
                 }
                 onManualFolderRequested: manualFolderDialog.open()
                 onLibraryRequested: window._go(1)
                 onHelpRequested: window._go(4)
-                onAllGamesRequested: (filter, sort, query) => {
+                onAllGamesRequested: (filter, sort) => {
                     window.currentNavIndex = 3
                     contentStackContainer.navigateTo(0)
-                    homeView.showAllGamesPage(filter, sort, query)
+                    sidebar.setSearch("")
+                    homeView.showAllGamesPage(filter, sort)
                 }
+                onSearchClearRequested: sidebar.setSearch("")
 
                 onInstallAndShowDetail: function(gameId, gameName, installPath, engine) {
-                    GameService.noteScreen("game-install", gameId)
-                    detailVM.loadGame(gameDataResolver.resolve(gameId, gameName, installPath, engine, true))
-                    detailVM.fromLibrary = (homeView.currentPage === 1)
-                    window.previousNavIndex = window.currentNavIndex
-                    contentStackContainer.navigateTo(2)
+                    window._openGame(gameId, gameName, installPath, engine, true)
                 }
             }
 
@@ -504,7 +650,9 @@ ApplicationWindow {
                         onTranslateClicked: {
                             installFlow.startInstallFlow(detailVM.gameId, detailVM.gameName)
                         }
-                        onBackClicked: window._go(window.previousNavIndex)
+                        // The back button names where it leads, as Apple's do
+                        backTitle: window.backTitle
+                        onBackClicked: window.historyBack()
                     }
                 }
             }
@@ -512,16 +660,71 @@ ApplicationWindow {
         }
     }
 
+    // ===== PAGE PANEL =====
+    // Rounds the panel by painting the frame over the pages' square corners
+    // (no layer, no mask: the frame is one flat colour), then draws its
+    // hairline with the lit top edge every container has.
+    Item {
+        id: panelFrame
+        parent: stage
+        z: 2
+        x: mainContent.x; y: mainContent.y
+        width: mainContent.width; height: mainContent.height
+        visible: mainContent.visible
+        readonly property real r: Dimensions.radiusSection
+
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: -1
+                fillColor: Theme.chrome
+                fillRule: ShapePath.OddEvenFill
+                PathRectangle { x: -1; y: -1; width: panelFrame.width + 2; height: panelFrame.height + 2 }
+                PathRectangle { x: 0; y: 0; width: panelFrame.width; height: panelFrame.height; radius: panelFrame.r }
+            }
+        }
+        Rectangle {
+            anchors.fill: parent
+            radius: panelFrame.r
+            color: "transparent"
+            border.width: 1
+            border.color: Theme.containerBorder
+        }
+        // Lit along the top and, fainter, along the foot
+        Repeater {
+            model: Theme.darkMode ? [0, 1] : []
+            Rectangle {
+                required property int modelData
+                x: panelFrame.r
+                y: modelData === 0 ? 0 : panelFrame.height - 1
+                width: panelFrame.width - panelFrame.r * 2
+                height: 1
+                opacity: modelData === 0 ? 1 : 0.7
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.3; color: Theme.containerHighlight }
+                    GradientStop { position: 0.7; color: Theme.containerHighlight }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+            }
+        }
+    }
+
     // ===== WINDOW CHROME =====
     // No title bar: the top strip of the page drags the window (a press that
-    // a control under it takes stays that control's), the window's buttons
-    // float top right, over the art on a game's page.
+    // a control under it takes stays that control's). The caption buttons sit
+    // flush in the page panel's top right corner, as Windows 11 puts them in
+    // the window's — in the window's own while the welcome flow covers it.
     Item {
         id: dragStrip
+        parent: stage
         visible: !window._onboardingActive
-        anchors.left: mainContent.left
-        anchors.right: windowControls.left
-        anchors.top: parent.top
+        // On a game's page the strip starts after its back button: a press
+        // under the strip never reaches the control below it
+        x: mainContent.x + (contentStackContainer.gameDetailVisible ? 280 : 0)
+        width: windowControls.x - x
         height: 44
         z: Dimensions.zWindowControls - 1
         DragHandler {
@@ -532,13 +735,13 @@ ApplicationWindow {
 
     WindowControls {
         id: windowControls
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: 8
-        anchors.rightMargin: 8
+        parent: stage
+        // The welcome flow has the same framed panel (OnboardingWizard): its corner
+        x: window._onboardingActive ? stage.width - 8 - width : mainContent.x + mainContent.width - width
+        y: window._onboardingActive ? 8 : mainContent.y
         z: Dimensions.zWindowControls
+        cornerRadius: panelFrame.r
         showTray: !window._onboardingActive
-        onArt: window._onboardingActive
         onTrayClicked: window.minimizeToTray()
         onMinimizeClicked: window.showMinimized()
         onCloseClicked: window.close()
@@ -548,7 +751,8 @@ ApplicationWindow {
     // States of the whole app, floated over the top of the page: the build
     // failing its integrity check, and no internet.
     Column {
-        anchors.horizontalCenter: mainContent.horizontalCenter
+        parent: stage
+        x: mainContent.x + Math.round((mainContent.width - width) / 2)
         anchors.top: parent.top
         anchors.topMargin: 10
         spacing: 8
@@ -678,6 +882,10 @@ ApplicationWindow {
                         detectedSystems = installFlow.pendingAntiCheatData.detectedSystems
                         installFlow.pendingAntiCheatData = null
                     }
+                    // An install only starts from the game's page, so detailVM is that game
+                    artUrl = detailVM.heroUrl
+                    if (detailVM.steamAppId !== "")
+                        artFallbackUrl = "https://cdn.makineceviri.org/assets/banners/" + detailVM.steamAppId + ".jpg"
                     open()
                 }
             }
@@ -769,6 +977,7 @@ ApplicationWindow {
     // ===== ONBOARDING WIZARD OVERLAY (unified auth + onboarding gate) =====
     Loader {
         id: onboardingLoader
+        parent: stage
         anchors.fill: parent
         active: window._onboardingActive
         // A Loader is a focus scope: without this the wizard never gets
@@ -801,6 +1010,7 @@ ApplicationWindow {
 
     PerformanceMonitor {
         id: perfMonitor
+        parent: stage
         visible: devToolsEnabled && window.showPerformanceMonitor
         z: Dimensions.zDebug
     }
@@ -814,10 +1024,13 @@ ApplicationWindow {
     // ===== GAME DETECTION TOAST =====
     GameToast {
         id: gameToast
+        parent: stage
+        z: Dimensions.zToast
     }
 
     // ===== SWR CATALOG REFRESH BADGE =====
     RefreshIndicator {
+        parent: stage
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.rightMargin: 24
@@ -980,6 +1193,7 @@ ApplicationWindow {
                 spacing: 8
 
                 AppButton {
+                    icon: Icons.link
                     Layout.fillWidth: true
                     fillWidth: true
                     style: "filled"
@@ -988,6 +1202,7 @@ ApplicationWindow {
                     onClicked: { window._answerAttach(true, false); attachDialog.close() }
                 }
                 AppButton {
+                    icon: Icons.shieldCheck
                     Layout.fillWidth: true
                     fillWidth: true
                     style: "gray"
@@ -995,6 +1210,7 @@ ApplicationWindow {
                     onClicked: { window._answerAttach(true, true); attachDialog.close() }
                 }
                 AppButton {
+                    icon: Icons.ban
                     Layout.fillWidth: true
                     fillWidth: true
                     style: "plain"

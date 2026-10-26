@@ -66,6 +66,8 @@ ColumnLayout {
     // (a layout loop that froze the page).
     readonly property real _pageWidth: heroRoot.parent ? heroRoot.parent.width : 0
     readonly property real _width: Math.max(0, Math.min(_pageWidth - Dimensions.pageMargin * 2, 1240))
+    // The gap above the card (the page's back button sits in it)
+    readonly property real topGap: 52
 
     spacing: 26
 
@@ -86,7 +88,7 @@ ColumnLayout {
     Item {
         id: card
         Layout.alignment: Qt.AlignHCenter
-        Layout.topMargin: 52
+        Layout.topMargin: heroRoot.topGap
         Layout.fillWidth: false
         Layout.preferredWidth: heroRoot._width
         Layout.preferredHeight: Math.round(Math.max(320, Math.min(470, heroRoot._width * 0.44)))
@@ -334,13 +336,6 @@ ColumnLayout {
         Layout.preferredWidth: heroRoot._width
         spacing: 18
 
-        // What the button above is about to do
-        InstallExplainer {
-            Layout.fillWidth: true
-            vm: heroRoot.vm
-            mode: actionButton._state
-        }
-
         // A game update broke the patch, or its files are gone
         UpdateBanner {
             vm: heroRoot.vm
@@ -355,6 +350,11 @@ ColumnLayout {
             Layout.leftMargin: 0
             Layout.rightMargin: 0
             Layout.topMargin: 0
+        }
+
+        InfoTilesBar {
+            Layout.fillWidth: true
+            vm: heroRoot.vm
         }
 
         // Where the game is — or, not found, how to point at it
@@ -443,24 +443,39 @@ ColumnLayout {
             }
         }
 
-        InfoTilesBar {
+        // The patch's notes, the game's story and the people behind the
+        // patch: one container, its parts under lit hairlines
+        Card {
             Layout.fillWidth: true
             Layout.topMargin: 6
-            vm: heroRoot.vm
-        }
+            implicitHeight: detailsCol.implicitHeight
+            radius: Dimensions.radiusLG
 
-        AboutSection {
-            Layout.fillWidth: true
-            vm: heroRoot.vm
-        }
+            ColumnLayout {
+                id: detailsCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                spacing: 0
 
-        ContributorsSection {
-            Layout.fillWidth: true
-            contributors: heroRoot.vm.contributors
-            externalUrl: heroRoot.vm.externalUrl
-            isApex: heroRoot.vm.isApex
-            isHangar: heroRoot.vm.isHangar
-            apexTier: heroRoot.vm.apexTier
+                AboutSection {
+                    id: about
+                    Layout.fillWidth: true
+                    vm: heroRoot.vm
+                }
+                FadeLine {
+                    visible: about.visible
+                    lit: true
+                }
+                ContributorsSection {
+                    Layout.fillWidth: true
+                    contributors: heroRoot.vm.contributors
+                    externalUrl: heroRoot.vm.externalUrl
+                    isApex: heroRoot.vm.isApex
+                    isHangar: heroRoot.vm.isHangar
+                    apexTier: heroRoot.vm.apexTier
+                }
+            }
         }
 
         Text {

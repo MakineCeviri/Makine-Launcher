@@ -23,6 +23,12 @@ QtObject {
     // =========================================================================
 
     readonly property string discordUrl: "https://discord.com/invite/makine-ceviri-885595211806441482"
+    // Patch install videos
+    readonly property string youtubeUrl: "https://www.youtube.com/@Makine-Ceviri"
+    readonly property string instagramUrl: "https://www.instagram.com/makineceviri/"
+    readonly property string xUrl: "https://x.com/Makineceviri"
+    readonly property string linkedinUrl: "https://www.linkedin.com/company/makineceviri/"
+    readonly property string githubUrl: "https://github.com/MakineCeviri"
     readonly property string websiteUrl: "https://makineceviri.org/"
     readonly property string donatePageUrl: "https://makineceviri.org/destekci-ol"
 
@@ -171,9 +177,12 @@ QtObject {
     // FONT SIZES
     // =========================================================================
 
-    // Apple text styles (Inter stands in for SF Pro; Inter Display for the
-    // large sizes, where SF switches to its Display cut too)
+    // Apple text styles. Inter Display stands in for SF Pro and is the app's
+    // font (main.cpp); its tighter cut reads closer to SF than Inter's text
+    // cut, which keeps only the caption sizes (fontText), where Display
+    // spacing gets cramped.
     readonly property string fontDisplay: "Inter Display"
+    readonly property string fontText: "Inter"
     readonly property int largeTitle: 30
     readonly property int title1: 26
     readonly property int title2: 21
@@ -214,8 +223,15 @@ QtObject {
     // WINDOW SIZES
     // =========================================================================
 
-    readonly property int minWindowWidth: 900
-    readonly property int minWindowHeight: 620
+    // The window keeps these proportions (main.cpp's WM_SIZING lock uses
+    // 900:620); Main.qml lowers the minimum on a screen that cannot hold it.
+    readonly property int minWindowWidth: 1000
+    readonly property int minWindowHeight: 689
+    readonly property int defaultWindowWidth: 1240
+    // Pages are laid out for this width; a narrower window scales them down
+    readonly property int designWidth: 1180
+    // That scale, set by Main.qml (window width / designWidth, 0.72…1)
+    property real uiZoom: 1.0
 
     // =========================================================================
     // INTERACTION DURATIONS

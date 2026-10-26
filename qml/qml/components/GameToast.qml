@@ -85,14 +85,9 @@ Item {
             anchors.leftMargin: 14; anchors.rightMargin: 10
             spacing: 12
 
-            Image {
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
+            AppLogo {
                 Layout.alignment: Qt.AlignTop
-                source: "qrc:/qt/qml/MakineLauncher/resources/images/logo.png"
-                sourceSize: Qt.size(68, 68)
-                fillMode: Image.PreserveAspectFit
-                mipmap: true
+                size: 34
             }
 
             ColumnLayout {

@@ -234,11 +234,13 @@ BaseDialog {
             Item { Layout.fillWidth: true; visible: root.selectedOptionIds.length > 0 }
 
             AppButton {
+                icon: Icons.x
                 style: "gray"
                 text: qsTr("Vazgeç")
                 onClicked: { root.cancelled(); root.close() }
             }
             AppButton {
+                icon: Icons.download
                 style: "filled"
                 tint: root.accentColor
                 enabled: root.selectedOptionIds.length > 0

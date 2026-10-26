@@ -12,11 +12,12 @@ pragma ComponentBehavior: Bound
  * WelcomeStep — the first screen anyone sees.
  *
  * One job: say what this is and why to trust it, then get out of the way.
- * Left: the promise, three reasons it is safe to try, one button. Right: the
- * catalogue itself — a tilted wall of covers drifting slowly in columns and
- * fading into the backdrop, the plainest proof that there is something here
- * for them. The old screen was a logo, a wordmark, an 11 px tagline at 25 %
- * white and a button; nothing on it said what "Başla" would lead to.
+ * Left: the promise in the page's display type (its second line in the
+ * accent), what it does in a sentence, three reasons it is safe to try on a
+ * lit container. Right: the catalogue itself — a tilted wall of covers
+ * drifting slowly in columns and fading into the page, the plainest proof
+ * that there is something here for them. The words arrive one after
+ * another; the wizard's foot carries the button.
  */
 Item {
     id: step
@@ -30,16 +31,29 @@ Item {
 
     readonly property int _catalogCount: GameService.supportedGamesModel
                                          ? GameService.supportedGamesModel.count : 0
-    readonly property bool _wide: step.width >= 960
+    readonly property bool _wide: step.width >= 900
 
-    // Covers for the wall: the newest patches.
+    // Covers for the wall: the newest patches whose cover is already on disk
+    // (one still on its way, or missing, would leave a blank tile).
     property var _covers: []
     function _refreshCovers() {
         const out = []
-        for (const e of GameService.recentlyUpdatedGames(24))
-            out.push(e.steamAppId)
-        step._covers = out
+        for (const e of GameService.recentlyUpdatedGames(48)) {
+            if (e.steamAppId && ImageCache.resolve(e.steamAppId) !== "")
+                out.push(e.steamAppId)
+            if (out.length >= 24) break
+        }
+        if (out.join() !== step._covers.join())
+            step._covers = out
     }
+    // Covers arriving fill a wall that was short of them (not after: a
+    // changing wall would jump)
+    Connections {
+        target: ImageCache
+        enabled: step._covers.length < 24
+        function onImageReady() { coverRefresh.restart() }
+    }
+    Timer { id: coverRefresh; interval: 800; onTriggered: step._refreshCovers() }
     // Six per column, each column its own slice of the list.
     function _column(i) {
         const n = step._covers.length
@@ -50,59 +64,30 @@ Item {
     }
     Component.onCompleted: {
         _refreshCovers()
-        if (step.animate) entrance.start()
-        else { copy.opacity = 1; copyShift.y = 0; wallArea.opacity = 1 }
+        if (step.animate) wallIn.start()
+        else wallArea.opacity = 1
     }
     Connections {
         target: GameService.supportedGamesModel
         function onModelReset() { step._refreshCovers() }
     }
 
-    ParallelAnimation {
-        id: entrance
-        NumberAnimation { target: copy; property: "opacity"; to: 1; duration: 520; easing.type: Easing.OutCubic }
-        NumberAnimation { target: copyShift; property: "y"; to: 0; duration: 520; easing.type: Easing.OutCubic }
-        SequentialAnimation {
-            PauseAnimation { duration: 160 }
-            NumberAnimation { target: wallArea; property: "opacity"; to: 1; duration: 900; easing.type: Easing.OutCubic }
-        }
-    }
-
-    // ── Light behind the words ───────────────────────────────────────────────
-    Canvas {
-        id: glow
-        x: copy.x - 260
-        y: copy.y - 220
-        width: 900
-        height: 760
-        renderStrategy: Canvas.Cooperative
-        property color tint: Theme.accentBase
-        onTintChanged: requestPaint()
-        onPaint: {
-            const ctx = getContext("2d")
-            ctx.clearRect(0, 0, width, height)
-            const g = ctx.createRadialGradient(width * 0.42, height * 0.45, 0,
-                                               width * 0.42, height * 0.45, width * 0.5)
-            g.addColorStop(0, Qt.rgba(tint.r, tint.g, tint.b, 0.22))
-            g.addColorStop(0.55, Qt.rgba(tint.r, tint.g, tint.b, 0.07))
-            g.addColorStop(1, Qt.rgba(tint.r, tint.g, tint.b, 0))
-            ctx.fillStyle = g
-            ctx.fillRect(0, 0, width, height)
-        }
+    NumberAnimation {
+        id: wallIn
+        target: wallArea; property: "opacity"; to: 1
+        duration: 1100; easing.type: Easing.OutCubic
     }
 
     // ── The wall ─────────────────────────────────────────────────────────────
-    // Bleeds past this step's box: up under the window controls, down to the
-    // bottom edge, out to the right. Two soft masks fade it into the backdrop:
-    // toward the words on the left, and at the top and bottom where columns
-    // enter and leave.
+    // Two soft masks fade it into the page: toward the words on the left, and
+    // at the top and bottom where columns enter and leave.
     Item {
         id: wallArea
         visible: step._wide && step._covers.length >= 8
-        x: step.width * 0.43
-        y: -40
+        x: step.width * 0.46
+        y: 0
         width: step.width - x
-        height: step.height + 40 + 56
+        height: step.height
         opacity: 0
 
         layer.enabled: true
@@ -126,11 +111,11 @@ Item {
 
             Item {
                 id: group
-                readonly property real coverW: 156
+                readonly property real coverW: 150
                 readonly property real coverH: Math.round(coverW * 185 / 130)
                 readonly property real gap: 20
                 width: 4 * coverW + 3 * gap
-                height: wallInner.height * 1.35
+                height: wallInner.height * 1.4
                 anchors.centerIn: parent
                 anchors.horizontalCenterOffset: 40
 
@@ -229,7 +214,7 @@ Item {
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0;  color: "transparent" }
-            GradientStop { position: 0.38; color: "#FFFFFFFF" }
+            GradientStop { position: 0.4;  color: "#FFFFFFFF" }
             GradientStop { position: 1.0;  color: "#FFFFFFFF" }
         }
     }
@@ -241,8 +226,8 @@ Item {
         layer.enabled: true
         gradient: Gradient {
             GradientStop { position: 0.0;  color: "transparent" }
-            GradientStop { position: 0.2;  color: "#FFFFFFFF" }
-            GradientStop { position: 0.8;  color: "#FFFFFFFF" }
+            GradientStop { position: 0.18; color: "#FFFFFFFF" }
+            GradientStop { position: 0.82; color: "#FFFFFFFF" }
             GradientStop { position: 1.0;  color: "transparent" }
         }
     }
@@ -250,60 +235,43 @@ Item {
     // ── The words ────────────────────────────────────────────────────────────
     ColumnLayout {
         id: copy
-        x: step._wide ? Math.max(72, step.width * 0.07) : (step.width - width) / 2
+        x: step._wide ? Math.max(56, step.width * 0.06) : (step.width - width) / 2
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(step._wide ? step.width * 0.40 : step.width - 96, 520)
+        width: Math.min(step._wide ? step.width * 0.44 : step.width - 96, 540)
         spacing: 0
-        opacity: 0
-        transform: Translate { id: copyShift; y: 18 }
 
-        Row {
-            spacing: 12
-            Layout.bottomMargin: 36
-
-            Image {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 30; height: 30
-                source: "qrc:/qt/qml/MakineLauncher/resources/images/logo_white.png"
-                sourceSize: Qt.size(60, 60)
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: "MAKİNE ÇEVİRİ"
-                font.pixelSize: 13
-                font.weight: Font.DemiBold
-                font.letterSpacing: 3.2
-                color: Qt.rgba(1, 1, 1, 0.9)
-            }
-        }
-
-        Text {
+        Arrive {
+            order: 0
             Layout.fillWidth: true
-            textFormat: Text.PlainText
-            text: qsTr("Sevdiğin oyunlar,")
-            font.pixelSize: 54
-            font.weight: Font.Bold
-            font.letterSpacing: -1.8
-            lineHeight: 0.95
-            color: "#FFFFFF"
+            implicitHeight: line1.implicitHeight
+            Text {
+                id: line1
+                width: parent.width
+                textFormat: Text.PlainText
+                text: qsTr("Sevdiğin oyunlar,")
+                font.family: Dimensions.fontDisplay
+                font.pixelSize: 54
+                font.weight: Font.Bold
+                font.letterSpacing: -1.6
+                lineHeight: 0.95
+                color: Theme.textPrimary
+            }
         }
 
-        // The promise in the brand's neon: pink → violet → cyan through the letters.
-        Item {
+        // The promise in the accent, lit from its lighter tone
+        Arrive {
+            order: 1
             Layout.preferredWidth: promise.implicitWidth
             Layout.preferredHeight: promise.implicitHeight
             Layout.bottomMargin: 22
-
             Text {
                 id: promise
                 textFormat: Text.PlainText
                 text: qsTr("artık Türkçe.")
+                font.family: Dimensions.fontDisplay
                 font.pixelSize: 54
                 font.weight: Font.Bold
-                font.letterSpacing: -1.8
+                font.letterSpacing: -1.6
                 color: "white"
                 visible: false
                 layer.enabled: true
@@ -312,9 +280,9 @@ Item {
                 anchors.fill: promise
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "#F472B6" }
-                    GradientStop { position: 0.5; color: "#A78BFA" }
-                    GradientStop { position: 1.0; color: "#22D3EE" }
+                    GradientStop { position: 0.0; color: Theme.accentLightest }
+                    GradientStop { position: 0.55; color: Theme.primaryText }
+                    GradientStop { position: 1.0; color: Theme.primary }
                 }
                 layer.enabled: true
                 layer.effect: MultiEffect {
@@ -326,80 +294,101 @@ Item {
             }
         }
 
-        Text {
+        Arrive {
+            order: 2
             Layout.fillWidth: true
-            Layout.maximumWidth: 470
-            Layout.bottomMargin: 34
-            textFormat: Text.PlainText
-            text: qsTr("Bilgisayarındaki oyunlar için Türkçe yamaları bulur, tek tıkla kurar. Oyunun orijinal dosyaları yedeklenir; istediğin an geri alırsın.")
-            wrapMode: Text.WordWrap
-            lineHeight: 1.45
-            font.pixelSize: 16
-            color: Qt.rgba(1, 1, 1, 0.7)
+            Layout.maximumWidth: 480
+            Layout.bottomMargin: 30
+            implicitHeight: intro.implicitHeight
+            Text {
+                id: intro
+                width: parent.width
+                textFormat: Text.PlainText
+                text: qsTr("Bilgisayarındaki oyunlar için Türkçe yamaları bulur, tek tıkla kurar. Oyunun orijinal dosyaları yedeklenir; istediğin an geri alırsın.")
+                wrapMode: Text.WordWrap
+                lineHeight: 1.4
+                font.pixelSize: Dimensions.headline
+                color: Theme.textSecondary
+            }
         }
 
-        Repeater {
-            model: [
-                { icon: Icons.library,
-                  text: step._catalogCount > 0
-                        ? qsTr("%1 oyun için Türkçe yama").arg(step._catalogCount)
-                        : qsTr("Yüzlerce oyun için Türkçe yama") },
-                { icon: Icons.shieldCheck, text: qsTr("Orijinal dosyalar yedeklenir, tek tıkla geri alınır") },
-                { icon: Icons.heartHandshake, text: qsTr("Kâr amacı gütmeyen, gönüllü bir topluluk projesi") }
-            ]
+        // Three reasons to trust it, on one lit container
+        Arrive {
+            order: 3
+            Layout.fillWidth: true
+            Layout.maximumWidth: 480
+            implicitHeight: reasons.implicitHeight
+            ListSection {
+                id: reasons
+                width: parent.width
+                ListRow {
+                    icon: Icons.library
+                    iconTint: Theme.primary
+                    title: step._catalogCount > 0
+                           ? qsTr("%1 oyun için Türkçe yama").arg(step._catalogCount)
+                           : qsTr("Yüzlerce oyun için Türkçe yama")
+                    subtitle: qsTr("Yeni yamalar geldikçe katalog kendiliğinden güncellenir.")
+                }
+                ListRow {
+                    icon: Icons.shieldCheck
+                    iconTint: Theme.success
+                    title: qsTr("Orijinal dosyalar yedeklenir")
+                    subtitle: qsTr("Yamayı tek tıkla kaldırır, oyunu eski hâline getirirsin.")
+                }
+                ListRow {
+                    icon: Icons.heartHandshake
+                    iconTint: "#FF375F"
+                    title: qsTr("Kâr amacı gütmeyen bir topluluk")
+                    subtitle: qsTr("Yamalar gönüllü çevirmenlerin emeği; launcher ücretsiz ve açık kaynak.")
+                }
+            }
+        }
 
-            RowLayout {
-                id: point
-                required property var modelData
-                Layout.fillWidth: true
-                Layout.bottomMargin: 14
-                spacing: 14
-
-                IconTile {
-                    size: 34
-                    glyph: point.modelData.icon
-                    tint: Theme.accentBase
+        Arrive {
+            order: 4
+            Layout.topMargin: 18
+            implicitWidth: steps.implicitWidth
+            implicitHeight: steps.implicitHeight
+            Row {
+                id: steps
+                spacing: 8
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: Icons.clock
+                    size: 14
+                    color: Theme.textMuted
                 }
                 Text {
-                    Layout.fillWidth: true
+                    anchors.verticalCenter: parent.verticalCenter
                     textFormat: Text.PlainText
-                    text: point.modelData.text
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: 15
-                    font.weight: Font.Medium
-                    color: Qt.rgba(1, 1, 1, 0.9)
+                    text: qsTr("3 kısa adım · yaklaşık bir dakika")
+                    font.pixelSize: Dimensions.footnote
+                    font.family: Dimensions.fontText
+                    color: Theme.textMuted
                 }
-            }
-        }
-
-        Row {
-            Layout.topMargin: 24
-            spacing: 18
-
-            OnboardingButton {
-                kind: "primary"
-                text: qsTr("Başlayalım")
-                trailingIcon: Icons.arrowRight
-                onClicked: step.next()
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: qsTr("3 kısa adım · yaklaşık bir dakika")
-                font.pixelSize: 13
-                color: Qt.rgba(1, 1, 1, 0.5)
             }
         }
     }
 
-    Text {
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        anchors.leftMargin: copy.x
-        anchors.bottomMargin: -32
-        textFormat: Text.PlainText
-        text: "v" + Qt.application.version + "  ·  makineceviri.org"
-        font.pixelSize: 12
-        color: Qt.rgba(1, 1, 1, 0.32)
+    // One part of the words, rising into place after the one before
+    component Arrive: Item {
+        id: arrive
+        property int order: 0
+        default property alias content: holder.data
+        Item { id: holder; anchors.fill: parent }
+        opacity: 0
+        transform: Translate { id: lift; y: 16 }
+        Component.onCompleted: {
+            if (!step.animate || Dimensions.animSlow === 0) { arrive.opacity = 1; lift.y = 0; return }
+            rise.start()
+        }
+        SequentialAnimation {
+            id: rise
+            PauseAnimation { duration: 120 + arrive.order * 90 }
+            ParallelAnimation {
+                NumberAnimation { target: arrive; property: "opacity"; to: 1; duration: 480; easing.type: Easing.OutCubic }
+                NumberAnimation { target: lift; property: "y"; to: 0; duration: 760; easing.type: Easing.OutExpo }
+            }
+        }
     }
 }

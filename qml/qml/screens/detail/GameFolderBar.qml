@@ -301,6 +301,7 @@ Item {
                 onClicked: GameService.resetGameFolder(bar.vm.gameId)
             }
             AppButton {
+                icon: Icons.folderSearch
                 size: "small"
                 style: "gray"
                 text: qsTr("Değiştir")
@@ -377,6 +378,7 @@ Item {
                 spacing: 4
 
                 AppButton {
+                    icon: Icons.folderSearch
                     Layout.alignment: Qt.AlignRight
                     style: "filled"
                     tint: Theme.warning
@@ -389,6 +391,7 @@ Item {
                     onClicked: bar._missing ? bar.pick("change") : bar._fix()
                 }
                 AppButton {
+                    icon: Icons.folderSearch
                     Layout.alignment: Qt.AlignRight
                     visible: !bar._missing
                     size: "small"

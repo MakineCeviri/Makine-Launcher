@@ -42,6 +42,7 @@ Rectangle {
             textFormat: Text.PlainText
             text: badge.text
             font.pixelSize: Dimensions.caption1
+            font.family: Dimensions.fontText
             font.weight: Font.DemiBold
             color: badge.onArt ? "#FFFFFF" : badge.tint
         }

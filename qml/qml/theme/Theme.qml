@@ -31,20 +31,29 @@ QtObject {
     // BACKGROUNDS
     // =========================================================================
 
+    // Dark surfaces take a little of the accent, so the whole window carries
+    // the colour the user picked, not only its buttons
+    function _night(r, g, b, k, alpha) {
+        return Qt.rgba(r / 255 * (1 - k) + accentBase.r * k, g / 255 * (1 - k) + accentBase.g * k,
+                       b / 255 * (1 - k) + accentBase.b * k, alpha)
+    }
+
+    /// The window's frame: the sidebar stands on it, the page panel sits in it
+    readonly property color chrome: _m(_night(3, 3, 5, 0.03, 1), "#E7E7EC")
     /// Window / page background (AppBackground lights it)
-    readonly property color bgPrimary: _m("#07070A", "#F4F4F6")
+    readonly property color bgPrimary: _m(_night(7, 7, 10, 0.035, 1), "#F4F4F6")
     /// A step up from the page, opaque
     readonly property color bgSecondary: _m("#0E0E13", "#FFFFFF")
 
     /// Containers: sidebar, sections, lists, cards — see Card.qml. Translucent
     /// in dark so the page's glow shows faintly through.
-    readonly property color container: _m(Qt.rgba(13/255, 13/255, 18/255, 0.82), "#FFFFFF")
+    readonly property color container: _m(_night(13, 13, 18, 0.05, 0.82), "#FFFFFF")
     /// Its hairline, and the lit top edge drawn over it
     readonly property color containerBorder: _m(Qt.rgba(1, 1, 1, 0.065), Qt.rgba(0, 0, 0, 0.07))
     readonly property color containerHighlight: _m(Qt.rgba(1, 1, 1, 0.16), Qt.rgba(1, 1, 1, 0.9))
     /// What content fades into at a container's edge (EdgeFade): the
     /// container over the page, as near as one colour gets
-    readonly property color containerSolid: _m("#0C0C11", "#FFFFFF")
+    readonly property color containerSolid: _m(_night(12, 12, 17, 0.05, 1), "#FFFFFF")
 
     readonly property color sidebarBg: container
     readonly property color sidebarBorder: containerBorder
@@ -78,9 +87,6 @@ QtObject {
     /// Hairline between rows and around cards
     readonly property color separator: _m(Qt.rgba(1, 1, 1, 0.065), Qt.rgba(0, 0, 0, 0.09))
     readonly property color separatorStrong: _m(Qt.rgba(1, 1, 1, 0.12), Qt.rgba(0, 0, 0, 0.16))
-
-    /// Selected segment of a segmented control
-    readonly property color segmentSelected: _m(Qt.rgba(1, 1, 1, 0.13), "#FFFFFF")
 
     /// Behind a sheet or alert
     readonly property color scrim: _m(Qt.rgba(0, 0, 0, 0.55), Qt.rgba(0, 0, 0, 0.28))
@@ -204,6 +210,7 @@ QtObject {
     readonly property color closeButtonHover: "#E81123"
     readonly property color turkishRed: "#E30A17"
     readonly property color discordColor: "#5865F2"
+    readonly property color youtubeColor: "#FF0033"
     readonly property color steamBlue: "#66C0F4"
     readonly property color statusOnline: success
 
