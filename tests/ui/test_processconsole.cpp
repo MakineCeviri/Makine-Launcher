@@ -77,3 +77,20 @@ TEST(ProcessConsole, OnlyTheNewestLinesAreKeptFromALineStart)
     EXPECT_TRUE(log.startsWith(QStringLiteral("line ")));
     EXPECT_TRUE(log.endsWith(QStringLiteral("line 099\n")));
 }
+
+TEST(ProcessConsole, APauseIsAnsweredByItself)
+{
+    EXPECT_TRUE(waitsForKey(QStringLiteral("Kuruldu.\nPress any key to continue . . . ")));
+    EXPECT_TRUE(waitsForKey(QStringLiteral("Devam etmek için bir tuşa basın . . .\r\n")));
+    EXPECT_TRUE(waitsForKey(QStringLiteral("Bitti. Devam etmek için Enter'a basın")));
+    EXPECT_TRUE(waitsForKey(QStringLiteral("Press ENTER to exit")));
+}
+
+TEST(ProcessConsole, AQuestionStaysTheUsers)
+{
+    EXPECT_FALSE(waitsForKey(QStringLiteral("Yedek alınsın mı? (E/H): ")));
+    EXPECT_FALSE(waitsForKey(QStringLiteral("Seçimini yazıp Enter'a bas: ")));
+    EXPECT_FALSE(waitsForKey(QStringLiteral("Oyun klasörünü yaz: ")));
+    // Only the last line counts: an earlier pause was answered already
+    EXPECT_FALSE(waitsForKey(QStringLiteral("Press any key to continue . . .\n\nKopyalanıyor...\n")));
+}

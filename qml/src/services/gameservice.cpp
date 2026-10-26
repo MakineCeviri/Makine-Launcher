@@ -381,6 +381,25 @@ void GameService::setupCoreBridge()
                     return;
                 processconsole::appendTo(m_installConsole, text, kInstallConsoleCap);
                 emit translationInstallOutput(owner);
+
+                // "Press any key to continue": the key is pressed for the
+                // user, a moment after the prompt shows, unless they did.
+                if (!text.trimmed().isEmpty())
+                    m_promptFresh = true;
+                if (m_promptFresh && !m_autoKeyQueued && processconsole::waitsForKey(m_installConsole)) {
+                    m_autoKeyQueued = true;
+                    QTimer::singleShot(600, this, [this, owner]() {
+                        m_autoKeyQueued = false;
+                        const QString now = !m_installingGameId.isEmpty() ? m_installingGameId : m_undoGameId;
+                        if (now != owner || !m_promptFresh || !m_coreBridge
+                            || !processconsole::waitsForKey(m_installConsole))
+                            return;     // answered meanwhile, or the program went on
+                        m_promptFresh = false;
+                        processconsole::appendTo(m_installConsole, QStringLiteral("↵\n"), kInstallConsoleCap);
+                        emit translationInstallOutput(owner);
+                        m_coreBridge->sendProcessInput(QString());
+                    });
+                }
             });
 
     connect(m_coreBridge, &CoreBridge::packageInstallCompleted,
@@ -1704,6 +1723,7 @@ void GameService::sendInstallInput(const QString& text)
     if (owner.isEmpty() || !m_coreBridge)
         return;
     // A pipe does not echo; show what was typed where a console would.
+    m_promptFresh = false;
     processconsole::appendTo(m_installConsole, text + QLatin1Char('\n'), kInstallConsoleCap);
     emit translationInstallOutput(owner);
     m_coreBridge->sendProcessInput(text);
@@ -1899,6 +1919,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         m_installOverRecord.reset();
     m_installCancelRequested = false;
     m_installConsole.clear();
+    m_promptFresh = false;
     m_installConsoleGameId = gameId;
     m_installTimeoutTimer->start();
     emit translationInstallStarted(gameId);
@@ -2451,6 +2472,7 @@ void GameService::uninstallTranslationNow(const QString& gameId)
 void GameService::runUndoPrograms(const QString& gameId, const QString& gamePath)
 {
     m_installConsole.clear();
+    m_promptFresh = false;
     m_installConsoleGameId = gameId;
     m_undoGameId = gameId;
     emit translationInstallOutput(gameId);

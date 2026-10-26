@@ -94,6 +94,7 @@ endif()
 set(BACKEND_SOURCES
     src/services/gameservice.cpp
     src/services/steamdetailsservice.cpp
+    src/services/communityservice.cpp
     src/services/settingsmanager.cpp
     src/services/backupmanager.cpp
     src/services/processscanner.cpp
@@ -131,6 +132,7 @@ set(BACKEND_SOURCES
 set(BACKEND_HEADERS
     src/services/gameservice.h
     src/services/steamdetailsservice.h
+    src/services/communityservice.h
     src/services/settingsmanager.h
     src/services/backupmanager.h
     src/services/processscanner.h

@@ -133,6 +133,11 @@ public:
     Q_INVOKABLE QString qtVersion() const;
     Q_INVOKABLE QString activeGraphicsApi() const;
 
+    // DPAPI encryption for sensitive data (Windows only): paths here, the
+    // community sign-in token (CommunityService)
+    static QByteArray protectData(const QByteArray& plaintext);
+    static QByteArray unprotectData(const QByteArray& encrypted);
+
 signals:
     void autoDetectGamesChanged();
     void startWithWindowsChanged();
@@ -158,10 +163,6 @@ private:
     void loadSettings();
     void saveSettings();
     void setupAutoStart(bool enable);
-
-    // DPAPI encryption for sensitive path data (Windows only)
-    static QByteArray protectData(const QByteArray& plaintext);
-    static QByteArray unprotectData(const QByteArray& encrypted);
 
     QSettings m_settings;
 

@@ -52,7 +52,15 @@ Q_LOGGING_CATEGORY(lcApp, "makine.app")
 #include <QAbstractNativeEventFilter>
 #include <cmath>
 #include <atomic>
+#include <array>
+#include <memory>
 #include <mutex>
+#include <vector>
+#include <QFontMetricsF>
+#include <QHash>
+#include <QImageReader>
+#include <QPainter>
+#include <QPainterPath>
 
 // Eliminate DWM non-client border on frameless windows.
 // Without this, Windows adds an asymmetric invisible border (~8px left, ~0px right)
@@ -158,343 +166,433 @@ void configureWindowStyle(HWND hwnd) {
 
 } // namespace
 
-// Native Win32 splash window — shown immediately while QML loads
-// 440x240, rounded corners, logo, gradient bars, loading dots
-// Threaded splash: runs its own message loop on a dedicated thread so it stays
-// responsive while the main thread blocks in QML create() (~4 seconds).
+// Native splash — shown at once while QML loads. It runs its own message loop
+// on a dedicated thread, so it keeps moving while the main thread blocks in
+// QML create() (~4 seconds).
+//
+// A layered window (per-pixel alpha: truly round corners and a soft shadow)
+// in the launcher's own look, read from its settings: the page in its dark or
+// light mode tinted by the accent the user picked, the two soft orbs of that
+// accent where AppBackground puts them, the rim a touch darker, a hairline
+// lit along the top and the foot. On it the logo — its colours flowing as on
+// Discord (logo_anim.webp) — in a soft glow of the accent, the name as the
+// pages title themselves, and along the foot a line in the accent fed by the
+// startup steps (setStatus), the step's words on its left, the version on its
+// right. It rises in; close() fills the line and fades it out over the window
+// that has just drawn its first frame, without holding the caller.
+// Qt paints every frame into a QImage (premultiplied BGRA, what
+// UpdateLayeredWindow takes). Text is laid out on the main thread, so the
+// splash thread only paints images and gradients.
 class SplashWindow {
 public:
     SplashWindow() = default;
-    ~SplashWindow() { close(); if (m_logoBitmap) DeleteObject(m_logoBitmap); }
+    ~SplashWindow() {
+        close();
+        if (m_thread) {
+            WaitForSingleObject(m_thread, 3000);
+            CloseHandle(m_thread);
+        }
+    }
     SplashWindow(const SplashWindow&) = delete;
     SplashWindow& operator=(const SplashWindow&) = delete;
 
-    void setInterFont(bool loaded) { m_interLoaded = loaded; }
-
-    // Load logo from QImage (call before show — main thread, before splash thread starts)
-    void setLogo(const QImage& img) {
-        if (img.isNull()) return;
-        QImage converted = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-        m_logoWidth = converted.width();
-        m_logoHeight = converted.height();
-
-        BITMAPINFO bmi{};
-        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        bmi.bmiHeader.biWidth = m_logoWidth;
-        bmi.bmiHeader.biHeight = -m_logoHeight; // top-down
-        bmi.bmiHeader.biPlanes = 1;
-        bmi.bmiHeader.biBitCount = 32;
-        bmi.bmiHeader.biCompression = BI_RGB;
-
-        HDC screenDC = GetDC(nullptr);
-        BYTE* pixels = nullptr;
-        m_logoBitmap = CreateDIBSection(screenDC, &bmi, DIB_RGB_COLORS,
-                                         reinterpret_cast<void**>(&pixels), nullptr, 0);
-        ReleaseDC(nullptr, screenDC);
-
-        if (m_logoBitmap && pixels)
-            memcpy(pixels, converted.constBits(), m_logoWidth * m_logoHeight * 4);
-    }
-
-    // Spawn splash on its own thread (returns immediately)
+    // Main thread, after configureApplication() (QGuiApplication and the
+    // fonts exist). Starts the splash thread with the card and the logo,
+    // then lays out the words: the first text set loads the font database
+    // (~300 ms), which the window does not wait for.
     void show() {
+        m_dpr = qMax(1.0, GetDpiForSystem() / 96.0);
+        m_pw = qRound(kW * m_dpr);
+        m_ph = qRound(kH * m_dpr);
+        m_logoPx = qRound(kLogo * m_dpr);
+
+        // The launcher's mode and accent (SettingsManager keeps them; Theme.qml
+        // has the same table: fill on dark, label on dark, fill on light)
+        {
+            QSettings settings(QStringLiteral("MakineCeviri"), QStringLiteral("Makine-Launcher"));
+            m_dark = settings.value(QStringLiteral("appearance/isDarkMode"), true).toBool();
+            const QString preset = settings.value(QStringLiteral("appearance/accentPreset"),
+                                                  QStringLiteral("purple")).toString();
+            static const QHash<QString, std::array<QRgb, 3>> kAccents = {
+                {QStringLiteral("purple"), {0xFF8B5CF6, 0xFFA78BFA, 0xFF7C3AED}},
+                {QStringLiteral("blue"),   {0xFF3B82F6, 0xFF60A5FA, 0xFF2563EB}},
+                {QStringLiteral("indigo"), {0xFF6366F1, 0xFF818CF8, 0xFF4F46E5}},
+                {QStringLiteral("sky"),    {0xFF0EA5E9, 0xFF38BDF8, 0xFF0284C7}},
+                {QStringLiteral("teal"),   {0xFF14B8A6, 0xFF2DD4BF, 0xFF0D9488}},
+                {QStringLiteral("green"),  {0xFF22C55E, 0xFF4ADE80, 0xFF16A34A}},
+                {QStringLiteral("amber"),  {0xFFF59E0B, 0xFFFBBF24, 0xFFD97706}},
+                {QStringLiteral("rose"),   {0xFFEC4899, 0xFFF472B6, 0xFFDB2777}},
+                {QStringLiteral("red"),    {0xFFEF4444, 0xFFF87171, 0xFFDC2626}},
+                {QStringLiteral("black"),  {0xFF71717A, 0xFFA1A1AA, 0xFF52525B}},
+            };
+            const auto a = kAccents.value(preset, kAccents.value(QStringLiteral("purple")));
+            m_accent = QColor::fromRgb(m_dark ? a[0] : a[2]);
+            m_accentLight = QColor::fromRgb(m_dark ? a[1] : a[2]);
+            m_accentDark = m_accent.darker(115);
+            // Theme.bgPrimary: near-black taking a little of the accent
+            const auto night = [this](int r, int g, int b, qreal k) {
+                return QColor::fromRgbF(r / 255.0 * (1 - k) + m_accent.redF() * k,
+                                        g / 255.0 * (1 - k) + m_accent.greenF() * k,
+                                        b / 255.0 * (1 - k) + m_accent.blueF() * k);
+            };
+            m_bg = m_dark ? night(7, 7, 10, 0.035) : QColor(0xF4, 0xF4, 0xF6);
+        }
+
+        const QImage logo(QStringLiteral(":/qt/qml/MakineLauncher/resources/images/logo.png"));
+        if (!logo.isNull())
+            m_logo = logo.convertToFormat(QImage::Format_ARGB32_Premultiplied)
+                         .scaled(m_logoPx, m_logoPx, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+        // The card's shadow and the logo's, softened once
+        m_cardShadow = shadow(QSizeF(kW, kH), kCard.translated(0, 12), kRadius, m_dark ? 150 : 60, 18);
+        const qreal ls = kLogo * 1.8;
+        m_logoShadow = shadow(QSizeF(ls, ls), QRectF((ls - kLogo) / 2, (ls - kLogo) / 2 + 7, kLogo, kLogo),
+                              kLogo * 0.225, 170, 9);
+
+        m_clock.start();
         m_thread = CreateThread(nullptr, 0, splashThreadProc, this, 0, &m_threadId);
-        // Wait until HWND is created so setStatus/close work
+        // Wait until the window exists so setStatus/close reach it
         while (!m_ready.load(std::memory_order_acquire))
             Sleep(1);
+
+        QImage title = text(QStringLiteral("Makine Çeviri"), font(26, QFont::Bold, true, -0.4), ink(m_dark ? 245 : 235));
+        QImage subtitle = text(QStringLiteral("Türkçe yama başlatıcısı"), font(14, QFont::Medium, true), ink(m_dark ? 140 : 135));
+        QImage version = text(QStringLiteral("v" MAKINE_APP_VERSION), font(11, QFont::Medium, false), ink(m_dark ? 95 : 105));
+        std::lock_guard lk(m_statusMutex);
+        m_title = std::move(title);
+        m_subtitle = std::move(subtitle);
+        m_version = std::move(version);
+        m_textAt = m_clock.elapsed();
     }
 
-    // Thread-safe: posts status text to splash thread
-    void setStatus(const wchar_t* text) {
+    // Main thread: the step's words, laid out here; the splash slides them in
+    void setStatus(const wchar_t* status) {
+        QImage line = text(QString::fromWCharArray(status), font(12, QFont::Normal, false), ink(m_dark ? 150 : 140));
         std::lock_guard lk(m_statusMutex);
-        wcsncpy(m_status, text, 63);
-        m_status[63] = L'\0';
-        if (m_hwnd)
-            PostMessageW(m_hwnd, WM_APP + 1, 0, 0); // trigger repaint
+        m_prevStatus = std::move(m_status);
+        m_status = std::move(line);
+        m_statusAt = m_clock.elapsed();
+        ++m_step;
     }
 
     // No-op — kept for API compatibility (splash pumps its own messages)
     void pumpMessages() {}
 
     void waitMinimumDisplay(DWORD minMs) {
-        DWORD showTime = m_showTime.load(std::memory_order_acquire);
-        if (!showTime) return;
-        DWORD elapsed = GetTickCount() - showTime;
+        if (!m_clock.isValid()) return;
+        const qint64 elapsed = m_clock.elapsed();
         if (elapsed < minMs)
-            Sleep(minMs - elapsed);
+            Sleep(DWORD(minMs - elapsed));
     }
 
-    // Thread-safe: signals splash thread to close and waits for it
+    // Fills the line and fades out on the splash thread; returns at once
+    // (the destructor waits for the thread).
     void close() {
-        if (m_hwnd) {
-            PostMessageW(m_hwnd, WM_APP + 2, 0, 0); // request close
-        }
-        if (m_thread) {
-            WaitForSingleObject(m_thread, 3000);
-            CloseHandle(m_thread);
-            m_thread = nullptr;
-        }
-        m_hwnd = nullptr;
+        if (m_hwnd && !m_closing.exchange(true))
+            PostMessageW(m_hwnd, WM_APP + 2, 0, 0);
     }
 
 private:
-    // Brand gradient palette (Makine official colors)
-    static constexpr COLORREF kBrandColors[] = {
-        RGB(252, 205, 102), RGB(247, 174, 118), RGB(238, 150, 143),
-        RGB(204, 159, 216), RGB(144, 194, 230), RGB(119, 219, 200),
-        RGB(128, 229, 157), RGB(200, 235, 124), RGB(212, 190, 119)
-    };
-    static constexpr int kColorCount = 9;
+    // Window and card, in logical pixels (the card leaves room for its shadow)
+    static constexpr qreal kW = 520, kH = 352;
+    static constexpr QRectF kCard{30, 24, 460, 290};
+    static constexpr qreal kRadius = 16;
+    static constexpr qreal kLogo = 84;
+    static constexpr qreal kPad = 30;
+    // Startup steps that call setStatus (the line's share per step)
+    static constexpr int kSteps = 14;
+    // Seen at least this long, so the intro is never cut off on a fast start
+    // (the outro waits for it; close() itself never does)
+    static constexpr qint64 kMinShowMs = 1400;
 
-    static COLORREF lerpColor(COLORREF a, COLORREF b, float f) {
-        return RGB(
-            GetRValue(a) + (int)((GetRValue(b) - GetRValue(a)) * f),
-            GetGValue(a) + (int)((GetGValue(b) - GetGValue(a)) * f),
-            GetBValue(a) + (int)((GetBValue(b) - GetBValue(a)) * f)
-        );
+    // Text in the mode's ink: white on the night, near-black on the day
+    QColor ink(int alpha) const { return m_dark ? QColor(255, 255, 255, alpha) : QColor(18, 18, 22, alpha); }
+    QColor withAlpha(QColor c, qreal a) const { c.setAlphaF(qBound(0.0, a, 1.0)); return c; }
+
+    static qreal clamp01(qreal x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+    // Progress 0..1 of a motion that starts `delay` ms in and lasts `duration`
+    static qreal phase(qint64 ms, int delay, int duration) { return clamp01(qreal(ms - delay) / duration); }
+    static qreal outCubic(qreal x) { x = 1 - x; return 1 - x * x * x; }
+    static qreal outExpo(qreal x) { return x >= 1 ? 1 : 1 - std::pow(2.0, -10 * x); }
+    static qreal outBack(qreal x) { const qreal c = 1.70158; x -= 1; return 1 + (c + 1) * x * x * x + c * x * x; }
+
+    static QFont font(int px, QFont::Weight weight, bool display, qreal tracking = 0) {
+        QFont f;
+        f.setFamilies({display ? QStringLiteral("Inter Display") : QStringLiteral("Inter"),
+                       QStringLiteral("Inter"), QStringLiteral("Segoe UI")});
+        f.setPixelSize(px);
+        f.setWeight(weight);
+        f.setHintingPreference(QFont::PreferNoHinting);
+        if (tracking != 0)
+            f.setLetterSpacing(QFont::AbsoluteSpacing, tracking);
+        return f;
     }
 
-    static void drawAnimatedGradientBar(HDC hdc, int x, int y, int barW, int barH, float phase) {
-        BITMAPINFO bmi{};
-        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        bmi.bmiHeader.biWidth = barW;
-        bmi.bmiHeader.biHeight = -barH;
-        bmi.bmiHeader.biPlanes = 1;
-        bmi.bmiHeader.biBitCount = 32;
-        bmi.bmiHeader.biCompression = BI_RGB;
+    QImage text(const QString& s, const QFont& f, const QColor& color) const {
+        const QFontMetricsF fm(f);
+        const QSizeF size(std::ceil(fm.horizontalAdvance(s)) + 6, std::ceil(fm.height()) + 2);
+        QImage img((size * m_dpr).toSize(), QImage::Format_ARGB32_Premultiplied);
+        img.setDevicePixelRatio(m_dpr);
+        img.fill(Qt::transparent);
+        QPainter p(&img);
+        p.setRenderHint(QPainter::TextAntialiasing);
+        p.setFont(f);
+        p.setPen(color);
+        p.drawText(QRectF(QPointF(0, 0), size), Qt::AlignCenter, s);
+        return img;
+    }
 
-        BYTE* pixels = nullptr;
-        HBITMAP dib = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS,
-                                       reinterpret_cast<void**>(&pixels), nullptr, 0);
-        if (!dib || !pixels) return;
+    // A rounded rect drawn small and scaled back up: a cheap soft shadow
+    QImage shadow(const QSizeF& logical, const QRectF& rect, qreal radius, int alpha, qreal blur) const {
+        const QSize px = (logical * m_dpr).toSize();
+        QImage img(px, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::transparent);
+        {
+            QPainter p(&img);
+            p.setRenderHint(QPainter::Antialiasing);
+            p.scale(m_dpr, m_dpr);
+            p.setPen(Qt::NoPen);
+            p.setBrush(QColor(0, 0, 0, alpha));
+            p.drawRoundedRect(rect, radius, radius);
+        }
+        const qreal k = qMax(2.0, blur * m_dpr / 2);
+        const QImage small = img.scaled(qMax(1, int(px.width() / k)), qMax(1, int(px.height() / k)),
+                                        Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        QImage soft = small.scaled(px, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        soft.setDevicePixelRatio(m_dpr);
+        return soft;
+    }
 
-        float halfW = barW / 2.0f;
-        for (int px = 0; px < barW; ++px) {
-            float dist = (px < halfW)
-                ? (halfW - px) / halfW
-                : (px - halfW) / halfW;
+    // An image of text at x (its left, middle or right by `align`: -1, 0, 1), centred on cy
+    static void drawAt(QPainter& p, const QImage& img, qreal x, qreal cy, qreal opacity = 1, int align = 0) {
+        if (img.isNull() || opacity <= 0) return;
+        const QSizeF s = img.deviceIndependentSize();
+        const qreal left = align < 0 ? x : align > 0 ? x - s.width() : x - s.width() / 2;
+        p.setOpacity(opacity);
+        p.drawImage(QPointF(left, cy - s.height() / 2), img);
+        p.setOpacity(1);
+    }
 
-            float t = phase - dist * 0.65f;
-            t = t - (float)(int)(t);
-            if (t < 0.0f) t += 1.0f;
+    // The logo's frames come in one per tick, so the first loop never waits
+    void decodeFrame(qint64 ms) {
+        if (m_framesDone) return;
+        if (!m_reader) {
+            m_reader = std::make_unique<QImageReader>(
+                QStringLiteral(":/qt/qml/MakineLauncher/resources/images/logo_anim.webp"));
+            if (!m_reader->canRead()) { m_reader.reset(); m_framesDone = true; return; }
+        }
+        QImage frame;
+        const bool more = m_reader->read(&frame);
+        if (more)
+            m_frames.push_back(frame.convertToFormat(QImage::Format_ARGB32_Premultiplied)
+                                    .scaled(m_logoPx, m_logoPx, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        if (!more || (m_reader->imageCount() > 0 && int(m_frames.size()) >= m_reader->imageCount())) {
+            m_reader.reset();
+            m_framesDone = true;
+            m_framesFrom = ms;
+            if (m_frames.size() < 2) m_frames.clear();
+        }
+    }
 
-            float colorPos = t * (kColorCount - 1);
-            int idx = (int)colorPos;
-            float frac = colorPos - idx;
-            if (idx >= kColorCount - 1) { idx = kColorCount - 2; frac = 1.0f; }
+    void render() {
+        const qint64 ms = m_clock.elapsed();
+        const qreal t = ms / 1000.0;
+        const qreal dt = m_lastMs ? qMax<qint64>(1, ms - m_lastMs) : 16;
+        m_lastMs = ms;
+        decodeFrame(ms);
 
-            COLORREF c = lerpColor(kBrandColors[idx], kBrandColors[idx + 1], frac);
-            BYTE r = GetRValue(c), g = GetGValue(c), b = GetBValue(c);
-
-            for (int py = 0; py < barH; ++py) {
-                int off = (py * barW + px) * 4;
-                pixels[off + 0] = b;
-                pixels[off + 1] = g;
-                pixels[off + 2] = r;
-                pixels[off + 3] = 255;
-            }
+        int step;
+        qint64 statusAt, textAt;
+        QImage status, prevStatus, title, subtitle, version;
+        {
+            std::lock_guard lk(m_statusMutex);
+            step = m_step;
+            statusAt = m_statusAt;
+            status = m_status;
+            prevStatus = m_prevStatus;
+            title = m_title;
+            subtitle = m_subtitle;
+            version = m_version;
+            textAt = m_textAt;
         }
 
-        HDC dibDC = CreateCompatibleDC(hdc);
-        HBITMAP oldBmp = (HBITMAP)SelectObject(dibDC, dib);
-        BitBlt(hdc, x, y, barW, barH, dibDC, 0, 0, SRCCOPY);
-        SelectObject(dibDC, oldBmp);
-        DeleteObject(dib);
-        DeleteDC(dibDC);
-    }
-
-    // Soft breathing glow — brand colors blend and pulse gently around logo
-    static void drawBreathingGlow(HDC hdc, int cx, int cy, int radius, float elapsed) {
-        int size = radius * 2;
-        int x0 = cx - radius, y0 = cy - radius;
-
-        BITMAPINFO bmi{};
-        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        bmi.bmiHeader.biWidth = size;
-        bmi.bmiHeader.biHeight = -size;
-        bmi.bmiHeader.biPlanes = 1;
-        bmi.bmiHeader.biBitCount = 32;
-        bmi.bmiHeader.biCompression = BI_RGB;
-
-        BYTE* pixels = nullptr;
-        HBITMAP dib = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS,
-                                       reinterpret_cast<void**>(&pixels), nullptr, 0);
-        if (!dib || !pixels) return;
-        memset(pixels, 0, size * size * 4);
-
-        // Slow color cycling — blend between two adjacent brand colors
-        float colorT = elapsed * 0.3f; // full cycle ~3.3s per color pair
-        colorT = colorT - (float)(int)colorT;
-        int ci = (int)(colorT * kColorCount) % kColorCount;
-        int ci2 = (ci + 1) % kColorCount;
-        float cf = colorT * kColorCount - (float)(int)(colorT * kColorCount);
-        COLORREF glowColor = lerpColor(kBrandColors[ci], kBrandColors[ci2], cf);
-
-        // Breathing pulse — smooth sine wave
-        float breath = 0.5f + 0.5f * sinf(elapsed * 1.8f); // ~0.55 Hz
-        float peakAlpha = 0.12f + breath * 0.13f; // range: 0.12 -> 0.25
-
-        float invR = 1.0f / (float)radius;
-        BYTE gr = GetRValue(glowColor), gg = GetGValue(glowColor), gb = GetBValue(glowColor);
-
-        for (int py = 0; py < size; ++py) {
-            float dy = (float)(py - radius) * invR;
-            for (int px = 0; px < size; ++px) {
-                float dx = (float)(px - radius) * invR;
-                float dist2 = dx * dx + dy * dy;
-                if (dist2 > 1.0f) continue;
-
-                // Gaussian-like radial falloff
-                float alpha = peakAlpha * expf(-dist2 * 3.0f);
-                if (alpha < 0.003f) continue;
-
-                int off = (py * size + px) * 4;
-                pixels[off + 0] = (BYTE)(gb * alpha);
-                pixels[off + 1] = (BYTE)(gg * alpha);
-                pixels[off + 2] = (BYTE)(gr * alpha);
-                pixels[off + 3] = (BYTE)(alpha * 255.0f);
-            }
+        // Intro, and the outro once close() came: the line fills, then the
+        // whole fades (not before kMinShowMs)
+        const bool closing = m_closeAt >= 0;
+        const qint64 fadeFrom = closing ? qMax(m_closeAt + 140, kMinShowMs - 240) : -1;
+        qreal windowAlpha = outCubic(phase(ms, 0, 200));
+        qreal cardScale = 0.965 + 0.035 * outExpo(phase(ms, 0, 560));
+        if (closing) {
+            windowAlpha *= 1 - outCubic(phase(ms, int(fadeFrom), 240));
+            cardScale += 0.02 * outCubic(phase(ms, int(fadeFrom) - 20, 260));
         }
 
-        HDC dibDC = CreateCompatibleDC(hdc);
-        HBITMAP oldBmp = (HBITMAP)SelectObject(dibDC, dib);
-        BLENDFUNCTION bf{};
-        bf.BlendOp = AC_SRC_OVER;
-        bf.SourceConstantAlpha = 255;
-        bf.AlphaFormat = AC_SRC_ALPHA;
-        alphaBlend(hdc, x0, y0, size, size, dibDC, 0, 0, size, size, bf);
-        SelectObject(dibDC, oldBmp);
-        DeleteObject(dib);
-        DeleteDC(dibDC);
-    }
+        // The line: the steps so far, creeping towards the next while one runs
+        qreal goal = qMin(0.97, qreal(step) / kSteps
+                     + (1.0 / kSteps) * 0.8 * (1 - std::exp(-(ms - statusAt) / 1800.0)));
+        if (closing) goal = 1;
+        m_progress += (goal - m_progress) * (1 - std::exp(-dt / (closing ? 70.0 : 150.0)));
 
-    // AlphaBlend via dynamic loading (avoids link-time msimg32 dependency)
-    static BOOL alphaBlend(HDC dest, int dx, int dy, int dw, int dh,
-                           HDC src, int sx, int sy, int sw, int sh,
-                           BLENDFUNCTION bf) {
-        using Fn = BOOL(WINAPI*)(HDC,int,int,int,int,HDC,int,int,int,int,BLENDFUNCTION);
-        static Fn fn = reinterpret_cast<Fn>(
-            GetProcAddress(LoadLibraryExW(L"msimg32.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32), "AlphaBlend"));
-        if (fn) return fn(dest, dx, dy, dw, dh, src, sx, sy, sw, sh, bf);
-        return BitBlt(dest, dx, dy, dw, dh, src, sx, sy, SRCCOPY);
+        QImage canvas(m_bits, m_pw, m_ph, m_pw * 4, QImage::Format_ARGB32_Premultiplied);
+        canvas.setDevicePixelRatio(m_dpr);
+        canvas.fill(Qt::transparent);
+        QPainter p(&canvas);
+        p.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
+
+        const QPointF c = kCard.center();
+        p.translate(c);
+        p.scale(cardScale, cardScale);
+        p.translate(-c);
+
+        p.drawImage(QPointF(0, 0), m_cardShadow);
+
+        // The card: the launcher's page, its accent's orbs, the rim darker
+        QPainterPath card;
+        card.addRoundedRect(kCard, kRadius, kRadius);
+        p.fillPath(card, m_bg);
+
+        p.save();
+        p.setClipPath(card);
+        const qreal glow = outCubic(phase(ms, 60, 900));
+        const qreal dim = qMax(kCard.width(), kCard.height());
+        const auto orb = [&](QPointF at, qreal r, const QColor& tint, qreal strength) {
+            QRadialGradient g(at, r);
+            g.setColorAt(0.00, withAlpha(tint, strength * glow));
+            g.setColorAt(0.12, withAlpha(tint, strength * 0.72 * glow));
+            g.setColorAt(0.30, withAlpha(tint, strength * 0.30 * glow));
+            g.setColorAt(0.55, withAlpha(tint, strength * 0.08 * glow));
+            g.setColorAt(1.00, withAlpha(tint, 0));
+            p.fillRect(kCard, g);
+        };
+        const qreal k = m_dark ? 1.0 : 0.6;
+        orb(QPointF(kCard.left() + kCard.width() * 0.78 + 10 * std::sin(t * 0.45),
+                    kCard.top() + kCard.height() * 0.12 + 8 * std::cos(t * 0.40)), dim * 0.85, m_accentLight, 0.26 * k);
+        orb(QPointF(kCard.left() + kCard.width() * 0.16 + 10 * std::cos(t * 0.35),
+                    kCard.top() + kCard.height() * 0.92 + 8 * std::sin(t * 0.50)), dim * 0.75, m_accentDark, 0.22 * k);
+        if (m_dark) {
+            QRadialGradient rim(QPointF(kCard.center().x(), kCard.top() + kCard.height() * 0.45), dim * 0.95);
+            rim.setColorAt(0.55, QColor(0, 0, 0, 0));
+            rim.setColorAt(0.85, QColor(0, 0, 0, 26));
+            rim.setColorAt(1.00, QColor(0, 0, 0, 56));
+            p.fillRect(kCard, rim);
+        }
+        p.restore();
+
+        // Hairline, lit along the top and (fainter) the foot — the panel's
+        p.setPen(QPen(m_dark ? QColor(255, 255, 255, 17) : QColor(0, 0, 0, 18), 1));
+        p.setBrush(Qt::NoBrush);
+        p.drawRoundedRect(kCard.adjusted(0.5, 0.5, -0.5, -0.5), kRadius - 0.5, kRadius - 0.5);
+        const auto litEdge = [&](qreal y, qreal alpha) {
+            const QColor lit(255, 255, 255);
+            QLinearGradient g(kCard.left() + kRadius, 0, kCard.right() - kRadius, 0);
+            g.setColorAt(0.0, withAlpha(lit, 0));
+            g.setColorAt(0.3, withAlpha(lit, alpha));
+            g.setColorAt(0.7, withAlpha(lit, alpha));
+            g.setColorAt(1.0, withAlpha(lit, 0));
+            p.fillRect(QRectF(kCard.left() + kRadius, y, kCard.width() - kRadius * 2, 1), g);
+        };
+        litEdge(kCard.top(), m_dark ? 0.16 : 0.9);
+        litEdge(kCard.bottom() - 1, m_dark ? 0.11 : 0.6);
+
+        // The logo in a soft glow of the accent
+        const qreal cx = c.x();
+        const qreal logoY = kCard.top() + 92;
+        const qreal breath = 0.85 + 0.15 * std::sin(t * 1.8);
+        {
+            const qreal r = kLogo * 0.95;
+            QRadialGradient halo(QPointF(cx, logoY + 4), r);
+            halo.setColorAt(0.0, withAlpha(m_accentLight, (m_dark ? 0.42 : 0.30) * breath * glow));
+            halo.setColorAt(0.5, withAlpha(m_accentLight, (m_dark ? 0.14 : 0.10) * breath * glow));
+            halo.setColorAt(1.0, withAlpha(m_accentLight, 0));
+            p.setPen(Qt::NoPen);
+            p.setBrush(halo);
+            p.drawEllipse(QPointF(cx, logoY + 4), r, r);
+        }
+
+        const qreal logoIn = outCubic(phase(ms, 40, 260));
+        const qreal s = 0.78 + 0.22 * outBack(phase(ms, 40, 620));
+        const QImage& logo = m_framesDone && !m_frames.empty()
+            ? m_frames[size_t((ms - m_framesFrom) / 50) % m_frames.size()] : m_logo;
+        p.save();
+        p.translate(cx, logoY);
+        p.scale(s, s);
+        p.setOpacity(logoIn);
+        p.drawImage(QPointF(-m_logoShadow.deviceIndependentSize().width() / 2,
+                            -m_logoShadow.deviceIndependentSize().height() / 2), m_logoShadow);
+        if (!logo.isNull())
+            p.drawImage(QRectF(-kLogo / 2, -kLogo / 2, kLogo, kLogo), logo);
+        p.restore();
+
+        // The name, as a page titles itself, rising in after the logo
+        const int words = title.isNull() ? int(ms) + 1000 : int(qMax<qint64>(160, textAt + 16));
+        const auto rise = [&](const QImage& img, qreal y, int delay) {
+            const qreal k = phase(ms, delay, 640);
+            drawAt(p, img, cx, y + 10 * (1 - outExpo(k)), outCubic(phase(ms, delay, 380)));
+        };
+        rise(title, kCard.top() + 166, words);
+        rise(subtitle, kCard.top() + 194, words + 70);
+
+        // Along the foot: a line in the accent, lit from above, a shine running over it
+        const qreal barIn = outCubic(phase(ms, words + 120, 380));
+        const QRectF track(kCard.left() + kPad, kCard.bottom() - 52, kCard.width() - kPad * 2, 3);
+        p.setOpacity(barIn);
+        p.setPen(Qt::NoPen);
+        p.setBrush(m_dark ? QColor(255, 255, 255, 20) : QColor(0, 0, 0, 18));
+        p.drawRoundedRect(track, 1.5, 1.5);
+        const qreal w = qMax<qreal>(track.height(), track.width() * m_progress);
+        const QRectF bar(track.left(), track.top(), w, track.height());
+        QLinearGradient fillGrad(bar.topLeft(), bar.topRight());
+        fillGrad.setColorAt(0, m_accentDark);
+        fillGrad.setColorAt(1, m_accentLight);
+        p.setBrush(fillGrad);
+        p.drawRoundedRect(bar, 1.5, 1.5);
+        // Its glow under the head of the line
+        {
+            QRadialGradient head(QPointF(bar.right(), bar.center().y()), 18);
+            head.setColorAt(0, withAlpha(m_accentLight, 0.45 * barIn));
+            head.setColorAt(1, withAlpha(m_accentLight, 0));
+            p.setBrush(head);
+            p.drawEllipse(QPointF(bar.right(), bar.center().y()), 18, 6);
+        }
+        const qreal shineX = bar.left() + std::fmod(t * 0.7, 1.6) / 1.6 * (bar.width() + 80) - 40;
+        QLinearGradient shine(shineX - 40, 0, shineX + 40, 0);
+        shine.setColorAt(0, QColor(255, 255, 255, 0));
+        shine.setColorAt(0.5, QColor(255, 255, 255, m_dark ? 130 : 160));
+        shine.setColorAt(1, QColor(255, 255, 255, 0));
+        p.setBrush(shine);
+        p.drawRoundedRect(bar, 1.5, 1.5);
+        p.setOpacity(1);
+
+        // Under it: the step on the left, sliding up as the next one comes;
+        // the version on the right
+        const qreal f = outCubic(phase(ms - statusAt, 0, 260));
+        const qreal footY = kCard.bottom() - 28;
+        drawAt(p, prevStatus, track.left() - 3, footY - 5 * f, barIn * (1 - f), -1);
+        drawAt(p, status, track.left() - 3, footY + 5 * (1 - f), barIn * f, -1);
+        drawAt(p, version, track.right() + 3, footY, barIn, 1);
+        p.end();
+
+        POINT src{0, 0};
+        POINT at{m_x, m_y};
+        SIZE size{m_pw, m_ph};
+        BLENDFUNCTION bf{AC_SRC_OVER, 0, BYTE(qRound(255 * windowAlpha)), AC_SRC_ALPHA};
+        UpdateLayeredWindow(m_hwnd, nullptr, &at, &size, m_memDC, &src, 0, &bf, ULW_ALPHA);
+
+        if (closing && ms >= fadeFrom + 240)
+            DestroyWindow(m_hwnd);
     }
 
     static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         auto* self = reinterpret_cast<SplashWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-
         switch (msg) {
-        case WM_PAINT: {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-            RECT rc;
-            GetClientRect(hwnd, &rc);
-            int w = rc.right, h = rc.bottom;
-
-            // Double-buffer
-            HDC mem = CreateCompatibleDC(hdc);
-            HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
-            HBITMAP oldBmp = (HBITMAP)SelectObject(mem, bmp);
-
-            // Soft dark background — subtle vertical gradient
-            for (int y = 0; y < h; ++y) {
-                float t = (float)y / (float)h;
-                int r = (int)(12 + t * 6);
-                int g = (int)(12 + t * 5);
-                int b = (int)(18 + t * 8);
-                HBRUSH rowBr = CreateSolidBrush(RGB(r, g, b));
-                RECT rowRc = {0, y, w, y + 1};
-                FillRect(mem, &rowRc, rowBr);
-                DeleteObject(rowBr);
-            }
-
-            int cx = w / 2, cy = h / 2 - 20;
-
-            // Animated gradient phase from elapsed time
-            DWORD showTime = self ? self->m_showTime.load(std::memory_order_relaxed) : 0;
-            float elapsed = showTime ? (GetTickCount() - showTime) / 1000.0f : 0.0f;
-            float gp = 0.25f + elapsed * 0.15f; // slow sweep
-
-            // Soft breathing glow around logo
-            drawBreathingGlow(mem, cx, cy, 100, elapsed);
-
-            // Top gradient bar (3px)
-            drawAnimatedGradientBar(mem, 0, 0, w, 3, gp);
-
-            SetBkMode(mem, TRANSPARENT);
-
-            // Logo
-            if (self && self->m_logoBitmap) {
-                HDC logoDC = CreateCompatibleDC(mem);
-                HBITMAP oldLogoBmp = (HBITMAP)SelectObject(logoDC, self->m_logoBitmap);
-
-                BLENDFUNCTION bf{};
-                bf.BlendOp = AC_SRC_OVER;
-                bf.SourceConstantAlpha = 255;
-                bf.AlphaFormat = AC_SRC_ALPHA;
-
-                int logoX = (w - self->m_logoWidth) / 2;
-                int logoY = cy - self->m_logoHeight / 2;
-                alphaBlend(mem, logoX, logoY, self->m_logoWidth, self->m_logoHeight,
-                           logoDC, 0, 0, self->m_logoWidth, self->m_logoHeight, bf);
-
-                SelectObject(logoDC, oldLogoBmp);
-                DeleteDC(logoDC);
-            }
-
-            // Status text
-            if (self) {
-                wchar_t statusBuf[64]{};
-                {
-                    std::lock_guard lk(self->m_statusMutex);
-                    wcsncpy(statusBuf, self->m_status, 63);
-                }
-                if (statusBuf[0]) {
-                    HFONT statusFont = CreateFontW(-11, 0, 0, 0, FW_NORMAL, 0, 0, 0,
-                        DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, (self && self->m_interLoaded) ? L"Inter" : L"Segoe UI");
-                    HFONT oldSFont = (HFONT)SelectObject(mem, statusFont);
-                    SetTextColor(mem, RGB(100, 100, 120));
-                    RECT statusRc = {0, h - 62, w, h - 46};
-                    DrawTextW(mem, statusBuf, -1, &statusRc, DT_CENTER | DT_SINGLELINE);
-                    SelectObject(mem, oldSFont);
-                    DeleteObject(statusFont);
-                }
-            }
-
-            // Version
-            HFONT verFont = CreateFontW(-9, 0, 0, 0, FW_NORMAL, 0, 0, 0,
-                DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, (self && self->m_interLoaded) ? L"Inter" : L"Segoe UI");
-            HFONT oldFont = (HFONT)SelectObject(mem, verFont);
-            SetTextColor(mem, RGB(60, 60, 75));
-            RECT verRc = {0, h - 24, w - 14, h - 8};
-            // Version from CMake — MAKINE_APP_VERSION is narrow, convert to wide
-            auto _verStr = QStringLiteral("v" MAKINE_APP_VERSION);
-            DrawTextW(mem, (LPCWSTR)_verStr.utf16(), -1, &verRc, DT_RIGHT | DT_SINGLELINE);
-            SelectObject(mem, oldFont);
-            DeleteObject(verFont);
-
-            // Bottom gradient bar (3px)
-            drawAnimatedGradientBar(mem, 0, h - 3, w, 3, gp);
-
-            BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
-            SelectObject(mem, oldBmp);
-            DeleteObject(bmp);
-            DeleteDC(mem);
-
-            EndPaint(hwnd, &ps);
-            return 0;
-        }
         case WM_TIMER:
-            if (wp == 1)
-                InvalidateRect(hwnd, nullptr, FALSE);
-            return 0;
-        case WM_APP + 1: // status update from main thread
-            InvalidateRect(hwnd, nullptr, FALSE);
+            if (wp == 1 && self) self->render();
             return 0;
         case WM_APP + 2: // close request from main thread
-            KillTimer(hwnd, 1);
-            DestroyWindow(hwnd);
+            if (self && self->m_closeAt < 0) self->m_closeAt = self->m_clock.elapsed();
             return 0;
         case WM_DESTROY:
+            KillTimer(hwnd, 1);
             PostQuitMessage(0);
             return 0;
         }
@@ -505,63 +603,109 @@ private:
     static DWORD WINAPI splashThreadProc(LPVOID param) {
         auto* self = static_cast<SplashWindow*>(param);
 
-        // Register window class on this thread
         WNDCLASSW wc{};
         wc.lpfnWndProc = wndProc;
         wc.hInstance = GetModuleHandleW(nullptr);
         wc.lpszClassName = L"MakineSplash";
-        wc.hbrBackground = CreateSolidBrush(RGB(10, 10, 15));
         wc.hCursor = LoadCursorW(nullptr, IDC_APPSTARTING);
         RegisterClassW(&wc);
 
-        constexpr int w = 440, h = 240;
-        int sx = (GetSystemMetrics(SM_CXSCREEN) - w) / 2;
-        int sy = (GetSystemMetrics(SM_CYSCREEN) - h) / 2;
+        // Centred in the primary screen's work area
+        RECT work{0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)};
+        SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+        self->m_x = work.left + (work.right - work.left - self->m_pw) / 2;
+        self->m_y = work.top + (work.bottom - work.top - self->m_ph) / 2;
 
         self->m_hwnd = CreateWindowExW(
-            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
             L"MakineSplash", L"",
             WS_POPUP,
-            sx, sy, w, h,
+            self->m_x, self->m_y, self->m_pw, self->m_ph,
             nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
 
         if (self->m_hwnd) {
-            HRGN rgn = CreateRoundRectRgn(0, 0, w + 1, h + 1, 12, 12);
-            SetWindowRgn(self->m_hwnd, rgn, TRUE);
+            BITMAPINFO bmi{};
+            bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+            bmi.bmiHeader.biWidth = self->m_pw;
+            bmi.bmiHeader.biHeight = -self->m_ph; // top-down
+            bmi.bmiHeader.biPlanes = 1;
+            bmi.bmiHeader.biBitCount = 32;
+            bmi.bmiHeader.biCompression = BI_RGB;
+            self->m_memDC = CreateCompatibleDC(nullptr);
+            self->m_dib = CreateDIBSection(self->m_memDC, &bmi, DIB_RGB_COLORS,
+                                           reinterpret_cast<void**>(&self->m_bits), nullptr, 0);
+            self->m_oldBmp = SelectObject(self->m_memDC, self->m_dib);
 
             SetWindowLongPtrW(self->m_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+            if (self->m_bits)
+                self->render();
             ShowWindow(self->m_hwnd, SW_SHOWNOACTIVATE);
-            UpdateWindow(self->m_hwnd);
-            self->m_showTime.store(GetTickCount(), std::memory_order_release);
-
-            // 30 fps animation timer
-            SetTimer(self->m_hwnd, 1, 33, nullptr);
+            // ~60 fps
+            SetTimer(self->m_hwnd, 1, 15, nullptr);
         }
 
         // Signal main thread that HWND is ready
         self->m_ready.store(true, std::memory_order_release);
+        if (!self->m_hwnd)
+            return 0;
 
-        // Own message loop — runs independently of main thread
         MSG msg;
         while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
 
+        // The window is gone: free what only it needed
+        if (self->m_memDC) {
+            SelectObject(self->m_memDC, self->m_oldBmp);
+            DeleteObject(self->m_dib);
+            DeleteDC(self->m_memDC);
+        }
+        self->m_frames.clear();
+        self->m_reader.reset();
         return 0;
     }
 
     HWND m_hwnd{nullptr};
     HANDLE m_thread{nullptr};
     DWORD m_threadId{0};
-    std::atomic<DWORD> m_showTime{0};
     std::atomic<bool> m_ready{false};
-    mutable std::mutex m_statusMutex;
-    wchar_t m_status[64]{};
-    HBITMAP m_logoBitmap{nullptr};
-    int m_logoWidth{0};
-    int m_logoHeight{0};
-    bool m_interLoaded{false};
+    std::atomic<bool> m_closing{false};
+    QElapsedTimer m_clock;
+
+    // Geometry (physical pixels) and the frame buffer — splash thread
+    qreal m_dpr{1};
+    int m_pw{0}, m_ph{0}, m_x{0}, m_y{0};
+    int m_logoPx{0};
+    HDC m_memDC{nullptr};
+    HBITMAP m_dib{nullptr};
+    HGDIOBJ m_oldBmp{nullptr};
+    uchar* m_bits{nullptr};
+
+    // Still parts, made on the main thread before the splash thread starts
+    QImage m_logo, m_cardShadow, m_logoShadow;
+    // The launcher's look, read from its settings before the thread starts
+    bool m_dark{true};
+    QColor m_accent, m_accentLight, m_accentDark, m_bg;
+
+    // The flowing logo — splash thread
+    std::unique_ptr<QImageReader> m_reader;
+    std::vector<QImage> m_frames;
+    bool m_framesDone{false};
+    qint64 m_framesFrom{0};
+
+    // Motion state — splash thread
+    qint64 m_lastMs{0};
+    qint64 m_closeAt{-1};
+    qreal m_progress{0};
+
+    // The words and the current step — written by the main thread
+    std::mutex m_statusMutex;
+    QImage m_title, m_subtitle, m_version;
+    qint64 m_textAt{0};
+    QImage m_status, m_prevStatus;
+    qint64 m_statusAt{0};
+    int m_step{0};
 };
 #endif
 
@@ -607,6 +751,7 @@ void logToFile(const QString& msg) {
 #include "services/imagecachemanager.h"
 #include "services/manifestsyncservice.h"
 #include "services/translationdownloader.h"
+#include "services/communityservice.h"
 #include "services/telemetryservice.h"
 #include "services/corebridge.h"
 #include "services/translationstatemanager.h"
@@ -880,13 +1025,19 @@ static void configureApplication(QGuiApplication& app)
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-Medium.ttf");
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-SemiBold.ttf");
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/Inter-Bold.ttf");
-    // Large titles (Dimensions.fontDisplay) and the icon glyphs (Icons.qml)
+    // The UI's typeface (Inter's display cut; the text cut stays for the
+    // smallest sizes, Dimensions.fontText) and the icon glyphs (Icons.qml)
+    int interDisplay = QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/InterDisplay-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/InterDisplay-Medium.ttf");
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/InterDisplay-SemiBold.ttf");
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/InterDisplay-Bold.ttf");
     QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/MakineIcons.ttf");
+    QFontDatabase::addApplicationFont(":/qt/qml/MakineLauncher/resources/fonts/MakineSymbols.ttf");
 
-    QString fontFamily = interRegular >= 0 ? "Inter" : "Segoe UI";
+    QString fontFamily = interDisplay >= 0 ? "Inter Display" : interRegular >= 0 ? "Inter" : "Segoe UI";
     QFont defaultFont(fontFamily, 10);
+    // A character the display subset lacks comes from the full text cut
+    defaultFont.setFamilies({fontFamily, QStringLiteral("Inter")});
     defaultFont.setStyleStrategy(QFont::PreferAntialias);
     defaultFont.setHintingPreference(QFont::PreferFullHinting);
     app.setFont(defaultFont);
@@ -1056,7 +1207,7 @@ static void createServices(
     engine.rootContext()->setContextProperty("BackupManager", backupManager);
 
 #ifdef Q_OS_WIN
-    splash.setStatus(L"S\u00FCrec izleyici ba\u015Flat\u0131l\u0131yor...");
+    splash.setStatus(L"S\u00FCre\u00E7 izleyici ba\u015Flat\u0131l\u0131yor...");
 #endif
     auto* processScanner = new ProcessScanner(&app);
     processScanner->setGameService(gameService);
@@ -1069,6 +1220,10 @@ static void createServices(
 
     auto* batchService = new BatchOperationService(&app);
     engine.rootContext()->setContextProperty("BatchOperationService", batchService);
+
+    // The website's community wall, read-only (Topluluk page)
+    auto* communityService = new CommunityService(&app);
+    engine.rootContext()->setContextProperty("CommunityService", communityService);
 
     // ===== Phase 6b: Plugin system (dev builds only until v2 ships, ADR-0009) =====
 #ifdef MAKINE_DEV_TOOLS
@@ -1691,30 +1846,13 @@ int main(int argc, char *argv[])
     // Anti-RE: run all checks before anything else (no-op in debug builds)
     makine::protection::initialize();
 
+    // The app's fonts first: the splash sets its words in them
+    configureApplication(app);
+
 #ifdef Q_OS_WIN
     SplashWindow splash;
-    // Load Inter font for splash (before splash thread starts)
-    bool interLoaded = false;
-    {
-        QFile fontFile(":/qt/qml/MakineLauncher/resources/fonts/Inter-Medium.ttf");
-        if (fontFile.open(QIODevice::ReadOnly)) {
-            QByteArray fontData = fontFile.readAll();
-            DWORD numFonts = 0;
-            HANDLE hFont = AddFontMemResourceEx(fontData.data(), fontData.size(), nullptr, &numFonts);
-            interLoaded = (hFont != nullptr && numFonts > 0);
-        }
-    }
-    splash.setInterFont(interLoaded);
-    // Load logo from Qt resources and scale for splash
-    {
-        QImage logoImg(":/qt/qml/MakineLauncher/resources/images/logo.png");
-        if (!logoImg.isNull())
-            splash.setLogo(logoImg.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    }
     splash.show();
 #endif
-
-    configureApplication(app);
 
     QQmlApplicationEngine engine;
     configureEngine(engine);
@@ -1816,7 +1954,12 @@ int main(int argc, char *argv[])
         makine::CrashReporter::shutdown();
         return -1;
     }
-    engine.setObjectOwnership(rootObject, QQmlEngine::JavaScriptOwnership);
+    // The main window lives as long as the app. JavaScript ownership left it
+    // to the garbage collector: with nothing in JS holding it, a collection
+    // destroyed the window seconds after it opened (2026-10-26, seen once the
+    // UI grew enough to collect at startup) and the process ran on with no
+    // window. It is deleted below, after the event loop, before the engine.
+    engine.setObjectOwnership(rootObject, QQmlEngine::CppOwnership);
 
     logToFile(QString("QML loaded + created in %1 ms").arg(startupTimer.elapsed()));
 
@@ -1863,6 +2006,7 @@ int main(int argc, char *argv[])
     makine::CrashReporter::startHangWatchdog();
 
     int exitCode = app.exec();
+    delete rootObject;
     makine::CrashReporter::shutdown();
     return exitCode;
 }

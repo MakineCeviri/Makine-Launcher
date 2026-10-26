@@ -98,4 +98,26 @@ inline void appendTo(QString& log, QStringView text, qsizetype cap)
     }
 }
 
+// Whether the last line of `log` only asks for a key to go on: cmd's "pause"
+// ("Press any key to continue . . .", "Devam etmek için bir tuşa basın . . .")
+// and the same said in words ("Press Enter to continue", "Devam etmek için
+// Enter'a basın"). The install page answers these itself; nobody needs to
+// press Enter for a pause. A question that wants an answer — E/H, a path, a
+// number, "seçimini yazıp Enter'a bas" — is not one and stays the user's.
+inline bool waitsForKey(QStringView log)
+{
+    QStringView line = log;
+    while (!line.isEmpty() && (line.back() == u'\n' || line.back() == u'\r' || line.back() == u' '))
+        line.chop(1);
+    const qsizetype nl = line.lastIndexOf(u'\n');
+    if (nl >= 0)
+        line = line.sliced(nl + 1);
+    const QString l = line.toString().toLower();
+    const auto has = [&l](const char16_t* what) { return l.contains(QStringView(what)); };
+    if (has(u"any key") || has(u"tuşa bas") || has(u"tusa bas"))
+        return true;
+    return has(u"enter") && (has(u"continue") || has(u"devam") || has(u"exit") || has(u"close")
+                             || has(u"çık") || has(u"kapat"));
+}
+
 } // namespace makine::processconsole

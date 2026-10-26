@@ -646,6 +646,10 @@ private:
     // Output of the install's own program (installConsole) and whose it is.
     QString m_installConsole;
     QString m_installConsoleGameId;
+    // The program printed something since the last answer: a pause now on
+    // its last line is a new one, to answer by itself (processconsole::waitsForKey)
+    bool m_promptFresh = false;
+    bool m_autoKeyQueued = false;
     QSet<QString> m_uninstalling;   // games with an uninstall in flight
     QSet<QString> m_storeRepairStarted;  // last uninstall handed originals to the store
     QHash<QString, int> m_restoreFailures;  // failed uninstall restores per game, this session
