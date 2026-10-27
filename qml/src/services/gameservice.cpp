@@ -1937,18 +1937,17 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     // first install took, which does not hold it: "Yama başarıyla kaldırıldı"
     // with the Turkish b.pak still in the game. Its original goes into that
     // backup first, in the preflight below.
+    // (The list itself is made in the preflight, off this thread: a package's file list
+    // walks every file in it — 5,454 for Elden Ring.)
     QString topUpDir;
-    QStringList topUp;
+    QStringList onRecord;
     if (mode == InstallMode::Update) {
         BackupManager* bm = BackupManager::instance();
         const auto record = m_coreBridge->getInstalledInfo(gameId);
         if (bm && record)
             topUpDir = bm->getLatestBackup(gameId).value(QStringLiteral("backupPath")).toString();
-        if (!topUpDir.isEmpty()) {
-            topUp = steprules::notOnRecord(
-                m_coreBridge->getPackageFileList(gameId, variant, installPath),
-                record->installedFiles + record->addedFiles + record->replacedFiles);
-        }
+        if (!topUpDir.isEmpty())
+            onRecord = record->installedFiles + record->addedFiles + record->replacedFiles;
     }
 
     // The files the recipe says this game's folder has. A folder without one
@@ -1956,6 +1955,10 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     // and a patch's program handed it works on the wrong place.
     folderrules::Expectations expected = m_coreBridge->folderExpectations(gameId);
     expected.requiredFiles = m_coreBridge->requiredFilesFor(gameId, variant, selectedOptions);
+    // The game files the chosen steps patch in place: a folder without them, when a folder
+    // around it has them all, is the game's one level off — "ELDEN RING/Game" picked by
+    // hand, its patch then looking for "Game/Game/eldenring.exe" (0.2.3: 16 players)
+    const QStringList inPlace = m_coreBridge->inPlaceTargetsFor(gameId, variant, selectedOptions);
     const QString gameName = pkg->gameName;
 
     // The copy the patch was made on (gameprint.h): is this folder that game,
@@ -1964,6 +1967,10 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     const bool checkPrint = !m_coreBridge->isPackageInstalled(gameId);
     const bool printAcknowledged = m_printAcknowledged.remove(gameId);
     CoreBridge* cb = m_coreBridge;
+    // What a first install backs up is listed in the preflight too (see onRecord above).
+    // A patch only its own program installs keeps its own backup: no list for it.
+    const bool listForBackup = mode == InstallMode::Install && !m_coreBridge->isPackageInstalled(gameId)
+        && m_coreBridge->ownProgramRecipe(gameId) != LocalPackageManager::OwnProgram::WithUndo;
 
     struct Preflight {
         QString runningExe;
@@ -1972,6 +1979,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         QString topUpFailed;     // the original that could not go into the backup
         QStringList missing;     // required files the game folder lacks
         QString betterRoot;      // a folder around it that has them all
+        QStringList filesToOverwrite;  // what the install writes over, for its backup
         bool printChecked = false;
         gameprint::Verdict print;  // the folder against the patch's fingerprint
         QString printRoot;         // a folder around it that is the game, when it is not
@@ -2170,9 +2178,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             // installPath matters: it lets the wrapper-stripping check verify a
             // package's top-level folder against the real game install, so the
             // backup list matches the files the install will actually overwrite.
-            QStringList filesToOverwrite = ownProgram == LocalPackageManager::OwnProgram::WithUndo
-                ? QStringList()
-                : m_coreBridge->getPackageFileList(gameId, variant, installPath);
+            const QStringList& filesToOverwrite = pre.filesToOverwrite;
 
             // An empty list means "could not look", never "nothing to back up".
             // getPackageFileList enumerates what the install will WRITE, and a
@@ -2277,8 +2283,8 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
             }
         });
 
-    watcher->setFuture(QtConcurrent::run([installPath, topUpDir, topUp, expected, gameName, cb, gameId,
-                                          checkPrint, printAcknowledged]() -> Preflight {
+    watcher->setFuture(QtConcurrent::run([installPath, topUpDir, onRecord, expected, inPlace, gameName, cb, gameId,
+                                          variant, checkPrint, printAcknowledged, listForBackup]() -> Preflight {
         Preflight out;
         // By image path: the root-folder *.exe names missed every game whose
         // exe sits in bin/ (Watch_Dogs copied 4 of 6 files, then failed on the
@@ -2291,6 +2297,19 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         if (!out.missing.isEmpty()) {
             out.betterRoot = folderrules::rootWithRequired(installPath, gameName, expected);
             return out;
+        }
+        // What the steps patch in place, missing here and all there in a folder around it: the
+        // folder is one level off. Only then — missing everywhere, the step itself says so.
+        if (!inPlace.isEmpty()) {
+            folderrules::Expectations targets = expected;
+            targets.requiredFiles = inPlace;
+            if (const QStringList lacking = folderrules::missingRequired(installPath, targets); !lacking.isEmpty()) {
+                if (const QString better = folderrules::rootWithRequired(installPath, gameName, targets); !better.isEmpty()) {
+                    out.missing = lacking;
+                    out.betterRoot = better;
+                    return out;
+                }
+            }
         }
         // Before the prompt too: the player is asked about the version first.
         const QList<gameprint::Print> prints = checkPrint ? cb->gamePrints(gameId) : QList<gameprint::Print>{};
@@ -2311,9 +2330,13 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         } else {
             out.writable = ElevatedOps::canWrite(installPath);
         }
-        // The update's first overwrites into the backup (topUp above). Through
+        if (listForBackup)
+            out.filesToOverwrite = cb->getPackageFileList(gameId, variant, installPath);
+        // The update's first overwrites into the backup (onRecord above). Through
         // a file beside the backup folder, renamed in when complete: a copy cut
         // short by a crash must not sit in the backup as the original.
+        const QStringList topUp = topUpDir.isEmpty() ? QStringList()
+            : steprules::notOnRecord(cb->getPackageFileList(gameId, variant, installPath), onRecord);
         const QString part = topUpDir + QStringLiteral(".part");
         for (const QString& rel : topUp) {
             const QString src = QDir::cleanPath(installPath + QLatin1Char('/') + rel);

@@ -1468,6 +1468,14 @@ folderrules::Expectations CoreBridge::folderExpectations(const QString& gameId)
                               : m_localPkgManager->folderExpectations(resolved);
 }
 
+QStringList CoreBridge::inPlaceTargetsFor(const QString& gameId, const QString& variant,
+                                          const QStringList& selectedOptions)
+{
+    if (!m_localPkgManager) return {};
+    const QString resolved = resolveToSteamAppId(gameId);
+    return resolved.isEmpty() ? QStringList{} : m_localPkgManager->inPlaceTargetsFor(resolved, variant, selectedOptions);
+}
+
 QStringList CoreBridge::requiredFilesFor(const QString& gameId, const QString& variant,
                                          const QStringList& selectedOptions)
 {

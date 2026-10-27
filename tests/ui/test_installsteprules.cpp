@@ -570,3 +570,19 @@ TEST(InstallStepRules, AnInPlaceMarkerListsTheFileItEdited) {
                           {"_vpatch:DataPC_patch_01.forge", "a.pak"}),
               QStringList({"data/b.pak"}));
 }
+
+TEST(StepRules, APatchProgramsOutputNamesTheCauseItsExitCodeHides)
+{
+    // AC Shadows' KUR.bat (0.2.3): the files of another game version, listed before it gives up
+    EXPECT_TRUE(toolOutputCause(QStringLiteral(
+        "Assassin's Creed Shadows Turkce yama kurulumu\r\n  DataPC_boot.forge: orijinal\r\n"
+        "  DataPC_boot_patch_02.forge: FARKLI SURUM (kayit tablolari farkli)\r\nKurulum yapilamadi"))
+        .contains(QStringLiteral("sürümünü tanımadı")));
+    // Windows' application control stopping the tool itself
+    EXPECT_TRUE(toolOutputCause(QStringLiteral(
+        "'C:/Users/x/AppData/Local/Temp/ACS.exe' was blocked by your organization's Device Guard policy."))
+        .contains(QStringLiteral("uygulama denetimi")));
+    // The tool's own help text alone ("yazilamiyor diyorsa …") names nothing
+    EXPECT_TRUE(toolOutputCause(QStringLiteral(
+        "Kurulum yapilamadi; yukaridaki mesaja bakin.\r\n  - \"yazilamiyor\" diyorsa KUR.bat'a sag tiklayin")).isEmpty());
+}

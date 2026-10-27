@@ -141,6 +141,81 @@ static std::condition_variable s_hangWake;
 // would std::terminate at static destruction.
 static std::thread* s_hangThread = nullptr;
 
+static std::string sanitizePath(const char* raw);  // (below)
+
+#if defined(Q_OS_WIN) && (defined(_M_X64) || defined(__x86_64__))
+#define MAKINE_HANG_STACK 1
+// The GUI thread, recorded when the watchdog starts on it: who to suspend, and the bounds
+// its stack lives in (a walk stops at the first frame outside them).
+static DWORD s_guiThread = 0;
+static ULONG_PTR s_guiStackLow = 0, s_guiStackHigh = 0;
+
+// The hung GUI thread's return addresses. Until 0.2.3 a hang named only the launcher's last
+// breadcrumb — "after download: packageReady", "after navigation: home" — and the work that
+// froze the window had to be guessed (Sentry 2026-10-27: 63 hangs, 12 issues). Sentry
+// symbolicates these against the build's uploaded debug files.
+//
+// The thread is suspended only for the walk and nothing is allocated meanwhile (it may hold
+// the heap's lock). The walk runs on a thread of its own: should the unwinder need a lock the
+// suspended thread holds (a JIT registering its code), the watchdog resumes the GUI thread
+// after a short wait rather than leave both stuck.
+struct StackWalk {
+    void* ips[64] = {};
+    size_t count = 0;
+    HANDLE thread = nullptr;
+    std::atomic<bool> resumed{false};
+    void resume() { if (!resumed.exchange(true)) ResumeThread(thread); }
+};
+
+void walkSuspended(StackWalk* w)
+{
+    CONTEXT ctx{};
+    ctx.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
+    if (GetThreadContext(w->thread, &ctx)) {
+        // (main()'s frame is near the top: a margin of pages cut the walk before the launcher's own frames)
+        const auto inStack = [](DWORD64 sp) { return sp >= s_guiStackLow && sp + 16 <= s_guiStackHigh; };
+        while (w->count < 64 && ctx.Rip && inStack(ctx.Rsp)) {
+            w->ips[w->count++] = reinterpret_cast<void*>(ctx.Rip);
+            DWORD64 base = 0;
+            if (PRUNTIME_FUNCTION fn = RtlLookupFunctionEntry(ctx.Rip, &base, nullptr)) {
+                void* handler = nullptr;
+                DWORD64 frame = 0;
+                RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, ctx.Rip, fn, &ctx, &handler, &frame, nullptr);
+            } else { // a leaf: its return address on top of the stack
+                ctx.Rip = *reinterpret_cast<const DWORD64*>(ctx.Rsp);
+                ctx.Rsp += 8;
+            }
+        }
+    }
+    w->resume();
+}
+
+size_t guiStack(void** ips, size_t max)
+{
+    if (!s_guiThread || !s_guiStackHigh) return 0;
+    auto* w = new StackWalk;   // (outlives this call if the walker is stuck)
+    w->thread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, s_guiThread);
+    if (!w->thread || SuspendThread(w->thread) == DWORD(-1)) {
+        if (w->thread) CloseHandle(w->thread);
+        delete w;
+        return 0;
+    }
+    std::thread walker(walkSuspended, w);
+    for (int i = 0; i < 25 && !w->resumed; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    if (!w->resumed) { // stuck behind a lock the GUI thread holds: let it go, keep nothing
+        w->resume();
+        walker.detach();
+        return 0;
+    }
+    walker.join();
+    const size_t n = std::min(max, w->count);
+    std::copy(w->ips, w->ips + n, ips);
+    CloseHandle(w->thread);
+    delete w;
+    return n;
+}
+#endif
+
 qint64 steadyMs()
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -169,6 +244,27 @@ void reportHang(qint64 blockedMs)
     const QByteArray payload =
         QStringLiteral("app hang: UI thread unresponsive for %1 s (after %2)")
             .arg(blockedMs / 1000).arg(context).toUtf8();
+#ifdef MAKINE_HANG_STACK
+    void* ips[64];
+    if (const size_t n = guiStack(ips, 64)) {
+        // The message event, with the GUI thread's stack as its thread: the frames say what hung
+        const std::string safe = sanitizePath(payload.constData());
+        sentry_value_t event = sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "makine", safe.c_str());
+        sentry_value_t eventTags = sentry_value_new_object();
+        for (auto it = tags.cbegin(); it != tags.cend(); ++it)
+            sentry_value_set_by_key(eventTags, it.key().toUtf8().constData(),
+                                    sentry_value_new_string(sanitizePath(it.value().toUtf8().constData()).c_str()));
+        sentry_value_set_by_key(eventTags, "hang.stack", sentry_value_new_string("yes"));
+        sentry_value_set_by_key(event, "tags", eventTags);
+        sentry_value_t thread = sentry_value_new_thread(s_guiThread, "GUI");
+        sentry_value_set_by_key(thread, "stacktrace", sentry_value_new_stacktrace(ips, n));
+        sentry_value_set_by_key(thread, "crashed", sentry_value_new_bool(true));
+        sentry_value_set_by_key(thread, "current", sentry_value_new_bool(false));
+        sentry_event_add_thread(event, thread);
+        sentry_capture_event(event);
+        return;
+    }
+#endif
     makine::CrashReporter::captureMessage(payload.constData(), "error", tags);
 }
 
@@ -328,6 +424,19 @@ sentry_value_t beforeSend(sentry_value_t event, void* /*hint*/, void* /*closure*
                     sentry_value_set_by_key(copy, key, sentry_value_new_string(
                         sanitizePath(sentry_value_as_string(v)).c_str()));
             }
+            // A module built without a CodeView record (the Qt and MinGW DLLs) has no debug id,
+            // and Sentry drops an image without one: frames in Qt6Core.dll then named no module
+            // at all. One made of its code id (time stamp + size) keeps them "Qt6Core.dll + 0x…".
+            if (sentry_value_is_null(sentry_value_get_by_key(image, "debug_id"))) {
+                sentry_value_t code = sentry_value_get_by_key(image, "code_id");
+                if (sentry_value_get_type(code) == SENTRY_VALUE_TYPE_STRING) {
+                    std::string hex = sentry_value_as_string(code);
+                    hex.resize(32, '0');
+                    const std::string id = hex.substr(0, 8) + "-" + hex.substr(8, 4) + "-" + hex.substr(12, 4)
+                                         + "-" + hex.substr(16, 4) + "-" + hex.substr(20, 12);
+                    sentry_value_set_by_key(copy, "debug_id", sentry_value_new_string(id.c_str()));
+                }
+            }
             sentry_value_append(redacted, copy);
         }
         sentry_value_set_by_key(debugMeta, "images", redacted);
@@ -483,6 +592,10 @@ void CrashReporter::startHangWatchdog()
     if (!s_initialized || s_hangThread || !app)
         return;
     s_uiBeatMs = steadyMs();
+#ifdef MAKINE_HANG_STACK
+    s_guiThread = GetCurrentThreadId();   // (this is the GUI thread)
+    GetCurrentThreadStackLimits(&s_guiStackLow, &s_guiStackHigh);
+#endif
     auto* beat = new QTimer(app);
     QObject::connect(beat, &QTimer::timeout, app, [] { s_uiBeatMs = steadyMs(); });
     beat->start(static_cast<int>(telemetryrules::kHangPollMs / 2));
@@ -609,6 +722,8 @@ bool CrashReporter::isUserActionable(const QString& message)
         QStringLiteral("timed out"),
         // user-initiated
         QStringLiteral("iptal"), QStringLiteral("cancel"),
+        // the machine's own policy (Device Guard / App Control) stopped a patch's program
+        QStringLiteral("uygulama denetimi"),
     };
     // Classify on the failure text only. Install failures append a remedy
     // paragraph — "Çözüm: oyunu ve Steam'i kapatın, … yönetici olarak
@@ -711,7 +826,7 @@ void CrashReporter::reportFailure(const char* operation, const QString& subject,
         QStringLiteral("%1 failed [%2]: %3")
             .arg(QString::fromLatin1(operation),
                  subject.isEmpty() ? QStringLiteral("-") : subject,
-                 message)
+                 failurereasons::foldFirstStep(message))
             .toUtf8();
     captureMessage(payload.constData(), level, tags);
 }

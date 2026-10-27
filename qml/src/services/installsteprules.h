@@ -67,6 +67,26 @@ inline bool isKnownAction(const QString& action)
 // package file over it)? Such a step cannot simply run again on an updated
 // install: the file it edits is already edited, and its original exists only
 // in the backup taken at the first install.
+// What a patch's own program said when it failed, when it is one of the causes our tools
+// name in their output (Profesör Pikachu's AC Shadows and RDR2 tools, docs/yama-araclari.md),
+// worded as the step's detail; empty for anything else. Read off the end, where a tool says
+// why: until 0.2.3 a failed KUR.bat was only "araç hata kodu 1 verdi", and Sentry kept the
+// first 500 characters of its output — the banner — never the reason (2026-10-27: a game
+// version the patch was not made for, and Windows' App Control blocking the tool).
+inline QString toolOutputCause(const QString& output)
+{
+    const QString tail = output.right(6000);
+    if (tail.contains(QStringLiteral("FARKLI SURUM"), Qt::CaseInsensitive)
+        || tail.contains(QStringLiteral("SURUM FARKLI"), Qt::CaseInsensitive)
+        || tail.contains(QStringLiteral("FARKLI SÜRÜM"), Qt::CaseInsensitive))
+        return QStringLiteral("yamanın programı oyunun bu sürümünü tanımadı (oyun güncellenmiş ya da başka bir sürüm)");
+    if (tail.contains(QStringLiteral("Device Guard"), Qt::CaseInsensitive)
+        || tail.contains(QStringLiteral("Application Control"), Qt::CaseInsensitive)
+        || tail.contains(QStringLiteral("blocked by your organization"), Qt::CaseInsensitive))
+        return QStringLiteral("Windows'un uygulama denetimi programı engelledi");
+    return {};
+}
+
 inline bool isInPlaceAction(const QString& action)
 {
     return action == QLatin1String("patchBytes") || action == QLatin1String("forgeReimport")

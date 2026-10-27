@@ -459,16 +459,16 @@ inline int extract(
         }
 #endif
 
-        // Security: prevent path traversal
-        fs::path target = dest / tarpath(fullname);
-        auto canonical_dest = fs::weakly_canonical(dest);
-        auto canonical_target = fs::weakly_canonical(target);
+        // Security: prevent path traversal. By the name alone: nothing here makes a link
+        // (they are skipped below), so no entry can lead out through one — and
+        // canonicalising two paths per entry cost seconds a package (5,454 files).
         // Component-wise: a string prefix test let "../GameX/a.dll" out of "Game".
-        const fs::path inside = canonical_target.lexically_relative(canonical_dest);
-        if (inside.empty() || *inside.begin() == "..") {
+        const fs::path inside = tarpath(fullname).lexically_normal();
+        if (inside.empty() || inside.has_root_name() || inside.has_root_directory() || *inside.begin() == "..") {
             if (err) *err = MkpkError("Path traversal attempt blocked: " + fullname);
             return -1;
         }
+        const fs::path target = dest / inside;
 
         if (typeflag == '5' || (typeflag == '\0' && dir_name)) {
             // Directory

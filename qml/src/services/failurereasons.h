@@ -91,6 +91,10 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("hiçbir dosyayı değiştirmedi"),          QStringLiteral("program_no_change")},
         {QStringLiteral("araç başlatılamadı"),                   QStringLiteral("tool_start_failed")},
         {QStringLiteral("araç 2 saatte bitmedi"),                QStringLiteral("tool_timeout")},
+        // What the program itself said, when it is one of the causes our tools name
+        // (steprules::toolOutputCause): before the bare exit code, which they also carry.
+        {QStringLiteral("oyunun bu sürümünü tanımadı"),          QStringLiteral("tool_version_mismatch")},
+        {QStringLiteral("uygulama denetimi programı engelledi"), QStringLiteral("tool_blocked_by_policy")},
         {QStringLiteral("araç hata kodu"),                       QStringLiteral("tool_exit_code")},
         // VPatch outcomes. "nomatch" is the one that means the user's game is a
         // version the patch was not built for — a catalogue problem, not a
@@ -201,6 +205,21 @@ inline QString failedStepAction(const QString& message)
         QStringLiteral("xdelta"),
     };
     return kActions.contains(action) ? action : QString();
+}
+
+// The message as a Sentry issue is titled by it: its first line. For a recipe that failed,
+// that line was "1 adımda hata oluştu" whatever broke — 0.2.3's Elden Ring, AC Shadows and
+// AC Odyssey issues all read the same, and a triage list could not tell them apart. The
+// first failed step's own line ("Adım 3: patchBytes Game/… — oyun dosyası bulunamadı")
+// is folded into it; every other message is returned as it is.
+inline QString foldFirstStep(const QString& message)
+{
+    const int nl = message.indexOf(QLatin1Char('\n'));
+    if (nl < 0 || !message.left(nl).contains(QStringLiteral("adımda hata oluştu"))) return message;
+    const int end = message.indexOf(QLatin1Char('\n'), nl + 1);
+    const QString step = message.mid(nl + 1, end < 0 ? -1 : end - nl - 1).trimmed();
+    if (!step.contains(QStringLiteral("Adım "))) return message;
+    return message.left(nl) + QStringLiteral(": ") + step + (end < 0 ? QString() : message.mid(end));
 }
 
 } // namespace makine::failurereasons

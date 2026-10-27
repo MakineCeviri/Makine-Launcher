@@ -384,3 +384,36 @@ TEST(FailureReasons, AnInPlaceTargetMissingIsNotGenericStepBreakage)
         "Adım 2: vpatch tr — oyun dosyası bulunamadı")),
         QStringLiteral("vpatch_nomatch"));
 }
+
+TEST(FailureReasons, WhatAPatchProgramSaidIsItsOwnReason)
+{
+    // steprules::toolOutputCause's wording, after the exit code the detail also carries
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1/1 adımda hata oluştu\nAdım 1: run KUR.bat — araç hata kodu 1 verdi: yamanın programı "
+        "oyunun bu sürümünü tanımadı (oyun güncellenmiş ya da başka bir sürüm)")),
+        QStringLiteral("tool_version_mismatch"));
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "1/1 adımda hata oluştu\nAdım 1: run KUR.bat — araç hata kodu 1 verdi: Windows'un uygulama "
+        "denetimi programı engelledi")),
+        QStringLiteral("tool_blocked_by_policy"));
+    // Without a named cause it is still the exit code
+    EXPECT_EQ(failureReason(QStringLiteral("1/1 adımda hata oluştu\nAdım 1: run KUR.bat — araç hata kodu 1 verdi")),
+              QStringLiteral("tool_exit_code"));
+}
+
+TEST(FailureReasons, ASentryTitleSaysWhichStepFailedAndWhy)
+{
+    // Elden Ring, 0.2.3: the title was "1 adımda hata oluştu" and nothing else
+    EXPECT_EQ(foldFirstStep(QStringLiteral(
+        "1 adımda hata oluştu\nTürkçe Yama — Adım 3: patchBytes Game/start_protected_game.exe — oyun dosyası bulunamadı\n\n"
+        "Çözüm: oyunu kapatın.")),
+        QStringLiteral("1 adımda hata oluştu: Türkçe Yama — Adım 3: patchBytes Game/start_protected_game.exe — "
+                       "oyun dosyası bulunamadı\n\nÇözüm: oyunu kapatın."));
+    // The later steps stay below it
+    EXPECT_EQ(foldFirstStep(QStringLiteral("4/5 adımda hata oluştu\nAdım 2: xdelta a — x\nAdım 3: xdelta b — y")),
+              QStringLiteral("4/5 adımda hata oluştu: Adım 2: xdelta a — x\nAdım 3: xdelta b — y"));
+    // Anything else is left alone
+    EXPECT_EQ(foldFirstStep(QStringLiteral("backup file list empty; refusing to patch without a backup")),
+              QStringLiteral("backup file list empty; refusing to patch without a backup"));
+    EXPECT_EQ(foldFirstStep(QStringLiteral("1 adımda hata oluştu")), QStringLiteral("1 adımda hata oluştu"));
+}

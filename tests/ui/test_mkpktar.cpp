@@ -139,6 +139,21 @@ TEST_F(MkpkTar, SiblingFolderWithTheSamePrefixIsOutside)
     EXPECT_FALSE(fs::exists(dir.parent_path() / sibling));
 }
 
+TEST_F(MkpkTar, NamesThatClimbOrAreAbsoluteAreRefused)
+{ // checked by the name alone (no per-entry canonicalisation): every way out is still shut
+    for (const std::string& name : {std::string("a/../../escaped.dll"), std::string("/rooted.dll"),
+                                    std::string("C:/drive.dll"), std::string("C:drive-relative.dll"),
+                                    std::string("..\\backslash.dll")}) {
+        std::vector<uint8_t> tar;
+        addEntry(tar, name, '0', "evil");
+        EXPECT_EQ(extract(tar), -1) << name;
+    }
+    std::vector<uint8_t> ok;
+    addEntry(ok, "Game/./data/../data/file.bin", '0', "fine");
+    EXPECT_EQ(extract(ok), 1);
+    EXPECT_EQ(readFile(dir / "Game" / "data" / "file.bin"), "fine");
+}
+
 TEST_F(MkpkTar, RecordAppliesToTheNextEntryOnly)
 {
     std::vector<uint8_t> tar;

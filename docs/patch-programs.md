@@ -177,6 +177,7 @@ kanalında hepsi sayılır:
 | `requires_missing_installed` | Aynısı, ama yama o klasörde kurulu (oyun güncellenmiş/dosyaları eksik) |
 | `tool_missing` · `tool_stage_failed` | Program pakette yok · geçici kopya hazırlanamadı |
 | `tool_start_failed` · `tool_exit_code` · `tool_timeout` · `elevation_declined` | Başlamadı · 0 dışı kod · 2 saat · UAC'ye "Hayır" |
+| `tool_version_mismatch` · `tool_blocked_by_policy` | 0 dışı kod, çıktısı nedenini söylüyor (`steprules::toolOutputCause`): oyunun bu sürümünü tanımadı (`FARKLI SURUM`) · Windows'un uygulama denetimi (Device Guard / App Control) programı engelledi (taraf `user`). Oyuncu da nedeni adımın ayrıntısında görür |
 | `program_no_change` | Program 0 ile çıktı ama oyunda hiçbir şey değişmedi (kurulum olmamış sayıldı) |
 | `game_version_differs` · `fingerprint_mismatch` | Parmak izi: oyun başka sürüm · klasör yamanın oyununa benzemiyor; kurulum oyuncuya soruldu (yalnız sayım, Sentry'ye gitmez) |
 | `uninstall_tool` | Kaldırma programı başarısız (mesajda neden: bulunamadı, kod …) |

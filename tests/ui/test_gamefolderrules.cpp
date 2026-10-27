@@ -388,6 +388,24 @@ TEST_F(GameFolderRulesTest, RequiredFilesDecideTheRoot)
     EXPECT_TRUE(rootWithRequired(path("HEAVY RAIN/Resources"), "Heavy Rain", Expectations{}).isEmpty());
 }
 
+TEST_F(GameFolderRulesTest, WhatThePatchEditsInPlaceFindsTheRootTheLayoutDidNot)
+{
+    // Elden Ring as a repack unpacked it: an uninstaller beside Game/, so the FromSoftware
+    // layout rule cannot climb out of the Game folder a player picked by hand, and its
+    // patchBytes went looking for Game/Game/eldenring.exe (0.2.3, 16 players). The files
+    // the recipe edits in place, asked of the folders around it, name the root.
+    touch("ELDEN RING/unins000.exe");
+    touch("ELDEN RING/Game/eldenring.exe");
+    touch("ELDEN RING/Game/start_protected_game.exe");
+    EXPECT_EQ(resolveGameRoot(path("ELDEN RING/Game")), path("ELDEN RING/Game"));
+    Expectations e;
+    e.requiredFiles = {"Game/eldenring.exe", "Game/start_protected_game.exe"};
+    EXPECT_EQ(missingRequired(path("ELDEN RING/Game"), e).size(), 2);
+    EXPECT_EQ(rootWithRequired(path("ELDEN RING/Game"), "Elden Ring", e), path("ELDEN RING"));
+    // The root itself has them: nothing to move.
+    EXPECT_TRUE(rootWithRequired(path("ELDEN RING"), "Elden Ring", e).isEmpty());
+}
+
 TEST_F(GameFolderRulesTest, NoRootWhenNoFolderAroundHasThem)
 {
     // A folder with an .exe of the right name but none of the game's data.

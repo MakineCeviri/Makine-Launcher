@@ -108,7 +108,7 @@ kapsanır, güncelliğini yitiremez.
 | `integrity` | `GameService::checkPatchIntegrity` | **Kurulu yamanın dosyaları kaybolmuş** — mağaza doğrulaması, oyun güncellemesi veya antivirüs karantinası |
 | `startup` | `main.cpp` — QML kökü derlenemez/oluşturulamaz (`qml_load`) | İlk kareden önce kapanan launcher; önceden yalnız yerel günlükteydi |
 | `qml` | Qt mesaj işleyicisi — gönderilen QML'de `TypeError`/`ReferenceError`/… (`qml_script`) | Yarım çalışan ekran. Anahtar dosya:satır + tür, kurulum başına **haftada bir**, oturumda en fazla 3; sayım kanalına gitmez (her karede tekrarlanır). Görsel/ağ uyarıları ve binding loop breadcrumb'da kalır |
-| `hang` | Bekçi iş parçacığı — GUI nabzı ≥ 5 sn eskidi (`ui_hang`) | Donan pencere; donma sürerken, oturumda bir kez gider. Başlık son kendi breadcrumb'ını adlandırır (`after package: installPackage`); uyku/hata ayıklayıcı donma sayılmaz |
+| `hang` | Bekçi iş parçacığı — GUI nabzı ≥ 5 sn eskidi (`ui_hang`) | Donan pencere; donma sürerken, oturumda bir kez gider. Başlık son kendi breadcrumb'ını adlandırır (`after package: installPackage`); uyku/hata ayıklayıcı donma sayılmaz. **2026-10-27'den beri donan GUI iş parçacığının yığınıyla** (`hang.stack:yes`, "GUI" iş parçacığı): bekçi onu bir anlığına durdurur, x64 çözme bilgisiyle (`RtlVirtualUnwind`) dönüş adreslerini toplar, bırakır — arada bellek ayırmaz; çözücü bir kilitte takılırsa 250 ms sonra iş parçacığını kendisi bırakır. Kendi karelerimiz yüklenen sembollerle adlanır, Qt'ninkiler `Qt6Core.dll + 0x…` |
 
 **Özellikle değerli:** `install` yolu, dürüstlük kapısına takılan paketleri de yakalar.
 Yani *"hangi oyunun handler'ı ne sıklıkla isteniyor"* sorusu artık veriyle cevaplanabilir —
@@ -116,6 +116,23 @@ Yani *"hangi oyunun handler'ı ne sıklıkla isteniyor"* sorusu artık veriyle c
 gerektiğini varsayımla değil talep sayısıyla belirleriz.
 
 ---
+
+## Gözden geçirme — 2026-10-27 (0.2.3 Store'da)
+
+`just triage` (14 gün, production): 100 açık issue, 1.094 olay; `system` %89. 0.2.3'ün kendi sorunları:
+
+| Bulgu | Kullanıcı | Kök neden | Ne yapıldı |
+|---|---|---|---|
+| UI donması, `after download: packageReady` | 39 | Kurulumdan önce paketin dosya listesi GUI iş parçacığında çıkarılıyordu; `fs::relative` her dosyada iki yolu da kanonikleştiriyor: 5.460 dosyalık Elden Ring paketi bu makinede 5,7 sn, oyuncularda 13 sn+ | Liste ön kontrole (iş parçacığı) taşındı; `lexically_relative` (0,42 sn). Paket açarken de her girdi iki kez kanonikleştiriliyordu — artık yalnız adıyla denetleniyor (`test_mkpktar`) |
+| Elden Ring `target_missing` / `patchBytes` | 16 | Elle seçilen `ELDEN RING/Game` klasörü: yanında `unins000.exe` olan bir repack'te FromSoftware kuralı üst klasöre çıkamıyor, yama `Game/Game/eldenring.exe`'yi arıyor | Ön kontrol, seçilen adımların yerinde düzenlediği dosyaları da sorar: burada yok ama çevredeki bir klasörde hepsi varsa oyun oraya bağlanır, kurulum yeniden başlar (`inPlaceTargetsFor`, `test_gamefolderrules`) |
+| Başlık "1 adımda hata oluştu" | ~30 | Neden etiketlerde vardı (`fail.reason`, `fail.step`), başlıkta yoktu; triyaj listesi bunları "teşhis edilemez" sayıyordu | İlk başarısız adım başlığa katlanıyor (`foldFirstStep`); `just triage` eski issue'ların nedenini etiketten okuyup yazıyor |
+| `run KUR.bat` → `tool_exit_code` (AC Shadows, RDR2) | 4 | Sentry programın çıktısının ilk 500 karakterini, yani afişini tutuyordu; neden sondaydı: oyunun başka sürümü (`FARKLI SURUM`), Windows uygulama denetimi (Device Guard) programı engelledi | Çıktının başı ve sonu günlüğe; bilinen iki neden adımın ayrıntısında ve kendi kodunda: `tool_version_mismatch`, `tool_blocked_by_policy` (taraf `user`) |
+| Diğer UI donmaları (ManifestSync, oyun sayfası, RDR2 kurulumu) | ~20 | Belirsiz — breadcrumb yalnız öncesini söylüyor | Donma olayı artık GUI yığınını taşıyor: bir sonraki sürümde nerede takıldığı görünecek |
+
+Veri tarafı (launcher değil, paketler): AC Odyssey'nin `xdelta` yamaları bazı oyuncuların sürümüyle eşleşmiyor
+(`vpatch_nomatch`), AC Shadows'un aracı bazı `.forge` dosyalarını "FARKLI SURUM" buluyor — yamaların oyunun
+güncel sürümüne göre yenilenmesi gerekiyor. 0.1.5'in (eski Store) en büyük issue'su RDR2 `integrity` (79 kullanıcı)
+0.2.3'te 3 kullanıcıya indi.
 
 ## Sınıflandırma — gürültüyü ayırmak
 

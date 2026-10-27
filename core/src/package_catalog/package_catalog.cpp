@@ -688,9 +688,10 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
                     if (ec) continue;
                     if (!it->is_regular_file(ec) || ec) continue;
 
-                    // Compute relative path from srcDir
-                    auto relPath = fs::relative(it->path(), srcDir, ec);
-                    if (ec) continue;
+                    // Relative to srcDir by the path alone: every entry starts with it, and
+                    // fs::relative canonicalises both paths per file (see below)
+                    const fs::path relPath = it->path().lexically_relative(srcDir);
+                    if (relPath.empty()) continue;
                     targetFiles.push_back(step.dest + "/" + relPath.generic_string());
                 }
             }
@@ -719,8 +720,12 @@ std::vector<std::string> PackageCatalog::getPackageFileList(
         if (ec) continue;
         if (!it->is_regular_file(ec) || ec) continue;
 
-        auto relPath = fs::relative(it->path(), sourcePath, ec);
-        if (ec) continue;
+        // By the path alone: the iterator's paths all start with sourcePath. fs::relative
+        // canonicalises both paths for every file — 5.7 s for a 5,460-file package on an
+        // NVMe disk, 13 s and more on players' machines, all of it on the UI thread
+        // before an install (Elden Ring, 0.2.3: the top UI hang in Sentry).
+        const fs::path relPath = it->path().lexically_relative(sourcePath);
+        if (relPath.empty()) continue;
         files.push_back(relPath.generic_string());
     }
 

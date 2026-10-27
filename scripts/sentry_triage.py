@@ -121,6 +121,14 @@ def fetch_tag_values(tag: str) -> list[dict]:
     return [] if isinstance(values, dict) else values
 
 
+def issue_top_tag(issue_id: str, tag: str) -> str:
+    """The most frequent value of `tag` among an issue's events ('' when none)."""
+    values = api(f"/organizations/{SENTRY_ORG}/issues/{issue_id}/tags/{tag}/values/")
+    if isinstance(values, dict) or not values:
+        return ""
+    return str(max(values, key=lambda v: as_int(v.get("count"))).get("value") or "")
+
+
 def fetch_project_id() -> str:
     """Numeric project id — the detectors endpoint filters by it, not the slug."""
     data = api(f"/projects/{SENTRY_ORG}/{SENTRY_PROJECT}/")
@@ -203,12 +211,17 @@ def build_report(period: str = "14d") -> dict:
                 )
                 break
 
-    # Issues whose text carries no diagnostic content. They reach Sentry and
-    # still cannot be acted on, which is the same as not having them.
-    opaque = [
+    # Recipe failures titled only "N adımda hata oluştu" (until the failed step went into
+    # the title). Their events still say why in fail.reason and fail.step, so those are
+    # read here; only the ones without a reason are truly opaque.
+    stepped = [
         i for i in issues
-        if re.search(r"\d+(/\d+)? ad[ıi]mda hata olu[şs]tu", i.get("title") or "")
+        if re.search(r"\d+(/\d+)? ad[ıi]mda hata olu[şs]tu$", (i.get("title") or "").strip())
     ]
+    for i in stepped:
+        i["_reason"] = issue_top_tag(i.get("id"), "fail.reason")
+        i["_step"] = issue_top_tag(i.get("id"), "fail.step")
+    opaque = [i for i in stepped if i["_reason"] in ("", "other", "step_failed")]
 
     alerts = analyze_alerts()
 
@@ -253,6 +266,16 @@ def build_report(period: str = "14d") -> dict:
                 "users": as_int(i.get("userCount")),
             }
             for i in opaque
+        ],
+        "step_failures": [
+            {
+                "title": (i.get("title") or "")[:90],
+                "events": as_int(i.get("count")),
+                "users": as_int(i.get("userCount")),
+                "reason": i["_reason"],
+                "step": i["_step"],
+            }
+            for i in stepped if i not in opaque
         ],
         "dead_alert_rules": alerts["dead"],
         "orphan_detectors": alerts["orphan_detectors"],
@@ -325,6 +348,11 @@ def print_report(report: dict) -> None:
             print(f"    [{f['id']}] {f['events']:>4d} olay · {f['users']} kullanici · "
                   f"son {f['last_seen']} · {f['title']}")
 
+    if report.get("step_failures"):
+        print(f"\n  Tarif adimi hatalari (basligi soylemiyor, etiketi soyluyor):")
+        for o in report["step_failures"]:
+            print(f"    {o['events']:>4d} olay · {o['users']} kullanici · "
+                  f"{o['reason']} / {o['step'] or '-'} · {o['title']}")
     if report["opaque_issues"]:
         print(f"\n  Teshis edilemeyen mesajlar (Sentry'ye ulasiyor, is yaramiyor):")
         for o in report["opaque_issues"]:

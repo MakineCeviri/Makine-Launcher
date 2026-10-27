@@ -451,28 +451,47 @@ static QString recipeRelativePath(QString p)
     return p;
 }
 
-QStringList LocalPackageManager::requiredFilesFor(const QString& steamAppId, const QString& variant,
-                                                  const QStringList& selectedOptions) const
+// The steps an install with this variant and these options runs (as installPackage picks them)
+static QList<InstallStep> chosenSteps(const PackageInfo& pkg, const QString& variant,
+                                      const QStringList& selectedOptions)
 {
-    const auto pkg = getPackage(steamAppId);
-    if (!pkg) return {};
-    // The options and combined steps the install picks (installPackage).
-    QList<InstallOptionQt> options = pkg->installOptions;
-    QMap<QString, QList<InstallStep>> combined = pkg->combinedSteps;
-    if (const auto vc = pkg->variantInstallOptions.constFind(variant);
-        !variant.isEmpty() && vc != pkg->variantInstallOptions.cend()) {
+    QList<InstallOptionQt> options = pkg.installOptions;
+    QMap<QString, QList<InstallStep>> combined = pkg.combinedSteps;
+    if (const auto vc = pkg.variantInstallOptions.constFind(variant);
+        !variant.isEmpty() && vc != pkg.variantInstallOptions.cend()) {
         options = vc->installOptions;
         combined = vc->combinedSteps;
     }
-    QList<InstallStep> steps = pkg->installSteps;
+    QList<InstallStep> steps = pkg.installSteps;
     for (const InstallOptionQt& opt : std::as_const(options))
         if (selectedOptions.contains(opt.id)) steps += opt.steps;
     QStringList key = selectedOptions;
     key.sort();
     steps += combined.value(key.join(QLatin1Char('+')));
+    return steps;
+}
 
+QStringList LocalPackageManager::inPlaceTargetsFor(const QString& steamAppId, const QString& variant,
+                                                   const QStringList& selectedOptions) const
+{
+    const auto pkg = getPackage(steamAppId);
+    if (!pkg) return {};
     QStringList out;
-    for (const InstallStep& st : std::as_const(steps))
+    for (const InstallStep& st : chosenSteps(*pkg, variant, selectedOptions)) {
+        if (!steprules::isInPlaceAction(st.action)) continue;
+        const QString f = recipeRelativePath(st.action == QLatin1String("patchBytes") && st.dest.isEmpty() ? st.src : st.dest);
+        if (!f.isEmpty() && !out.contains(f, Qt::CaseInsensitive)) out.append(f);
+    }
+    return out.mid(0, 40);
+}
+
+QStringList LocalPackageManager::requiredFilesFor(const QString& steamAppId, const QString& variant,
+                                                  const QStringList& selectedOptions) const
+{
+    const auto pkg = getPackage(steamAppId);
+    if (!pkg) return {};
+    QStringList out;
+    for (const InstallStep& st : chosenSteps(*pkg, variant, selectedOptions))
         for (const QString& f : st.requiredFiles)
             if (const QString r = recipeRelativePath(f); !r.isEmpty() && !out.contains(r, Qt::CaseInsensitive))
                 out.append(r);
@@ -3172,10 +3191,16 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             return StepOutcome::SoftError;
         }
         if (result.exitCode != 0) {
+            // Its start and its end: a tool prints its banner first and why it stopped last
             qCWarning(lcPackageManager) << "Run: non-zero exit:" << result.exitCode
-                       << "output:" << result.output.left(500);
-            if (failDetail)
-                *failDetail = QStringLiteral("araç hata kodu %1 verdi").arg(result.exitCode);
+                       << "output:" << result.output.left(160)
+                       << "... end:" << result.output.right(700);
+            if (failDetail) {
+                const QString cause = steprules::toolOutputCause(result.output);
+                *failDetail = cause.isEmpty()
+                    ? QStringLiteral("araç hata kodu %1 verdi").arg(result.exitCode)
+                    : QStringLiteral("araç hata kodu %1 verdi: %2").arg(result.exitCode).arg(cause);
+            }
             return StepOutcome::SoftError;
         }
         qCDebug(lcPackageManager) << "Run OK:" << exePath;

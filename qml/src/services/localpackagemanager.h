@@ -174,6 +174,10 @@ public:
     // GOG variants need different files on every folder.
     QStringList requiredFilesFor(const QString& steamAppId, const QString& variant,
                                  const QStringList& selectedOptions) const;
+    // The game files those steps patch in place (patchBytes, xdelta, vpatch,
+    // forgeReimport), relative to the root: what a folder one level off lacks.
+    QStringList inPlaceTargetsFor(const QString& steamAppId, const QString& variant,
+                                  const QStringList& selectedOptions) const;
     // The fingerprints of the copy this patch was made on (gameprint.h): the
     // catalogue's, then every game.bin the extracted package carries (OyunBul's,
     // one per variant at most). Empty when there is none.
