@@ -131,6 +131,8 @@ Card {
                 return mine.concat(known.filter(n => mine.indexOf(n) < 0))
             }
             onTextChanged: sidebar.searchEdited(text)
+            // Makine reads along as you type
+            onEdited: if (typeof Companion !== "undefined" && Companion) Companion.noteTyping()
             onAccepted: sidebar.searchAccepted()
             Keys.onDownPressed: sidebar.searchAccepted()
         }
@@ -218,7 +220,28 @@ Card {
             onClicked: Qt.openUrlExternally("https://kreosus.com/makineceviri/")
         }
 
-        Item { Layout.fillHeight: true }
+        // Makine's home in the launcher: the room between the places and the foot. He floats over it
+        // in a window of his own (CompanionService), so this only tells him where it is.
+        Item {
+            id: companionDock
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            function report() { // (none while the sidebar is hidden: the welcome flow)
+                if (typeof Companion !== "undefined" && Companion)
+                    Companion.setDock(companionDock.visible ? companionDock.mapToItem(null, 0, 0, companionDock.width, companionDock.height)
+                                                            : Qt.rect(0, 0, 0, 0))
+            }
+            onWidthChanged: report()
+            onHeightChanged: report()
+            onYChanged: report()
+            onVisibleChanged: report()
+            Component.onCompleted: report()
+            Connections {
+                target: sidebar.windowRef
+                function onWidthChanged() { companionDock.report() }
+                function onHeightChanged() { companionDock.report() }
+            }
+        }
 
         SidebarStatus {
             Layout.fillWidth: true
@@ -270,6 +293,7 @@ Card {
         Accessible.role: item.external ? Accessible.Link : Accessible.PageTab
         Accessible.name: item.text
         Accessible.checked: item.selected
+        Accessible.onPressAction: item.clicked()
         Keys.onReturnPressed: item.clicked()
         Keys.onSpacePressed: item.clicked()
 

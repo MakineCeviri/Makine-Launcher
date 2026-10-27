@@ -616,6 +616,11 @@ Item {
                         answer: qsTr("Hayır. Yamalar gönüllü çevirmenlerin emeğidir ve ücretsizdir; her oyunun sayfasında emeği geçenler yazar. Güvenliğin için yamaları yalnızca makineceviri.org'dan ve bu launcher'dan indir.")
                     }
                     Faq {
+                        visible: Companion.available
+                        question: qsTr("Launcher'daki küçük robot kim?")
+                        answer: qsTr("O Makine, launcher'ın yoldaşı. Ana sayfada öne çıkan oyunların yanındaki kendi köşesinde durur; başka bir sayfaya geçince ya da sayfayı aşağı kaydırınca kenar çubuğuna uçar, dönünce ışınlanarak köşesine gelir. Yaptığın işe eşlik eder: oyunlarını ararken bakınır, yama inerken ilerlemeyi yüzünde gösterir, kurulum bitince sevinir, bir şey ters giderse söyler. Tıklarsan tepki verir; başından ya da elinden tutup sürükleyebilir, fırlatabilirsin. Pencerenin dışına bırakırsan yerine uçarak döner. Üstüne sağ tıklayınca bayrak sallatabilir, ayarlarını açabilir, bir saatliğine gizleyebilir ya da nerede duracağını seçebilirsin: launcher'da, masaüstünde ya da en küçük haliyle sağ altta saatin üstünde. Bir pencere açıldığında yolundan çekilir, bir süre onunla ilgilenmezsen olduğu yerde uyur, sayfa değişse de kımıldamaz, tıklarsan uyanır; launcher başka bir pencerenin altında kaldığında hiç çizilmez, bilgisayarını yormaz. Ayarlar > Görünüm > Makine'den kapatıp açabilir; yerini, ana sayfadaki köşesini, görünüşünü (elleriyle ya da sade), boyunu ve konuşmasını değiştirebilirsin.")
+                    }
+                    Faq {
                         question: qsTr("Launcher'ın yeni sürümünü nasıl alırım?")
                         answer: qsTr("Yeni sürüm çıkınca kenar çubuğunun altında haber verilir; neyin değiştiğini kenar çubuğundaki Yenilikler'de okuyabilirsin. Launcher'ı Microsoft Store'dan kurduysan \"Store'da güncelle\" Store'u açar, güncelleme oradan gelir. Arşivden (ZIP) kurduysan \"İndir\" indirme sayfasını açar: yeni arşivi eskisinin üzerine çıkar. İki yolda da ayarların ve kurulu yamaların olduğu gibi kalır.")
                     }

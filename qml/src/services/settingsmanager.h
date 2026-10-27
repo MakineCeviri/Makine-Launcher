@@ -49,6 +49,14 @@ class SettingsManager : public QObject
     Q_PROPERTY(bool isDarkMode READ isDarkMode WRITE setIsDarkMode NOTIFY isDarkModeChanged)
     Q_PROPERTY(QString accentPreset READ accentPreset WRITE setAccentPreset NOTIFY accentPresetChanged)
 
+    // Makine, the companion: shown at all, where he lives, his corner on the home page, his look, his size, his speech bubbles
+    Q_PROPERTY(bool companionEnabled READ companionEnabled WRITE setCompanionEnabled NOTIFY companionEnabledChanged)
+    Q_PROPERTY(QString companionPlace READ companionPlace WRITE setCompanionPlace NOTIFY companionPlaceChanged)
+    Q_PROPERTY(QString companionLook READ companionLook WRITE setCompanionLook NOTIFY companionLookChanged)
+    Q_PROPERTY(bool companionCorner READ companionCorner WRITE setCompanionCorner NOTIFY companionCornerChanged)
+    Q_PROPERTY(QString companionSize READ companionSize WRITE setCompanionSize NOTIFY companionSizeChanged)
+    Q_PROPERTY(bool companionTalk READ companionTalk WRITE setCompanionTalk NOTIFY companionTalkChanged)
+
     // UI Scale (requires restart)
     Q_PROPERTY(QString uiScale READ uiScale WRITE setUiScale NOTIFY uiScaleChanged)
 
@@ -110,6 +118,20 @@ public:
     QString accentPreset() const { return m_accentPreset; }
     void setAccentPreset(const QString& value);
 
+    // Makine
+    bool companionEnabled() const { return m_companionEnabled; }
+    void setCompanionEnabled(bool value);
+    QString companionPlace() const { return m_companionPlace; }  // launcher · desktop · clock (just above the taskbar's clock)
+    void setCompanionPlace(const QString& value);
+    QString companionLook() const { return m_companionLook; }    // full (with his hands) · plain
+    void setCompanionLook(const QString& value);
+    bool companionCorner() const { return m_companionCorner; }
+    void setCompanionCorner(bool value);
+    QString companionSize() const { return m_companionSize; }  // small · medium · large
+    void setCompanionSize(const QString& value);
+    bool companionTalk() const { return m_companionTalk; }
+    void setCompanionTalk(bool value);
+
     // UI Scale
     QString uiScale() const { return m_uiScale; }
     void setUiScale(const QString& value);
@@ -151,6 +173,12 @@ signals:
     void translationLanguageChanged();
     void isDarkModeChanged();
     void accentPresetChanged();
+    void companionEnabledChanged();
+    void companionPlaceChanged();
+    void companionLookChanged();
+    void companionCornerChanged();
+    void companionSizeChanged();
+    void companionTalkChanged();
     void uiScaleChanged();
     void onboardingCompletedChanged();
     void appLanguageChanged();
@@ -185,6 +213,14 @@ private:
     bool m_isDarkMode{true};
     QString m_accentPreset{"purple"};
     QString m_uiScale{"auto"};
+
+    // Makine
+    bool m_companionEnabled{true};
+    QString m_companionPlace{"launcher"};
+    QString m_companionLook{"full"};
+    bool m_companionCorner{true};
+    QString m_companionSize{"medium"};
+    bool m_companionTalk{true};
 
     // Onboarding
     bool m_onboardingCompleted{false};

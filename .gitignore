@@ -198,3 +198,11 @@ docs/perf-startup-analysis.md
 docs/ECOSYSTEM-REPORT*.md
 docs/superpowers/
 docs/perf-startup-analysis.md
+
+# Makine, the companion, is closed source (MakineCeviri/Makine-Companion, private): his engine,
+# paint, window, tests and docs never come into this repo. Only the launcher's side stays here.
+qml/src/services/companion*
+!qml/src/services/companionservice.h
+!qml/src/services/companionservice.cpp
+tests/ui/test_companion*
+docs/companion.md

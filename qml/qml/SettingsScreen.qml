@@ -22,10 +22,10 @@ Item {
 
     property int selectedCategory: 0
 
-    // Called from Main.qml when Settings becomes visible
-    function resetScroll() {
-        // Always reopen on the "Genel" tab — don't resume the last category
-        root.selectedCategory = 0
+    // Called from Main.qml when Settings becomes visible: on the tab asked for (Makine's settings ask
+    // for Görünüm), else always "Genel" — don't resume the last category
+    function resetScroll(category) {
+        root.selectedCategory = category > 0 && category < root.categories.length ? category : 0
         pageContainer.updateHeight()
         _playEntryAnim()
     }
@@ -39,7 +39,7 @@ Item {
     // Static categories + dynamic plugin categories
     readonly property var _staticCategories: [
         { name: qsTr("Genel"), description: qsTr("Başlangıç, oyun tanıma, raporlar, güncellemeler ve önbellek."), isPlugin: false, icon: "settings" },
-        { name: qsTr("Görünüm"), description: qsTr("Açık ya da koyu görünüm, vurgu rengi ve hareket."), isPlugin: false, icon: "palette" },
+        { name: qsTr("Görünüm"), description: qsTr("Açık ya da koyu görünüm, vurgu rengi, hareket ve Makine."), isPlugin: false, icon: "palette" },
         { name: qsTr("Eklentiler"), description: qsTr("Eklentileri kur, aç, kapat ve güncelle."), isPlugin: false, icon: "puzzle" }
     ]
     readonly property var _staticCategoriesEnd: [
@@ -218,6 +218,7 @@ Item {
                                 Accessible.role: Accessible.PageTab
                                 Accessible.name: tab.modelData.name
                                 Accessible.checked: tab.selected
+                                Accessible.onPressAction: root.selectedCategory = tab.index
                                 Keys.onReturnPressed: root.selectedCategory = tab.index
                                 Keys.onSpacePressed: root.selectedCategory = tab.index
 

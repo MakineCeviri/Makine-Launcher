@@ -248,6 +248,21 @@ ApplicationWindow {
         }
     }
 
+    // ===== MAKINE: "Makine ayarları" (his menu, his corner) opens Ayarlar > Görünüm =====
+    Connections {
+        target: Companion
+        function onSettingsRequested() {
+            if (window._onboardingActive) return
+            if (contentStackContainer.settingsVisible && settingsLoader.item) { // already there: just the tab
+                settingsLoader.item.selectedCategory = 1
+                return
+            }
+            window._settingsCategory = 1 // taken as Settings opens (settingsLoader)
+            window._go(2)
+        }
+    }
+    property int _settingsCategory: -1
+
     // TranslationDownloader → InstallFlowService is wired natively in
     // main.cpp (B2-03) so the install pipeline survives QML reload/GC.
 
@@ -615,10 +630,17 @@ ApplicationWindow {
                     // Use _settingsPreload as the persistent flag to avoid
                     // a binding loop (active → onLoaded → active cycle).
                     window._settingsPreload = true
+                    if (window._settingsCategory >= 0) {
+                        item.selectedCategory = window._settingsCategory
+                        window._settingsCategory = -1
+                    }
                     if (typeof SceneProfiler !== "undefined")
                         SceneProfiler.markLoaderReady("SettingsScreen")
                 }
-                onVisibleChanged: if (visible && item) Qt.callLater(item.resetScroll)
+                onVisibleChanged: if (visible && item) Qt.callLater(() => {
+                    item.resetScroll(window._settingsCategory)
+                    window._settingsCategory = -1
+                })
                 sourceComponent: Component {
                     SettingsScreen {
                         onBack: {

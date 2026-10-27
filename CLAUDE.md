@@ -14,7 +14,8 @@
 Three layers, top to bottom:
 
 - **QML UI** — `qml/qml/` `screens/` · `components/` · `dialogs/` · `controllers/` · `theme/`. PascalCase `.qml`, pure declarative UI, no JS logic. Apple structure in 0.1.5's tone (sidebar shell, lit near-black page `AppBackground`, every section on a `Card` container with a lit top edge, `EdgeFade`/`TopDissolve` instead of hard cuts, `Theme`/`Dimensions`/`Icons` tokens, `AppButton`/`ListSection`/`ListRow`/`SegmentedControl`…): [`docs/design.md`](docs/design.md) — build new UI from it.
-- **C++ service layer** — `qml/src/services/` bridges Core ↔ UI (`GameService`, `CoreBridge`, `InstallFlow`, `BackupMgr`, `BatchOps`, `PackageCatalog`, `TranslationState`, `TranslationDownloader`, `ManifestSync`, `UpdateService`, `SteamDetails`, `RenderGov`).
+- **C++ service layer** — `qml/src/services/` bridges Core ↔ UI (`GameService`, `CoreBridge`, `InstallFlow`, `BackupMgr`, `BatchOps`, `PackageCatalog`, `TranslationState`, `TranslationDownloader`, `ManifestSync`, `UpdateService`, `SteamDetails`, `RenderGov`, `CompanionService`).
+- **Makine, the companion** — closed source, in the private repo `MakineCeviri/Makine-Companion` (proprietary, not AGPL). Clone it next to this repo: CMake finds `../Makine-Companion`, links its `makine_companion` library and defines `MAKINE_HAS_COMPANION`; without it the launcher builds without him (`Companion.available` false, his settings hidden) and a `MAKINE_RELEASE_VERIFIED` build stops. This repo holds only his side of the launcher: `CompanionService` (talks to his one header, `makine/companion.h`), `screens/home/MakineCorner.qml`, `Sidebar.qml` `companionDock`. Never add his engine, paint or window code here; his design and pitfalls are in that repo's `docs/companion.md`.
 - **C++ core library** — `core/include/makine/` + `core/src/`: package catalog, crash-recovery journal, file integrity, path checks, error types, logging macros, plugin ABI (`plugin/abi.h` + header-only `sdk.hpp`). Game detection, VDF parsing and patching live in the service layer.
 - **Plugins** (ADR-0009, guide `docs/plugins/README.md`) — each enabled plugin runs out of process in `makine-plugin-host.exe` (`tools/plugin-host/`, Qt-free, static); launcher side `PluginManager` + `plugin{process,manifest,registry,installer}`; signed CDN registry; `scripts/plugin_registry.py` (pack/sign) and `plugin_dev.py` (run a plugin without the launcher). Still behind `MAKINE_DEV_TOOLS`.
 
@@ -92,7 +93,7 @@ export PATH="/c/Qt/6.11.1/mingw_64/bin:$PATH"  # Qt DLLs for runtime
 | Core | spdlog via `MAKINE_LOG_*` macros | `core/include/makine/logging.hpp` |
 | UI | `QLoggingCategory` | `qCDebug(lcXxx)` / `qCWarning(lcXxx)` |
 
-UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download` · `.batch` · `.backup` · `.process` · `.integrity` · `.manifest` · `.journal` · `.steam` · `.update` · `.updater` · `.security` · `.render` · `.plugin`. Toggle with `QT_LOGGING_RULES="makine.*=true"` / `QT_LOGGING_RULES="makine.game=false"`.
+UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download` · `.batch` · `.backup` · `.process` · `.integrity` · `.manifest` · `.journal` · `.steam` · `.update` · `.updater` · `.security` · `.render` · `.plugin` · `.companion` (debug: frame stats every 10 s). Toggle with `QT_LOGGING_RULES="makine.*=true"` / `QT_LOGGING_RULES="makine.game=false"`.
 
 ## Known gotchas
 
@@ -108,6 +109,8 @@ UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download`
 | QML | `component X:` | Don't shadow shared component names |
 | QML | `clip: true` in scrollables | Required for Flickable, ListView, ScrollView |
 | QML | `Connections.target` changed from its own handler | Use-after-free in delegates (Qt 6.11, NATIVE-74) — keep `target` fixed, gate with `enabled` |
+| QML | A `Shape` on `Shape.CurveRenderer` (Qt 6.11) | Draws nothing after the window is minimized or hidden and shown again, until its path changes — `main.cpp` `reviveCurveShapes` flips every such Shape's renderer on restore; keep new curve Shapes under the window's content item |
+| QML | A parent's `visible` bound to its children's `visible` | Reading `visible` gives the effective value: once the parent hides, the children read hidden and it never shows again — derive it from the data (`HomePage.qml` `heroRow`) |
 | QML | `QV4_MM_AGGRESSIVE_GC` is a V4 debug switch (a full GC on every JS allocation) | Never set it: up to 0.1.5 `main.cpp` did, and every JS-heavy binding ran 100–300× slower (2 s freezes) |
 | vcpkg | Manifest mode | Classic mode only (`VCPKG_MANIFEST_MODE=OFF`), triplet `x64-mingw-dynamic` |
 | Qt | Every `*.lnk` is read as a shell shortcut | A game data file named `.lnk` (Nioh) "does not exist", has size 0, `QDir::Files` skips it — use `rawfile.h` for game/package files |
@@ -117,6 +120,7 @@ UI categories: `makine.app` · `.game` · `.bridge` · `.package` · `.download`
 | Plugin host | DLL search is plugin folder → host folder → System32 | Plugins link the C++ runtime statically or ship it; `PATH` is never searched. The host manifest makes the code page UTF-8 and the process per-monitor DPI aware (coordinates are physical pixels) |
 | Packaging | Python `tarfile` defaults to PAX | ustar name holds an ASCII stand-in that 0.1.5 reads — `package_pipeline.py` writes USTAR (GNU fallback) |
 | Sentry | Reads DWARF, not the COFF symbol table | A release `.sym` without `-g` symbolicates every frame of ours to `qml_register_types_MakineLauncher` (0.1.5); `qml/CMakeLists.txt` adds `-g1` in Release — check with `addr2line -f -e Makine-Launcher.exe.sym <addr>` |
+| C++ | `std::filesystem::relative` / `weakly_canonical` in a loop | Each call canonicalises its paths on disk: 5.7 s for a 5,460-file package (Elden Ring), 13 s+ on players' PCs, on the UI thread — use `lexically_relative` on paths an iterator gave you, canonicalise a root once |
 | Win32 | `HeapCompact` over `GetProcessHeaps()` | Never: other modules own those heaps and can destroy one mid-call (0.1.5 startup fatals 3C/1V) |
 | CI | Git Bash puts Git's `ucrt64\bin` before MinGW 13.1 on `PATH` | A test run from a bash step loads Git's `libstdc++-6.dll`; the spdlog-linked suites fail to bind an import and hang silently on a loader dialog — run `ctest` from `pwsh` (`ci.yml`), or put `mingw1310_64/bin` first |
 | Win32 | A job object assigned after `QProcess::start` | Misses what a `.bat` `start`s in its first milliseconds — create the child inside the job (`PROC_THREAD_ATTRIBUTE_JOB_LIST` via `setCreateProcessArgumentsModifier`, `runProcess`). Read `JOBOBJECT_BASIC_PROCESS_ID_LIST` from a flat buffer: indexing its `ProcessIdList[1]` past 0 is UB and GCC -O2 drops the loop |

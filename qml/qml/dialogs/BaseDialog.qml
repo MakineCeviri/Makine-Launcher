@@ -80,4 +80,16 @@ Dialog {
     // a Popup is not an Item, so Escape closed the dialog without a word and
     // an update flow stayed pending into the next install.
     onRejected: root.cancelled()
+
+    // Makine keeps clear of an open dialog (CompanionService): he leaves a corner its card covers and
+    // fades only while it covers his room; told once each way, and once more if the dialog goes while open
+    property bool _companionTold: false
+    function _tellCompanion(open) {
+        if (open === root._companionTold || typeof Companion === "undefined" || !Companion) return
+        root._companionTold = open
+        Companion.noteSheet(root, open)
+    }
+    onAboutToShow: root._tellCompanion(true)
+    onClosed: root._tellCompanion(false)
+    Component.onDestruction: root._tellCompanion(false)
 }

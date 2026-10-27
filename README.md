@@ -315,6 +315,8 @@ Yamaları hazırlayan bütün çevirmenlere, editörlere ve test edenlere. Launc
 
 Makine Launcher, [GNU Affero Genel Kamu Lisansı v3.0](LICENSE) ile lisanslanmıştır. Kodu kullanabilir, değiştirebilir ve dağıtabilirsin; değiştirdiğin sürümü kullanıcılara sunuyorsan kaynak kodunu da aynı lisansla paylaşman gerekir.
 
+Yayımlanan sürümlerdeki yoldaş robot Makine bu deponun parçası değildir: Makine Çeviri'nin kapalı kaynak, tüm hakları saklı bileşenidir ve AGPL kapsamına girmez. Bu depo onsuz derlenir. Ek izin (AGPL-3.0 madde 7): programı bu bileşenle birlikte, bileşenin kaynağı olmadan dağıtabilirsin; bileşenin kendisini kopyalamak, değiştirmek ya da ayrı kullanmak bu izne dahil değildir.
+
 Oyun adları, görselleri ve markaları sahiplerine aittir. Makine Çeviri, katalogdaki oyunların yayıncılarıyla bağlantılı değildir.
 
 <details>
@@ -323,7 +325,7 @@ Oyun adları, görselleri ve markaları sahiplerine aittir. Makine Çeviri, kata
 
 **Makine Launcher** is a free, open-source Windows app that finds the games on your PC and installs community-made Turkish translation patches with one click. It verifies every package, backs up the original game files before touching them and can undo any patch at any time. It scans Steam, Epic Games, GOG, Ubisoft Connect and Xbox libraries, and recognises non-Steam games by file fingerprints.
 
-Built with Qt 6 / QML and C++23. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9NQMT44PRWHG) or [GitHub Releases](https://github.com/MakineCeviri/Makine-Launcher/releases/latest). Development happens on the `dev` branch; see [CONTRIBUTING.md](CONTRIBUTING.md). Licensed under [AGPL-3.0](LICENSE).
+Built with Qt 6 / QML and C++23. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9NQMT44PRWHG) or [GitHub Releases](https://github.com/MakineCeviri/Makine-Launcher/releases/latest). Development happens on the `dev` branch; see [CONTRIBUTING.md](CONTRIBUTING.md). Licensed under [AGPL-3.0](LICENSE). Makine, the companion robot in released builds, is a separate proprietary component of Makine Çeviri (all rights reserved) and not part of this repository; as an additional permission under AGPL-3.0 section 7, you may convey the program combined with it without its source, which grants no right to copy, modify or use the component itself.
 
 </details>
 

@@ -22,6 +22,7 @@
 #include <QDateTime>
 #include <QSurfaceFormat>
 #include <QQuickWindow>
+#include <QQuickItem>
 #include <QQuickGraphicsConfiguration>
 #include <QThread>
 #include <QThreadPool>
@@ -55,6 +56,7 @@ Q_LOGGING_CATEGORY(lcApp, "makine.app")
 #include <array>
 #include <memory>
 #include <mutex>
+#include <utility>
 #include <vector>
 #include <QFontMetricsF>
 #include <QHash>
@@ -756,6 +758,7 @@ void logToFile(const QString& msg) {
 #include "services/corebridge.h"
 #include "services/translationstatemanager.h"
 #include "services/installflowservice.h"
+#include "services/companionservice.h"
 #ifdef MAKINE_DEV_TOOLS
 #include "services/frametimer.h"
 #include "services/sceneprofiler.h"
@@ -1271,6 +1274,11 @@ static void createServices(
         CoreBridge::instance(), &app);
     engine.rootContext()->setContextProperty("InstallFlowService", installFlow);
 
+    // Makine, the companion: follows the launcher's work, lives in its window (or out on the desktop)
+    auto* companion = new CompanionService(settingsManager, &app);
+    companion->watch(gameService, translationDownloader);
+    engine.rootContext()->setContextProperty("Companion", companion);
+
     // B2-03: route TranslationDownloader signals natively so the install
     // pipeline cannot stall when the QML controller is reloaded or GC'd.
     QObject::connect(translationDownloader, &makine::TranslationDownloader::packageReady,
@@ -1414,6 +1422,26 @@ static void logStartupDiagnostics(QGuiApplication& app, QQmlApplicationEngine& e
     );
 }
 
+// Qt 6.11: a Shape on the CurveRenderer (the sidebar's icons, the window's buttons…) draws nothing
+// once the window comes back from being minimized or hidden, until its path changes. Switching its
+// renderer off and on again rebuilds it; every such Shape under `item` gets that. Returns how many.
+static int reviveCurveShapes(QQuickItem* item)
+{
+    int revived = 0;
+    for (const QMetaObject* m = item->metaObject(); m; m = m->superClass()) {
+        if (qstrcmp(m->className(), "QQuickShape") != 0) continue;
+        const QVariant type = item->property("preferredRendererType");
+        if (type.toInt() == 4) { // Shape.CurveRenderer
+            item->setProperty("preferredRendererType", 1); // Shape.GeometryRenderer
+            item->setProperty("preferredRendererType", type);
+            ++revived;
+        }
+        break;
+    }
+    for (QQuickItem* child : item->childItems()) revived += reviveCurveShapes(child);
+    return revived;
+}
+
 static void setupRootWindow(
     QObject* rootObject,
     QGuiApplication& app,
@@ -1456,6 +1484,13 @@ static void setupRootWindow(
     window->setPersistentGraphics(false);
     window->setPersistentSceneGraph(false);
 
+    // Back from the tray or the taskbar: the CurveRenderer's Shapes come back too (reviveCurveShapes)
+    QObject::connect(window, &QWindow::visibilityChanged, window, [window, away = false](QWindow::Visibility v) mutable {
+        if (v == QWindow::Hidden || v == QWindow::Minimized) { away = true; return; }
+        if (!std::exchange(away, false)) return;
+        QTimer::singleShot(0, window, [window] { reviveCurveShapes(window->contentItem()); });
+    });
+
     // Graphics configuration: pipeline cache via API
     // (supplements env vars set earlier in configureApplication)
     {
@@ -1479,6 +1514,10 @@ static void setupRootWindow(
     // FPS governor: active (60fps vsync) → idle (on-demand) → background (0fps)
     auto* renderGovernor = new RenderGovernor(window, &app);
     engine.rootContext()->setContextProperty("RenderGovernor", renderGovernor);
+
+    // Makine moves in once the window exists
+    if (auto* companion = qobject_cast<CompanionService*>(engine.rootContext()->contextProperty("Companion").value<QObject*>()))
+        companion->attachWindow(window);
 
     logToFile(QString("Phase 10 (first-frame setup) at %1 ms").arg(startupTimer.elapsed()));
 

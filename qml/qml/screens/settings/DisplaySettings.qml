@@ -193,6 +193,113 @@ ColumnLayout {
         }
     }
 
+    // Makine, the launcher's companion (CompanionService): shown or not, where he lives, his corner on
+    // the home page, his look, his speech, his size; a build without him has none of it
+    ListSection {
+        visible: Companion.available
+        title: qsTr("Makine")
+        footer: qsTr("Tıklarsan tepki verir, başından ya da elinden tutup sürükleyebilir, fırlatabilirsin; yerinden çıkarırsan uçarak geri döner. Uyurken olduğu yerde kalır. Üstüne sağ tıklayınca ne yapacağını ve nerede duracağını seçersin.")
+
+        ListRow {
+            icon: Icons.sparkle
+            iconTint: Theme.primary
+            title: qsTr("Makine'yi göster")
+            subtitle: qsTr("Yaptığın işe eşlik eder: oyunlarını ararken bakınır, yama inerken ışık toplar, kurulunca sevinir, bir sorun olursa söyler.")
+            AppSwitch {
+                checked: SettingsManager.companionEnabled
+                accessibleName: qsTr("Makine'yi göster")
+                onToggled: SettingsManager.companionEnabled = !SettingsManager.companionEnabled
+            }
+        }
+
+        ListRow {
+            enabled: SettingsManager.companionEnabled
+            icon: Icons.monitor
+            iconTint: "#0A84FF"
+            title: qsTr("Nerede dursun")
+            subtitle: SettingsManager.companionPlace === "clock"
+                      ? qsTr("En küçük haliyle, elsiz, sağ altta saatin ve tarihin hemen üstünde durur; görev çubuğunun üstüne çıkmaz. Tam ekran bir oyun ya da sunum açıkken görünmez.")
+                      : SettingsManager.companionPlace === "desktop"
+                      ? qsTr("Launcher'ın penceresinden çıkıp ekranın altında, saatin yanında süzülür; launcher tepsiye küçültülmüşken de yanında olur. Tam ekran bir oyun ya da sunum açıkken görünmez.")
+                      : qsTr("Ana sayfada kendi köşesinde, başka sayfalarda kenar çubuğunun boş yerinde durur; sayfa değişince oraya uçar.")
+            SegmentedControl {
+                small: true
+                model: [
+                    { value: "launcher", text: qsTr("Launcher") },
+                    { value: "desktop", text: qsTr("Masaüstü") },
+                    { value: "clock", text: qsTr("Saatin üstü") }
+                ]
+                currentValue: SettingsManager.companionPlace
+                onActivated: (value) => { SettingsManager.companionPlace = value }
+            }
+        }
+
+        ListRow {
+            enabled: SettingsManager.companionEnabled && SettingsManager.companionPlace === "launcher"
+            icon: Icons.house
+            iconTint: "#FF9F0A"
+            title: qsTr("Ana sayfada kendi köşesi")
+            subtitle: qsTr("Ana sayfada öne çıkan oyunların yanındaki kendi köşesinde durur. Kapatırsan hep kenar çubuğunda kalır.")
+            AppSwitch {
+                checked: SettingsManager.companionCorner
+                accessibleName: qsTr("Ana sayfada kendi köşesi")
+                onToggled: SettingsManager.companionCorner = !SettingsManager.companionCorner
+            }
+        }
+
+        ListRow {
+            enabled: SettingsManager.companionEnabled && SettingsManager.companionPlace !== "clock"
+            icon: Icons.sparkles
+            iconTint: "#BF5AF2"
+            title: qsTr("Görünüşü")
+            subtitle: SettingsManager.companionPlace === "clock"
+                      ? qsTr("Saatin üstünde hep sade, elsiz halindedir.")
+                      : qsTr("Elleriyle selam verir, beşlik çakar, bayrağı tutar; elinden tutup sallayabilirsin. Sade halinde elleri yoktur, yalnız başı ve ışığı kalır.")
+            SegmentedControl {
+                small: true
+                model: [
+                    { value: "full", text: qsTr("Elleriyle") },
+                    { value: "plain", text: qsTr("Sade") }
+                ]
+                currentValue: SettingsManager.companionLook
+                onActivated: (value) => { SettingsManager.companionLook = value }
+            }
+        }
+
+        ListRow {
+            enabled: SettingsManager.companionEnabled
+            icon: Icons.messageCircle
+            iconTint: "#30D158"
+            title: qsTr("Konuşsun")
+            subtitle: qsTr("Konuşma balonları. Kapatırsan yalnızca bir sorun olduğunda yazar.")
+            AppSwitch {
+                checked: SettingsManager.companionTalk
+                accessibleName: qsTr("Konuşsun")
+                onToggled: SettingsManager.companionTalk = !SettingsManager.companionTalk
+            }
+        }
+
+        ListRow {
+            enabled: SettingsManager.companionEnabled && SettingsManager.companionPlace !== "clock"
+            icon: Icons.maximize2
+            iconTint: Theme.textMuted
+            title: qsTr("Boyutu")
+            subtitle: SettingsManager.companionPlace === "clock"
+                      ? qsTr("Saatin üstünde boyu görev çubuğuna göre ayarlanır.")
+                      : qsTr("Her yerde aynı boyda durur: köşesinde, kenar çubuğunda ve masaüstünde. Pencere çok kısaysa kenar çubuğuna sığacak kadar küçülür.")
+            SegmentedControl {
+                small: true
+                model: [
+                    { value: "small", text: qsTr("Küçük") },
+                    { value: "medium", text: qsTr("Orta") },
+                    { value: "large", text: qsTr("Büyük") }
+                ]
+                currentValue: SettingsManager.companionSize
+                onActivated: (value) => { SettingsManager.companionSize = value }
+            }
+        }
+    }
+
     ListSection {
         title: qsTr("Hareket ve çizim")
 

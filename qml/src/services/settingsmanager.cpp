@@ -127,6 +127,69 @@ void SettingsManager::setEnableAnimations(bool value)
     }
 }
 
+void SettingsManager::setCompanionEnabled(bool value)
+{
+    if (m_companionEnabled != value) {
+        m_companionEnabled = value;
+        m_settings.setValue("companion/enabled", value);
+        emit companionEnabledChanged();
+        emit settingsChanged();
+    }
+}
+
+void SettingsManager::setCompanionPlace(const QString& value)
+{
+    const QString place = value == QLatin1String("desktop") || value == QLatin1String("clock") ? value : QStringLiteral("launcher");
+    if (m_companionPlace != place) {
+        m_companionPlace = place;
+        m_settings.setValue("companion/place", place);
+        emit companionPlaceChanged();
+        emit settingsChanged();
+    }
+}
+
+void SettingsManager::setCompanionLook(const QString& value)
+{
+    const QString look = value == QLatin1String("plain") ? value : QStringLiteral("full");
+    if (m_companionLook != look) {
+        m_companionLook = look;
+        m_settings.setValue("companion/look", look);
+        emit companionLookChanged();
+        emit settingsChanged();
+    }
+}
+
+void SettingsManager::setCompanionCorner(bool value)
+{
+    if (m_companionCorner != value) {
+        m_companionCorner = value;
+        m_settings.setValue("companion/corner", value);
+        emit companionCornerChanged();
+        emit settingsChanged();
+    }
+}
+
+void SettingsManager::setCompanionSize(const QString& value)
+{
+    const QString size = value == QLatin1String("small") || value == QLatin1String("large") ? value : QStringLiteral("medium");
+    if (m_companionSize != size) {
+        m_companionSize = size;
+        m_settings.setValue("companion/size", size);
+        emit companionSizeChanged();
+        emit settingsChanged();
+    }
+}
+
+void SettingsManager::setCompanionTalk(bool value)
+{
+    if (m_companionTalk != value) {
+        m_companionTalk = value;
+        m_settings.setValue("companion/talk", value);
+        emit companionTalkChanged();
+        emit settingsChanged();
+    }
+}
+
 void SettingsManager::setGraphicsBackend(const QString& value)
 {
     if (m_graphicsBackend != value) {
@@ -296,6 +359,12 @@ void SettingsManager::resetToDefaults()
     setHardwareAcceleration(true);
     setUseGlobalCache(true);
     setEnableAnimations(true);
+    setCompanionEnabled(true);
+    setCompanionPlace(QStringLiteral("launcher"));
+    setCompanionLook(QStringLiteral("full"));
+    setCompanionCorner(true);
+    setCompanionSize(QStringLiteral("medium"));
+    setCompanionTalk(true);
     setGraphicsBackend("vulkan");
     setTranslationLanguage("tr");
     setIsDarkMode(true);
@@ -344,6 +413,14 @@ void SettingsManager::loadSettings()
     m_hardwareAcceleration = m_settings.value("performance/hardwareAcceleration", true).toBool();
     m_useGlobalCache = m_settings.value("performance/useGlobalCache", true).toBool();
     m_enableAnimations = m_settings.value("performance/enableAnimations", true).toBool();
+    m_companionEnabled = m_settings.value("companion/enabled", true).toBool();
+    // (an earlier build had only a switch for the desktop, companion/roam)
+    m_companionPlace = m_settings.value("companion/place", m_settings.value("companion/roam", false).toBool() ? "desktop" : "launcher").toString();
+    if (m_companionPlace == QLatin1String("taskbar")) m_companionPlace = QStringLiteral("clock"); // (by the Start button, briefly)
+    m_companionLook = m_settings.value("companion/look", "full").toString();
+    m_companionCorner = m_settings.value("companion/corner", true).toBool();
+    m_companionSize = m_settings.value("companion/size", "medium").toString();
+    m_companionTalk = m_settings.value("companion/talk", true).toBool();
     m_graphicsBackend = m_settings.value("performance/graphicsBackend", "auto").toString();
     m_translationLanguage = m_settings.value("translation/language", "tr").toString();
     m_isDarkMode = m_settings.value("appearance/isDarkMode", true).toBool();
@@ -398,6 +475,13 @@ void SettingsManager::saveSettings()
     m_settings.setValue("performance/hardwareAcceleration", m_hardwareAcceleration);
     m_settings.setValue("performance/useGlobalCache", m_useGlobalCache);
     m_settings.setValue("performance/enableAnimations", m_enableAnimations);
+    m_settings.setValue("companion/enabled", m_companionEnabled);
+    m_settings.setValue("companion/place", m_companionPlace);
+    m_settings.setValue("companion/look", m_companionLook);
+    m_settings.remove("companion/roam");
+    m_settings.setValue("companion/corner", m_companionCorner);
+    m_settings.setValue("companion/size", m_companionSize);
+    m_settings.setValue("companion/talk", m_companionTalk);
     m_settings.setValue("performance/graphicsBackend", m_graphicsBackend);
     m_settings.setValue("translation/language", m_translationLanguage);
     m_settings.setValue("appearance/isDarkMode", m_isDarkMode);

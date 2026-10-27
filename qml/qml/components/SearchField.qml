@@ -25,6 +25,8 @@ Item {
     readonly property bool editing: input.activeFocus
 
     signal accepted()
+    // You typed (not a text set from outside)
+    signal edited()
 
     function focusField() {
         input.forceActiveFocus()
@@ -87,6 +89,7 @@ Item {
         clip: true
         selectByMouse: true
         onAccepted: field.accepted()
+        onTextEdited: field.edited()
         Keys.onEscapePressed: (event) => {
             if (input.text !== "") input.text = ""
             else input.focus = false

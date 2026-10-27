@@ -127,6 +127,7 @@ set(BACKEND_SOURCES
     src/services/installflowservice.cpp
     src/services/rendergovernor.cpp
     src/services/xdeltaapply.cpp
+    src/services/companionservice.cpp
 )
 
 set(BACKEND_HEADERS
@@ -169,6 +170,7 @@ set(BACKEND_HEADERS
     src/services/translationstatemanager.h
     src/services/installflowservice.h
     src/services/xdeltaapply.h
+    src/services/companionservice.h
 )
 
 # encryption_key.h is generated at build time (not in repo) — only needed for full builds
@@ -217,6 +219,7 @@ qt_add_qml_module(MakineLauncher
         qml/screens/home/Shelf.qml
         qml/screens/home/FeaturedHero.qml
         qml/screens/home/RunningGameCard.qml
+        qml/screens/home/MakineCorner.qml
         qml/screens/Library.qml
         qml/screens/AllGames.qml
         qml/screens/HelpScreen.qml
@@ -412,6 +415,24 @@ target_link_libraries(MakineLauncher PRIVATE
     crypt32    # DPAPI for plugin secret settings
     xdelta3    # VCDIFF decoder for the "xdelta" install step (third_party/)
 )
+
+# Makine, the companion, is closed source (MakineCeviri/Makine-Companion, private). He is built
+# in when that checkout sits next to this repo (or MAKINE_COMPANION_DIR names one); without it the
+# launcher builds as before, minus him and his settings. A release never goes out without him.
+set(MAKINE_COMPANION_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../Makine-Companion" CACHE PATH
+    "Makine-Companion checkout (private repo)")
+if(EXISTS "${MAKINE_COMPANION_DIR}/CMakeLists.txt")
+    set(MAKINE_COMPANION_TESTS ${MAKINE_BUILD_TESTS})
+    add_subdirectory("${MAKINE_COMPANION_DIR}" "${CMAKE_BINARY_DIR}/companion")
+    target_link_libraries(MakineLauncher PRIVATE makine_companion)
+    target_compile_definitions(MakineLauncher PRIVATE MAKINE_HAS_COMPANION)
+    message(STATUS "Makine:   built in (${MAKINE_COMPANION_DIR})")
+elseif(MAKINE_RELEASE_VERIFIED)
+    message(FATAL_ERROR "A release without Makine: clone MakineCeviri/Makine-Companion next to "
+        "this repo, or set MAKINE_COMPANION_DIR")
+else()
+    message(STATUS "Makine:   not here (${MAKINE_COMPANION_DIR}), building without him")
+endif()
 
 # Static Qt: import QML plugins at link time (no-op for shared builds)
 qt_import_qml_plugins(MakineLauncher)

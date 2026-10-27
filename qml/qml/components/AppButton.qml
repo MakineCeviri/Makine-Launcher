@@ -193,9 +193,14 @@ Item {
         id: hover
         cursorShape: btn.enabled && !btn.busy ? Qt.PointingHandCursor : Qt.ArrowCursor
         // Under the pointer its icon moves the way it shows (MotionIcon)
-        onHoveredChanged: if (hovered && btn.enabled && !btn.busy) {
-            leadIcon.play()
-            trailIcon.play()
+        onHoveredChanged: {
+            if (hovered && btn.enabled && !btn.busy) {
+                leadIcon.play()
+                trailIcon.play()
+            }
+            // The page's main action under the pointer: Makine looks forward to it
+            if (btn.style === "filled" && typeof Companion !== "undefined" && Companion)
+                Companion.noteInterest(hovered && btn.enabled)
         }
     }
     // A MouseArea, not a TapHandler: it takes the press, so a clickable row

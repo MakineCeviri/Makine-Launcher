@@ -143,19 +143,41 @@ Item {
                 animationsEnabled: homePage.animationsEnabled
             }
 
-            FeaturedHero {
-                id: hero
+            // The featured art, and beside it Makine's own corner (while the page is wide enough)
+            RowLayout {
+                id: heroRow
                 Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.pageMargin
                 Layout.rightMargin: Dimensions.pageMargin
                 Layout.topMargin: -10
-                Layout.preferredHeight: Math.round(Math.max(250, Math.min(400, (page.width - Dimensions.pageMargin * 2) * 0.36)))
-                visible: hero._count > 0
-                inView: page.contentY < hero.y + hero.height
-                onGameSelected: (gameId, gameName, installPath, engine) =>
-                    homePage.gameSelected(gameId, gameName, installPath, engine)
-                onInstallRequested: (gameId, gameName, installPath, engine) =>
-                    homePage.installAndShowDetail(gameId, gameName, installPath, engine)
+                spacing: 16
+                // (from the settings and the page's width, not from the children's visible: a hidden row hides them)
+                readonly property real _width: page.width - Dimensions.pageMargin * 2
+                readonly property bool _corner: Companion.available && SettingsManager.companionEnabled && SettingsManager.companionCorner
+                                                && SettingsManager.companionPlace === "launcher" && heroRow._width >= 760
+                visible: hero._count > 0 || heroRow._corner
+
+                FeaturedHero {
+                    id: hero
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.round(Math.max(250, Math.min(400, (page.width - Dimensions.pageMargin * 2) * 0.36)))
+                    visible: hero._count > 0
+                    inView: page.contentY < heroRow.y + hero.height
+                    onGameSelected: (gameId, gameName, installPath, engine) =>
+                        homePage.gameSelected(gameId, gameName, installPath, engine)
+                    onInstallRequested: (gameId, gameName, installPath, engine) =>
+                        homePage.installAndShowDetail(gameId, gameName, installPath, engine)
+                }
+
+                MakineCorner {
+                    id: corner
+                    Layout.alignment: Qt.AlignTop
+                    Layout.preferredWidth: Math.round(Math.max(250, Math.min(330, heroRow._width * 0.26)))
+                    Layout.preferredHeight: hero._count > 0 ? hero.Layout.preferredHeight : 270
+                    visible: heroRow._corner
+                    view: page
+                    clearTop: 56
+                }
             }
 
             // This PC's games — or how to bring them in
