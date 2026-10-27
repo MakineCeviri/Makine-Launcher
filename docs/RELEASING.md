@@ -35,8 +35,9 @@
 | `v0.1.7-beta` | 22 Ekim 2026 | GitHub Releases (ZIP) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
 | `v0.2.0-beta` | 23 Ekim 2026 | GitHub Releases (ZIP) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
 | `v0.2.1-beta` | 23 Ekim 2026 | GitHub Releases (ZIP) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
-| `v0.2.2-beta` | 23 Ekim 2026 | GitHub Releases (ZIP) — **güncel ZIP** | Var (ZIP + SHA256SUMS.txt) |
-| `v0.2.3-beta` | 25 Ekim 2026 | Microsoft Store (MSIX 0.2.3.0) — **Store'da yayında** (mağaza kataloğunda `Makineeviri.MakineAI_0.2.3.0`, 27 Ekim'de görüldü); GitHub ZIP'i yok | Etiket var (`47253d3`, MSIX'in yapıldığı commit), sürüm sayfası yok |
+| `v0.2.2-beta` | 23 Ekim 2026 | GitHub Releases (ZIP) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
+| `v0.2.3-beta` | 25 Ekim 2026 | Microsoft Store (MSIX 0.2.3.0) — Store'da yayında (mağaza kataloğunda `Makineeviri.MakineAI_0.2.3.0`, 27 Ekim'de görüldü); GitHub ZIP'i yok | Etiket var (`47253d3`, MSIX'in yapıldığı commit), sürüm sayfası yok |
+| `v0.2.4-beta` | 27 Ekim 2026 | GitHub Releases (ZIP) — **güncel**; Microsoft Store (MSIX 0.2.4.0) — 27 Ekim'de sertifikasyona | Var (ZIP + SHA256SUMS.txt); Makine-Companion `08f33f5` |
 
 0.1.2–0.1.4 etiketleri arşiv düzeni için sonradan atıldı; Store paketinin hangi commit'ten üretildiği o sırada kaydedilmemişti. Etiketler, sürüm bump commit'leri ile MSIX sahneleme zamanından geriye götürülerek en yakın duruma yerleştirildi. 0.1.3'te numara önce Store paketine verilmiş, kaynak ağacı [`492f506`](https://github.com/MakineCeviri/Makine-Launcher/commit/492f506825fffc4053b677fcf35bcbba36f3e417) ile sonradan hizalanmıştı — **bu yüzden her Store gönderiminde önce etiket atılmalı.**
 
