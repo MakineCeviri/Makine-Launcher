@@ -1,6 +1,20 @@
 {
   "releases": [
     {
+      "version": "0.2.4-beta",
+      "date": "2026-10-27",
+      "title": "Makine ve Topluluk",
+      "summary": "Launcher'ın artık bir yoldaşı var: Makine. Topluluk da launcher'ın içinde; sayfaların çoğu yenilendi ve büyük yamalarda kurulumdan önceki donma gitti.",
+      "changes": [
+        { "type": "new", "text": "Makine: ana sayfada kendi köşesinde, öbür sayfalarda kenar çubuğunun altında duran yoldaşın. Oyunlarını ararken bakınır, yama inerken ışık toplar, kurulunca sevinir, bir sorun olursa söyler. İstersen masaüstüne ya da saatin üstüne çıkar; yerini, boyutunu ve konuşup konuşmayacağını Ayarlar > Görünüm > Makine'den seçebilir ya da onu kapatabilirsin." },
+        { "type": "new", "text": "Topluluk: sitedeki topluluk duvarı launcher'ın içinde. E-postana gelen 6 haneli kodla ya da Discord'la giriş yapıp yazabilir, yanıtlayabilir, beğenebilir ve oylamalara katılabilirsin." },
+        { "type": "improved", "text": "Yeni görünüm: Kütüphanem, Tüm oyunlar (liste görünümüyle), Nasıl çalışır, Hakkında ve Yenilikler yeniden tasarlandı; kenar çubuğundaki simgeler üzerine gelince kıpırdar. Açılış ve hoş geldin ekranı da launcher'ın görünümünde, açık ya da koyu modunla ve vurgu renginle." },
+        { "type": "improved", "text": "Kendi programıyla kurulan yamada program \"devam etmek için bir tuşa basın\" diye beklerse launcher onu kendisi geçer; soru soran satırlar yine sende kalır." },
+        { "type": "fixed", "text": "Elden Ring gibi binlerce dosyalı yamalarda kurulum başlamadan önce launcher'ın saniyelerce donması giderildi. Oyunun içindeki bir klasörü seçtiysen (ELDEN RING içindeki Game gibi) launcher doğru klasöre geçer." },
+        { "type": "fixed", "text": "Yamanın programı oyununun sürümünü tanımadığında ya da Windows programı engellediğinde launcher yalnızca hata kodunu değil, nedenini de söylüyor." }
+      ]
+    },
+    {
       "version": "0.2.3-beta",
       "date": "2026-10-25",
       "title": "Yenilikler sayfası ve oyun sürümü kontrolü",

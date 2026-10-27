@@ -1,11 +1,7 @@
-Sürüm 0.2.3 — yeni görünüm, daha güvenli kurulum ve Yenilikler sayfası
+Sürüm 0.2.4 — Makine, launcher'ın içinde Topluluk ve yenilenen sayfalar
 
-• Yenilikler sayfası: her sürümde neyin değiştiği ve sırada ne olduğu artık launcher'ın içinde. Yeni bir sürüm çıkınca kenar çubuğunda haber verilir; "Store'da güncelle" seni doğrudan buraya getirir.
-• Yeni görünüm: kenar çubuğuyla Ana Sayfa, Tüm Oyunlar ve Kütüphanem; koyu ya da açık görünüm ve vurgu rengi seçimi.
-• Oyun sürümü kontrolü: bazı yamalarda launcher, kurmadan önce oyununun yamanın hazırlandığı sürüm olup olmadığına bakar; uymazsa oyuna dokunmadan sorar.
-• Oyun klasörü seçimi: bulunamayan oyunun klasörü seçilebilir ya da pencereye sürüklenebilir; yamanın gideceği doğru klasörü launcher bulur.
-• Kendi programıyla kurulan yamalar (Heavy Rain gibi) ve Elden Ring, Assassin's Creed Valhalla, Odyssey, Mirage yamaları launcher'ın içinden kurulur.
-• Daha güvenli kaldırma: orijinal dosyalar korunur; yarıda kalan işlem bir sonraki açılışta geri alınır.
-• Ubisoft Connect kütüphanesindeki oyunlar da bulunur.
-• Nasıl çalışır? (F1): adım adım ne olduğu ve sık sorulanlar.
-• Bazı ekranlardaki donmalar giderildi; hata raporları Ayarlar'dan kapatılabilir.
+• Makine: ana sayfada kendi köşesinde, öbür sayfalarda kenar çubuğunun altında duran yoldaşın. Oyunlarını ararken bakınır, yama inerken ışık toplar, kurulunca sevinir, bir sorun olursa söyler. Ayarlar > Görünüm > Makine'den yerini ve boyutunu seçebilir ya da kapatabilirsin.
+• Topluluk: makineceviri.org'daki topluluk launcher'ın içinde. E-postana gelen 6 haneli kodla ya da Discord'la giriş yapıp yazabilir, yanıtlayabilir ve oylamalara katılabilirsin.
+• Yeni görünüm: Kütüphanem, Tüm Oyunlar (liste görünümüyle), Nasıl çalışır, Hakkında ve Yenilikler yenilendi; açılış ve hoş geldin ekranı launcher'ın görünümünde.
+• Elden Ring gibi büyük yamalarda kurulumdan önceki donma giderildi; oyunun içindeki bir klasör seçildiyse doğru klasör bulunur.
+• Yamanın kendi programı başarısız olursa launcher nedenini de söyler.

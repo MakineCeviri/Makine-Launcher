@@ -1,10 +1,16 @@
-Makine Launcher 0.2.3.0 (0.2.3-beta) - Notes for Certification
+Makine Launcher 0.2.4.0 (0.2.4-beta) - Notes for Certification
 --------------------------------------------------------------
 
 WHAT IT IS
 A Win32 desktop utility that installs community-made Turkish translation patches into PC games the user already owns (Steam, Epic Games, GOG, Ubisoft Connect). It is not a game. No account, login or purchase is needed. The UI is in Turkish only.
 
-WHAT CHANGED SINCE 0.1.5.0
+WHAT CHANGED SINCE 0.2.3.0
+- "Makine": an optional animated companion (a small robot) that reacts to what the launcher does: he looks around while games are found, glows while a patch downloads, cheers when it is installed, says when something failed. He stands in a corner of the home page and at the foot of the sidebar on other pages. He is drawn in a small transparent window of his own that belongs to the launcher window (no taskbar button, never takes focus, click-through except his head and hands, hidden when the launcher is minimized). Only if the user chooses it in Settings > Görünüm (Appearance) > Makine does he move out onto the desktop or above the taskbar clock. The same page turns him off.
+- "Topluluk" (Community) in the sidebar: the community wall of makineceviri.org (latest posts, most wanted patches, open questions), readable without an account. Posting, replying, liking and voting need a sign-in: a 6-digit code sent to the user's e-mail address (makineceviri.org/api/uye/launcher/eposta), or Discord in the browser. The session token is stored encrypted with Windows DPAPI.
+- Redesigned pages (My library, All games with a list view, How it works, About, What's new), a splash screen and the welcome flow in the launcher's own look.
+- Large patches (5,000+ files) no longer freeze the window before installing.
+
+WHAT CHANGED BETWEEN 0.1.5.0 AND 0.2.3.0
 - New layout with a sidebar: "Ana Sayfa" (Home), "Tüm Oyunlar" (All games), "Kütüphanem" (My library), "Nasıl çalışır?" (How it works), "Yenilikler" (What's new), "Ayarlar" (Settings).
 - "Yenilikler" page: release notes and the roadmap. Built in, refreshed from https://cdn.makineceviri.org/assets/launcher.json.
 - Update notice: the Store build compares its own version with the "store" field of that file. Only when a newer version is live in the Store does the sidebar show a notice; its button opens this app's Store page (ms-windows-store://pdp/?ProductId=9NQMT44PRWHG). The Store build never downloads or installs updates itself.
@@ -19,7 +25,9 @@ QUICK TEST (no game needed)
 2. Click a cover. The game page shows the description (Steam store API), what the install will do step by step, patch notes and translation credits.
 3. If the game is not installed, the page says "Bilgisayarında bulunamadı" (not found on this PC) and the button reads "Oyun Klasörünü Seç ve Kur" (Pick the game folder and install). Nothing is written to disk unless a matching game folder is chosen.
 4. "Yenilikler" (What's new) shows this version's notes and "Güncelsin" (You are up to date).
-5. "Ayarlar" (Settings): "Genel" (General), "Görünüm" (Appearance: light or dark), "Hakkında" (About). About shows version 0.2.3.0-beta and links the privacy policy.
+5. "Topluluk" (Community) shows the community wall. Signing in is optional and not needed to test the app.
+6. "Ayarlar" (Settings): "Genel" (General), "Görünüm" (Appearance: light or dark, accent colour, motion, Makine), "Hakkında" (About). About shows version 0.2.4.0-beta and links the privacy policy.
+7. Settings > Görünüm > Makine: "Nerede dursun" (Where he stays) moves the companion between the launcher, the desktop and above the clock; "Makine'yi göster" (Show Makine) turns him off.
 
 OPTIONAL FULL TEST (needs a catalogue game installed through Steam, Epic, GOG or Ubisoft Connect)
 1. The launcher finds the game on its own (Steam libraryfolders.vdf, Epic manifests, GOG and Ubisoft registry entries, common game folders), or the user adds it with "Oyun ekle" (Add game) or by dropping the game folder on the window.
@@ -32,13 +40,13 @@ The app reads and writes game files outside its package (the user's own game fol
 
 NETWORK
 - cdn.makineceviri.org: catalogue, cover images, translation packages, launcher.json (public, read-only)
-- makineceviri.org: catalogue updates and anonymous usage counts
+- makineceviri.org: catalogue updates, anonymous usage counts, the community wall and its optional sign-in
 - store.steampowered.com, cdn.akamai.steamstatic.com: game descriptions and images
 - ingest.de.sentry.io: crash reports
 No inbound connections, no listening ports. Without internet the app still opens and shows a "no internet connection" banner.
 
 DATA AND PRIVACY
-The app sends anonymous operation results (for example: install succeeded or failed, app version) and crash/error reports (stack trace, app and Windows version, the failing step). User names are removed from file paths. No account, e-mail address or personal files are collected. Crash reports can be turned off in Settings > General. The privacy policy (https://makineceviri.org/gizlilik-politikasi/) is linked in Settings > About ("Gizlilik politikası").
+The app sends anonymous operation results (for example: install succeeded or failed, app version) and crash/error reports (stack trace, app and Windows version, the failing step). User names are removed from file paths. No account is needed and no personal files are collected. Only if the user signs in to the community is an e-mail address sent (to makineceviri.org, to send the 6-digit code); the chosen display name and posts are then shown on makineceviri.org. Crash reports can be turned off in Settings > General. The privacy policy (https://makineceviri.org/gizlilik-politikasi/) is linked in Settings > About ("Gizlilik politikası").
 
 OTHER BEHAVIOUR
 - "Windows ile başlat" (Start with Windows) and "Kapatınca tepside çalışsın" (Keep running in the tray) are off by default.
@@ -46,7 +54,7 @@ OTHER BEHAVIOUR
 - Translations are made by the community and are not official; the app says so on each game page.
 
 DISTRIBUTION
-The source code is public at https://github.com/MakineCeviri/Makine-Launcher (tag v0.2.3-beta).
+The source code is public at https://github.com/MakineCeviri/Makine-Launcher (tag v0.2.4-beta). The companion "Makine" is a closed-source component of Makine Çeviri included under an additional permission (AGPL-3.0 section 7, see the repository's README).
 
 CONTACT
 Developer: Sezer UZUN (Makine Çeviri)
