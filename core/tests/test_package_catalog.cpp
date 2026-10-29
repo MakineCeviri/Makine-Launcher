@@ -112,6 +112,20 @@ TEST_F(PackageCatalogTest, PackageCountAfterLoad) {
     EXPECT_EQ(catalog_.packageCount(), 3);
 }
 
+// "soon": listed after "packages", which wins on a clash.
+TEST_F(PackageCatalogTest, SoonSectionIsListedAndPackagesWin) {
+    json index;
+    index["packages"] = {{"1", {{"name", "Hosted"}, {"v", "1"}}}};
+    index["soon"] = {{"2", {{"name", "Later"}, {"v", "1"}}},
+                     {"1", {{"name", "Clash"}, {"v", "9"}}}};
+    const auto path = testDir_ / "soon.json";
+    { std::ofstream f(path); f << index.dump(); }
+    ASSERT_TRUE(catalog_.loadFromIndex(path, cachePath_));
+    EXPECT_EQ(catalog_.packageCount(), 2);
+    EXPECT_EQ(catalog_.getPackage("1")->gameName, "Hosted");
+    EXPECT_TRUE(catalog_.hasPackage("2"));
+}
+
 // =========================================================================
 // HAS PACKAGE
 // =========================================================================
