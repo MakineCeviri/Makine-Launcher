@@ -138,7 +138,7 @@ struct VariantConfig {
  * Multi-signal matching: exe names + key files + engine hint → confidence score.
  */
 struct GameFingerprint {
-    std::vector<std::string> exeNames;   // Expected executable names (lowercase)
+    std::vector<std::string> exeNames;   // Expected executable names, or paths relative to the root (exePaths)
     std::vector<std::string> keyFiles;   // Paths/files unique to this game
     std::string engineHint;              // Normalized engine type for cross-check
 

@@ -547,7 +547,12 @@ folderrules::Expectations LocalPackageManager::folderExpectations(const QString&
     folderrules::Expectations e;
     if (const auto entry = m_catalog.getPackage(steamAppId.toStdString()); entry && entry->fingerprint) {
         for (const auto& name : entry->fingerprint->exeNames)
-            e.exeNames << QString::fromStdString(name).toLower().replace(QLatin1Char('\\'), QLatin1Char('/'));
+            if (const QString n = recipeRelativePath(QString::fromStdString(name)); !n.isEmpty())
+                e.exeNames << n.toLower();
+        // Bare key file names are the scan's, matched against a folder's top.
+        for (const auto& key : entry->fingerprint->keyFiles)
+            if (const QString p = recipeRelativePath(QString::fromStdString(key)); p.contains(QLatin1Char('/')))
+                e.keyPaths << p.toLower();
     }
     const auto pkg = getPackage(steamAppId);
     if (!pkg) return e;

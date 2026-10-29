@@ -29,6 +29,14 @@ başka bir şeydir. Bu belge, böyle bir aracın launcher'la nasıl kusursuz ça
 | `uninstall` / `uninstallArgs` | Kaldırırken çalışacak program; argüman yoksa kurulumunkiler kullanılır |
 | `requires` | Oyun klasöründe **programdan önce** bulunması gereken dosyalar (oyun klasörüne göre). Kurulumda yalnız seçilen sürümün/seçeneklerin adımlarındakiler aranır |
 
+Paketteki oyun dosyaları (`requires`, yol olarak `fingerprint.keyFiles`, `fingerprint.exePaths`) oyunun kök
+klasörüne göre göreli yoldur (`platform\steam\PBZ.exe`); tek parçalı ad kökteki dosyadır. Kökte olmayan tek parçalı
+bir `requires` adı parmak izinde aynı adla biten yolda da aranır (`exePaths`, yol olan `keyFiles`); klasör
+körlemesine taranmaz. Exe'si alt klasörde olan oyunda (Phantom Blade Zero: kökte exe yok) `exePaths` exe'lerin
+yollarını taşır, `exeNames` yalnız ad kalır (0.1.6 ve öncesi adları bütün olarak karşılaştırır); eski launcher'lar
+`exePaths`'i yok sayar. "Klasörü değiştir" seçilen klasörden en çok dört klasör yukarı çıkar; `requires`'ın hepsinin
+bulunduğu klasör, alt klasörlerinde birden çok exe olsa da kök adayıdır (`gamefolderrules.h`).
+
 `requires` içeren bir `run` adımı seviye 3'tür: panel yayınlarken `install_methods_compat`'a seviye 3 satırı
 yazar, 0.1.7 ve öncesi kendi kurmak yerine "launcher'ı güncelle" notunu görür. Argümanlarında `${gameRoot}` ya da
 `${exeDir}` olan adım seviye 4'tür (0.2.3): eski launcher programa yer tutucunun kendisini verirdi.

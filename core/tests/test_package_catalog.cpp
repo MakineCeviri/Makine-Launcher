@@ -243,6 +243,31 @@ TEST_F(PackageCatalogTest, EnrichPoolsExeNamesAndMatchesPathsByFileName) {
     EXPECT_EQ(catalog_.getAllExeMap().at("start_er.exe"), "1245620");
 }
 
+// exePaths says where an exe sits below the root (Phantom Blade Zero has none
+// in it); exeNames stays bare for launchers that compare names whole. The
+// paths join the names, and the game is still known by its exe's name.
+TEST_F(PackageCatalogTest, EnrichPoolsExePathsWithTheNames) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+
+    json detail;
+    detail["fingerprint"] = {{"exeNames", json::array({"eldenring.exe"})},
+                             {"exePaths", json::array({"Game\\eldenring.exe", "eldenring.exe", 7})}};
+    EXPECT_TRUE(catalog_.enrichPackage("1245620", detail.dump()));
+
+    const auto after = catalog_.getPackage("1245620");
+    ASSERT_TRUE(after.has_value() && after->fingerprint.has_value());
+    EXPECT_EQ(after->fingerprint->exeNames,
+              (std::vector<std::string>{"eldenring.exe", "Game\\eldenring.exe"}));
+    const auto matches = catalog_.findMatchingGames({"eldenring.exe"}, "", {}, "");
+    ASSERT_FALSE(matches.empty());
+    EXPECT_EQ(matches.front().steamAppId, "1245620");
+    EXPECT_EQ(catalog_.getAllExeMap().at("eldenring.exe"), "1245620");
+
+    // Not an array: skipped like any key this launcher does not know.
+    detail["fingerprint"] = {{"exePaths", "Game\\eldenring.exe"}};
+    EXPECT_TRUE(catalog_.enrichPackage("1245620", detail.dump()));
+}
+
 // The OyunBul print of the copy a patch was made on rides in the same object:
 // "exe", "altExes" and keyFiles given as {rel, size, hash}. Name keyFiles keep
 // their meaning, a broken entry is dropped, and a later detail without a print

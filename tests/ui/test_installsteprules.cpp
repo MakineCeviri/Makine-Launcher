@@ -440,6 +440,19 @@ TEST(InstallStepRules, RunArgsGetTheRootAndTheExeFolder) {
     EXPECT_EQ(flat.at(2), QDir::toNativeSeparators(QStringLiteral("D:/Games/ACS")));
 }
 
+// The root goes in whole: Turkish letters and spaces are one argument's
+// characters, quoted when the program is started.
+TEST(InstallStepRules, RunArgsKeepTurkishLettersAndSpaces) {
+    const QString root = QString::fromUtf8("E:/Oyunlar/Hayalet Bıçak/PBZ");
+    const QStringList args = resolveRunArgs({QStringLiteral("kur"), QStringLiteral("--oyun"),
+                                             QStringLiteral("${gamePath}")}, root, QStringLiteral("C:/pkg"));
+    ASSERT_EQ(args.size(), 3);
+    EXPECT_EQ(args.at(2), QDir::toNativeSeparators(root));
+#ifdef Q_OS_WIN
+    EXPECT_EQ(args.at(2), QString::fromUtf8("E:\\Oyunlar\\Hayalet Bıçak\\PBZ"));
+#endif
+}
+
 TEST(InstallStepRules, RunArgsWithoutPlaceholdersAreUnchanged) {
     const QStringList args = {QStringLiteral("kapat"), QStringLiteral("hotchunk.arch06")};
     EXPECT_EQ(resolveRunArgs(args, QStringLiteral("D:/Game"), QStringLiteral("C:/pkg")), args);
