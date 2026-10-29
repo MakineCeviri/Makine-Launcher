@@ -104,12 +104,10 @@ inline bool looksLikeGameCollection(const QString& dir)
     return false;
 }
 
-// Could `dir` be one game's own folder? A drive root, a store library or the
-// folder a user keeps their games in never is — climbing into one would hand
-// the patch the whole library.
-inline bool canBeGameRoot(const QString& dir)
+// A drive root, a store library or the folder a user keeps their games in.
+inline bool isLibraryFolder(const QString& dir)
 {
-    if (QDir(dir).isRoot()) return false;
+    if (QDir(dir).isRoot()) return true;
     static const QSet<QString> kLibraries = {
         QStringLiteral("games"), QStringLiteral("oyunlar"), QStringLiteral("oyun"),
         QStringLiteral("common"), QStringLiteral("steamapps"), QStringLiteral("steamlibrary"),
@@ -117,8 +115,15 @@ inline bool canBeGameRoot(const QString& dir)
         QStringLiteral("program files"), QStringLiteral("program files (x86)"),
         QStringLiteral("desktop"), QStringLiteral("downloads"), QStringLiteral("documents"),
     };
-    if (kLibraries.contains(lowerNameOf(dir))) return false;
-    return !looksLikeGameCollection(dir);
+    return kLibraries.contains(lowerNameOf(dir));
+}
+
+// Could `dir` be one game's own folder? A drive root, a store library or the
+// folder a user keeps their games in never is — climbing into one would hand
+// the patch the whole library.
+inline bool canBeGameRoot(const QString& dir)
+{
+    return !isLibraryFolder(dir) && !looksLikeGameCollection(dir);
 }
 
 // An archive unpacked into a folder of its own name: <Name>/<Name>/<game>.exe,
@@ -260,8 +265,12 @@ inline FolderVerdict judgeGameFolder(const QString& dir,
 // What a patch expects under its game's root. Paths are relative, "/"-separated.
 struct Expectations {
     // Lowercase, from the catalogue fingerprint: file names, or paths relative
-    // to the root ("game/eldenring.exe") where the store's launch entry gives one.
+    // to the root ("game/eldenring.exe") where the store's launch entry or the
+    // package's exePaths give one.
     QStringList exeNames;
+    // Lowercase, the fingerprint's keyFiles that are paths relative to the
+    // root ("projectpbz/content/paks/projectpbz-windows.pak").
+    QStringList keyPaths;
     QStringList targetDirs;   // folders the recipe or package writes into
     QStringList targetFiles;  // game files the recipe edits in place (must exist)
     // Files the recipe says every install of the game has ("requires"): a
@@ -270,13 +279,30 @@ struct Expectations {
     QStringList requiredFiles;
 };
 
+// Does `root` have the required file `f`? A bare name means the root, as it
+// always has. Failing that, a bare name is also looked for where the
+// fingerprint puts a file of that name: a package published before the panel
+// took paths requires "PBZ.exe" for Phantom Blade Zero's platform/steam/PBZ.exe.
+// Only those paths are tried — a folder that merely has the name somewhere
+// below it is not the game's.
+inline bool holdsRequired(const QString& root, const QString& f, const Expectations& e)
+{
+    if (rawfile::exists(root + QLatin1Char('/') + f)) return true;
+    if (f.contains(QLatin1Char('/')) || f.contains(QLatin1Char('\\'))) return false;
+    const QString tail = QLatin1Char('/') + f;
+    for (const QString& p : e.exeNames + e.keyPaths)
+        if (p.endsWith(tail, Qt::CaseInsensitive) && rawfile::exists(root + QLatin1Char('/') + p))
+            return true;
+    return false;
+}
+
 // Which of `e.requiredFiles` `root` lacks. Empty when it has them all (or the
 // recipe names none) — the one answer that lets an install go ahead.
 inline QStringList missingRequired(const QString& root, const Expectations& e)
 {
     QStringList missing;
     for (const QString& f : e.requiredFiles)
-        if (!rawfile::exists(root + QLatin1Char('/') + f)) missing << f;
+        if (!holdsRequired(root, f, e)) missing << f;
     return missing;
 }
 
@@ -344,34 +370,53 @@ inline RootEvidence weighRoot(const QString& root, const Expectations& e)
         if (QFileInfo(r.root + QLatin1Char('/') + d).isDir()) ++r.dirsFound;
     r.filesTotal = static_cast<int>(e.targetFiles.size());
     for (const QString& f : e.targetFiles)
-        if (QFileInfo(r.root + QLatin1Char('/') + f).isFile()) ++r.filesFound;
+        if (QFileInfo(r.root + QLatin1Char('/') + f).isFile()
+            || (e.requiredFiles.contains(f) && holdsRequired(r.root, f, e)))
+            ++r.filesFound;
+    // The fingerprint's paths start at the root: the more of them hold, the
+    // surer it is. They part the root from a folder inside it that has an exe
+    // of the same name (PBZ.exe in steam/ and in platform/steam/).
+    int paths = 0, pathsFound = 0;
+    for (const QString& p : e.exeNames + e.keyPaths) {
+        if (!p.contains(QLatin1Char('/'))) continue;
+        ++paths;
+        if (rawfile::exists(r.root + QLatin1Char('/') + p)) ++pathsFound;
+    }
     r.score = (r.exeExact ? 45 : !r.exe.isEmpty() ? 40 : hasExecutableWithin(r.root, 4) ? 5 : 0)
             + (r.dirsTotal > 0 ? 30 * r.dirsFound / r.dirsTotal : 0)
-            + (r.filesTotal > 0 ? 50 * r.filesFound / r.filesTotal : 0);
+            + (r.filesTotal > 0 ? 50 * r.filesFound / r.filesTotal : 0)
+            + (paths > 0 ? 10 * pathsFound / paths : 0);
     return r;
 }
 
 // Folders that could be the root, best guess first: the engine-layout root of
-// the pick, the pick, up to three folders above it (the user opened something
+// the pick, the pick, up to four folders above it (the user opened something
 // deep inside the game), and — when the pick is a library rather than a game —
-// the subfolders named like the game.
-inline QStringList rootCandidates(const QString& picked, const QString& gameName)
+// the subfolders named like the game. A folder with every file the recipe
+// requires is one even when it reads as games side by side: Phantom Blade
+// Zero's root has no exe, only steam/PBZ.exe and platform/steam/PBZ.exe.
+inline QStringList rootCandidates(const QString& picked, const QString& gameName,
+                                  const Expectations& e)
 {
+    const auto rootLike = [&e](const QString& c) {
+        return canBeGameRoot(c)
+            || (!e.requiredFiles.isEmpty() && !isLibraryFolder(c) && missingRequired(c, e).isEmpty());
+    };
     QStringList out;
-    const auto add = [&out](const QString& p) {
+    const auto add = [&out, &rootLike](const QString& p) {
         const QString c = QDir::cleanPath(p);
         if (!c.isEmpty() && QFileInfo(c).isDir() && !out.contains(c, Qt::CaseInsensitive)
-            && canBeGameRoot(c))
+            && rootLike(c))
             out << c;
     };
     const QString base = QFileInfo(picked).isFile() ? parentOf(picked) : QDir::cleanPath(picked);
-    if (canBeGameRoot(base)) {
+    if (rootLike(base)) {
         add(resolveGameRoot(base));
         add(base);
         QString up = base;
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 4; ++i) {
             up = parentOf(up);
-            if (QDir(up).isRoot() || !canBeGameRoot(up)) break;
+            if (QDir(up).isRoot() || !rootLike(up)) break;
             add(up);
         }
     } else if (!gameName.isEmpty()) {
@@ -393,7 +438,7 @@ inline QStringList rootCandidates(const QString& picked, const QString& gameName
 inline RootEvidence pickRoot(const QString& picked, const QString& gameName, const Expectations& e)
 {
     RootEvidence best;
-    for (const QString& c : rootCandidates(picked, gameName)) {
+    for (const QString& c : rootCandidates(picked, gameName, e)) {
         const RootEvidence r = weighRoot(c, e);
         if (best.root.isEmpty() || r.score > best.score)
             best = r;
@@ -407,7 +452,7 @@ inline RootEvidence pickRoot(const QString& picked, const QString& gameName, con
 inline QString rootWithRequired(const QString& root, const QString& gameName, const Expectations& e)
 {
     if (e.requiredFiles.isEmpty() || missingRequired(root, e).isEmpty()) return {};
-    for (const QString& c : rootCandidates(root, gameName))
+    for (const QString& c : rootCandidates(root, gameName, e))
         if (missingRequired(c, e).isEmpty()) return c;
     return {};
 }

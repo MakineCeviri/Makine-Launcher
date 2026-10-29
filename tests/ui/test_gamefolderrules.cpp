@@ -415,3 +415,132 @@ TEST_F(GameFolderRulesTest, NoRootWhenNoFolderAroundHasThem)
     EXPECT_EQ(missingRequired(path("heavy rain"), e).size(), 2);
     EXPECT_TRUE(rootWithRequired(path("heavy rain"), "Heavy Rain", e).isEmpty());
 }
+
+// --- an exe in a subfolder (Phantom Blade Zero) ------------------------------
+//
+// PBZ's root holds no exe at all: Steam starts steam/PBZ.exe, the game itself
+// is platform/steam/PBZ.exe. The recipe has come three ways: "PBZ.exe" as
+// published first, "platform/steam/PBZ.exe" as D1 has it now, and the pak the
+// patch tool looks for, with exePaths, as the panel will write it.
+
+namespace {
+
+class PbzFolderTest : public GameFolderRulesTest {
+protected:
+    // The game as Steam installs it, at `rel`: nothing runnable in the root.
+    QString makePbz(const QString& rel) const
+    {
+        for (const char* f : {"steam/PBZ.exe", "platform/steam/PBZ.exe", "steam_api64.dll",
+                              "Engine/Binaries/ThirdParty/readme.txt",
+                              "ProjectPBZ/Content/Paks/ProjectPBZ-Windows.pak",
+                              "ProjectPBZ/Content/Paks/pakchunkMoviesUI-Windows.ucas"})
+            touch(rel + '/' + QString::fromLatin1(f));
+        return path(rel);
+    }
+};
+
+// What folderExpectations makes of each recipe.
+Expectations pbzPublished()
+{
+    Expectations e;
+    e.exeNames = {"pbz.exe"};
+    e.keyPaths = {"platform/steam/pbz.exe", "projectpbz/content/paks/pakchunkmoviesui-windows.ucas",
+                  "projectpbz/content/paks/projectpbz-windows.pak"};
+    e.requiredFiles = e.targetFiles = {"PBZ.exe"};
+    return e;
+}
+
+Expectations pbzAsInD1()
+{
+    Expectations e = pbzPublished();
+    e.requiredFiles = e.targetFiles = {"platform/steam/PBZ.exe"};
+    return e;
+}
+
+Expectations pbzFromThePanel()
+{
+    Expectations e = pbzPublished();
+    e.exeNames = {"pbz.exe", "steam/pbz.exe", "platform/steam/pbz.exe"};
+    e.requiredFiles = e.targetFiles = {"ProjectPBZ/Content/Paks/ProjectPBZ-Windows.pak"};
+    return e;
+}
+
+} // namespace
+
+TEST_F(PbzFolderTest, ABareNameIsFoundWhereTheFingerprintPutsIt)
+{
+    const QString root = makePbz("SteamLibrary/steamapps/common/PBZ");
+    Expectations e = pbzPublished();
+
+    EXPECT_TRUE(missingRequired(root, e).isEmpty());
+    // What 0.2.4 did: "PBZ.exe" looked for in the root alone.
+    Expectations rootOnly = e;
+    rootOnly.keyPaths.clear();
+    EXPECT_EQ(missingRequired(root, rootOnly), QStringList({"PBZ.exe"}));
+    // Relative paths, the way D1 and the panel give them; a "\" one too.
+    EXPECT_TRUE(missingRequired(root, pbzAsInD1()).isEmpty());
+    EXPECT_TRUE(missingRequired(root, pbzFromThePanel()).isEmpty());
+    Expectations backslash = pbzFromThePanel();
+    backslash.requiredFiles = {"ProjectPBZ\\Content\\Paks\\ProjectPBZ-Windows.pak"};
+    EXPECT_TRUE(missingRequired(root, backslash).isEmpty());
+
+    // PBZ.exe somewhere the fingerprint does not say is no proof: nothing is searched.
+    touch("SteamLibrary/steamapps/common/Other/bin/PBZ.exe");
+    EXPECT_EQ(missingRequired(path("SteamLibrary/steamapps/common/Other"), e), QStringList({"PBZ.exe"}));
+}
+
+TEST_F(PbzFolderTest, PickingInsideASubfolderExeGameLandsOnItsRoot)
+{
+    const QString root = makePbz("SteamLibrary/steamapps/common/PBZ");
+    // Two exes in two subfolders read as two games side by side: only the
+    // recipe's files make the root a candidate at all.
+    EXPECT_FALSE(canBeGameRoot(root));
+
+    for (const Expectations& e : {pbzPublished(), pbzAsInD1(), pbzFromThePanel()}) {
+        for (const char* pick : {"platform/steam", "steam", "platform", "platform/steam/PBZ.exe", ""}) {
+            const QString picked = *pick ? root + '/' + QString::fromLatin1(pick) : root;
+            EXPECT_EQ(pickRoot(picked, QStringLiteral("Phantom Blade Zero"), e).root, root)
+                << pick << " requires " << e.requiredFiles.join(',').toStdString();
+        }
+    }
+    // A folder bound too deep moves to the root before anything runs. (The
+    // published "PBZ.exe" is in platform/steam itself: there it cannot tell.)
+    for (const Expectations& e : {pbzAsInD1(), pbzFromThePanel()}) {
+        EXPECT_EQ(rootWithRequired(root + "/platform/steam", "Phantom Blade Zero", e), root);
+        EXPECT_EQ(rootWithRequired(root + "/steam", "Phantom Blade Zero", e), root);
+    }
+}
+
+TEST_F(PbzFolderTest, AnotherGamesFolderOrAnEmptyOneStillStops)
+{
+    touch("SteamLibrary/steamapps/common/Hades/Hades.exe");
+    mkdir("SteamLibrary/steamapps/common/Bos");
+    for (const Expectations& e : {pbzPublished(), pbzAsInD1(), pbzFromThePanel()}) {
+        for (const char* dir : {"SteamLibrary/steamapps/common/Hades", "SteamLibrary/steamapps/common/Bos"}) {
+            EXPECT_FALSE(missingRequired(path(dir), e).isEmpty()) << dir;
+            EXPECT_TRUE(rootWithRequired(path(dir), "Phantom Blade Zero", e).isEmpty()) << dir;
+        }
+    }
+}
+
+TEST_F(PbzFolderTest, TurkishLettersAndSpacesInTheRoot)
+{
+    const QString root = makePbz(QString::fromUtf8("E/Oyunlar/Hayalet Bıçak/PBZ"));
+    for (const Expectations& e : {pbzPublished(), pbzAsInD1(), pbzFromThePanel()}) {
+        EXPECT_TRUE(missingRequired(root, e).isEmpty());
+        EXPECT_EQ(pickRoot(root + "/platform/steam", QStringLiteral("Phantom Blade Zero"), e).root, root);
+    }
+}
+
+TEST_F(GameFolderRulesTest, TheClimbGoesFourFoldersUp)
+{
+    // Dying Light 2 keeps its exe four folders below the root.
+    touch("Dying Light 2/ph/work/bin/x64/DyingLightGame_x64_rwdi.exe");
+    touch("Dying Light 2/ph/source/data0.pak");
+    Expectations e;
+    e.exeNames = {"dyinglightgame_x64_rwdi.exe"};
+    e.requiredFiles = e.targetFiles = {"ph/source/data0.pak"};
+    const QString deep = path("Dying Light 2/ph/work/bin/x64");
+    EXPECT_EQ(pickRoot(deep, "Dying Light 2", e).root, path("Dying Light 2"));
+    EXPECT_EQ(rootWithRequired(deep, "Dying Light 2", e), path("Dying Light 2"));
+}

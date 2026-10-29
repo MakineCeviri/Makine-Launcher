@@ -346,6 +346,17 @@ void parseFingerprint(PackageCatalogEntry& entry, const json& obj)
             if (e.is_string()) gfp.exeNames.push_back(e.get<std::string>());
         }
     }
+    // exePaths: where the exes sit, relative to the game root
+    // ("platform\\steam\\PBZ.exe"). Pooled with the names, which take paths
+    // already (exeFileName). Older launchers skip the key; exeNames stays bare
+    // names for those before 0.1.7, which compare them whole.
+    if (fp.contains("exePaths") && fp["exePaths"].is_array()) {
+        for (const auto& e : fp["exePaths"]) {
+            if (e.is_string() && std::find(gfp.exeNames.begin(), gfp.exeNames.end(),
+                                           e.get<std::string>()) == gfp.exeNames.end())
+                gfp.exeNames.push_back(e.get<std::string>());
+        }
+    }
     // keyFiles: names for the scan ("Game", "data.win"), or — as objects —
     // the samples of the copy the patch was made on. Launchers before 0.2.3
     // skip the objects.
