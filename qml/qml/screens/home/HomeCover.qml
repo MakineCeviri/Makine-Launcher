@@ -27,7 +27,7 @@ Item {
     // false: a picture of the game, not a control (the welcome flow)
     property bool interactive: true
     // "" | "ready" (on this PC, patch not installed) | "installable" (same,
-    // where "on this PC" is the news) | "installed" | "update" | "external"
+    // where "on this PC" is the news) | "installed" | "update" | "soon"
     property string status: ""
     // Keyboard position in a grid that keeps focus itself
     property bool highlighted: false
@@ -41,17 +41,17 @@ Item {
                                         : card.status === "update" ? qsTr("Güncelleme var")
                                         : card.status === "ready" ? qsTr("Yama hazır")
                                         : card.status === "installable" ? qsTr("Bilgisayarında")
-                                        : card.status === "external" ? qsTr("Dış sitede")
+                                        : card.status === "soon" ? qsTr("Yakında")
                                         : ""
     readonly property color _statusColor: card.status === "installed" ? Theme.success
                                         : card.status === "update" ? Theme.warning
-                                        : card.status === "external" ? Theme.textMuted
+                                        : card.status === "soon" ? Theme.textMuted
                                         : Theme.primaryText
     readonly property string _statusGlyph: card.status === "installed" ? Icons.circleCheck
                                          : card.status === "update" ? Icons.circleArrowUp
                                          : card.status === "ready" ? Icons.circleArrowDown
                                          : card.status === "installable" ? Icons.monitor
-                                         : card.status === "external" ? Icons.externalLink
+                                         : card.status === "soon" ? Icons.clock
                                          : ""
 
     implicitHeight: coverHeight + 10 + nameLabel.implicitHeight

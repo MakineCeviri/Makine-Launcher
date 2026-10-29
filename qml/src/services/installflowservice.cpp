@@ -54,29 +54,15 @@ InstallFlowService::InstallFlowService(GameService* gameService,
 
 // ===== ENTRY POINT: Install =====
 
-void InstallFlowService::startInstall(const QString& gameId, const QString& gameName,
-                                       const QString& externalUrl)
+void InstallFlowService::startInstall(const QString& gameId, const QString& gameName)
 {
     m_pendingUpdateFlow = false;
 
-    // External partner redirect (e.g. ApexYama) — scheme-validated
-    if (!externalUrl.isEmpty()) {
-        QUrl url(externalUrl);
-        if (url.scheme() != QStringLiteral("https")) {
-            qCWarning(lcInstallFlow) << "Blocked non-HTTPS external URL:" << externalUrl;
-            // Our catalog shipped a non-HTTPS partner link, so this game cannot
-            // be installed at all while the user only sees "Geçersiz harici
-            // bağlantı". The defect is in our data, so it has to reach us —
-            // reported here rather than on the signal, because the third emit
-            // site behind installError is a downloadError forward that
-            // TranslationDownloader already reports.
-            CrashReporter::reportFailure("install", gameId,
-                QStringLiteral("catalog holds a non-HTTPS external URL; install blocked"));
-            emit installError(gameId, tr("Geçersiz harici bağlantı"));
-            return;
-        }
-        QDesktopServices::openUrl(url);
-        emit externalRedirect(externalUrl);
+    // "Yakında": no package of ours to fetch. Not a failure — nothing starts,
+    // nothing is reported.
+    if (m_gameService->getCatalogEntry(gameId).value(QStringLiteral("comingSoon")).toBool()
+        && !m_gameService->hasLocalPackage(gameId)) {
+        qCInfo(lcInstallFlow) << "No package yet for" << gameId << "— install not started";
         return;
     }
 
@@ -277,22 +263,7 @@ void InstallFlowService::doInstall(const QString& gameId, const QString& variant
     m_pendingDownloads.remove(gameId);
     m_pendingUpdateFlow = false;
 
-    // External source redirect — scheme-validated
     QVariantMap catalog = m_gameService->getCatalogEntry(gameId);
-    QString extUrl = catalog.value(QStringLiteral("externalUrl")).toString();
-    if (!extUrl.isEmpty()) {
-        QUrl url(extUrl);
-        if (url.scheme() != QStringLiteral("https")) {
-            qCWarning(lcInstallFlow) << "Blocked non-HTTPS external URL:" << extUrl;
-            CrashReporter::reportFailure("install", gameId,
-                QStringLiteral("catalog holds a non-HTTPS external URL; update blocked"));
-            emit installError(gameId, tr("Geçersiz harici bağlantı"));
-            return;
-        }
-        QDesktopServices::openUrl(url);
-        emit externalRedirect(extUrl);
-        return;
-    }
 
     // Local package already exists — install directly
     if (m_gameService->hasLocalPackage(gameId)) {

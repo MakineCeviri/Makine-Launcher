@@ -38,8 +38,7 @@ public:
                                 QObject* parent = nullptr);
 
     // Entry points
-    Q_INVOKABLE void startInstall(const QString& gameId, const QString& gameName,
-                                   const QString& externalUrl);
+    Q_INVOKABLE void startInstall(const QString& gameId, const QString& gameName);
     Q_INVOKABLE void startUpdate(const QString& gameId, const QString& gameName);
 
     // Dialog callbacks
@@ -60,7 +59,6 @@ signals:
     void showAntiCheatWarning(const QVariantMap& data);
     void showInstallOptions(const QVariantMap& data);
     void showVariantSelection(const QVariantMap& data);
-    void externalRedirect(const QString& url);
     void installStarted(const QString& gameId);
     void installError(const QString& gameId, const QString& error);
 

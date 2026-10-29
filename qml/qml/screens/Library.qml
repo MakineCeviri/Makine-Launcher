@@ -211,7 +211,7 @@ Item {
         readonly property string status: card.modelData.status || "ready"
         readonly property color tone: card.status === "update" ? Theme.warning
                                     : card.status === "installed" ? Theme.success
-                                    : card.status === "external" ? Theme.textMuted
+                                    : card.status === "soon" ? Theme.textMuted
                                     : Theme.primary
         readonly property string appId: card.modelData.steamAppId || ""
         readonly property bool _lifted: cardHover.hovered || card.activeFocus
@@ -221,9 +221,7 @@ Item {
                                      card.modelData.installPath || "", card.modelData.engine || "")
         }
         function act() {
-            if (card.status === "external")
-                Qt.openUrlExternally(card.modelData.externalUrl)
-            else if (card.status === "installed")
+            if (card.status === "installed" || card.status === "soon")
                 card.open()
             else
                 libraryRoot.installRequested(card.modelData.id, card.modelData.name || "",
@@ -402,7 +400,7 @@ Item {
             tint: card.tone
             text: card.status === "update" ? qsTr("Güncelleme var")
                 : card.status === "installed" ? qsTr("Yama kurulu")
-                : card.status === "external" ? qsTr("Yaması başka sitede")
+                : card.status === "soon" ? qsTr("Yakında")
                 : qsTr("Yama hazır, kurulmadı")
         }
 
@@ -447,11 +445,10 @@ Item {
                 tint: card.status === "update" ? Theme.warning : Theme.primary
                 icon: card.status === "ready" ? Icons.download
                     : card.status === "update" ? Icons.refreshCw
-                    : card.status === "external" ? Icons.arrowUpRight : ""
+                    : card.status === "soon" ? Icons.clock : ""
                 trailingIcon: card.status === "installed" ? Icons.chevronRight : ""
                 text: card.status === "ready" ? qsTr("Türkçe Yamayı Kur")
                     : card.status === "update" ? qsTr("Güncelle")
-                    : card.status === "external" ? qsTr("Sitesine git")
                     : qsTr("Sayfasını aç")
                 onClicked: card.act()
             }

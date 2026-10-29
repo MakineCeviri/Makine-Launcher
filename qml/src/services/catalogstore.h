@@ -32,9 +32,7 @@ public:
         QString dataUrl;
         QString checksum;
         QString dirName;
-        QString externalUrl;
         QString source;
-        QString apexTier;
         QVariantList contributors;  // [{name, role}] from index.json
     };
 

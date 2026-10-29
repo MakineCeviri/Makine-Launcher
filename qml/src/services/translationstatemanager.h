@@ -21,7 +21,7 @@ class TranslationStateManager : public QObject {
     Q_PROPERTY(QString accessibleText READ accessibleText NOTIFY stateChanged)
 
 public:
-    enum class State { Download, Installing, Completed, Installed, Update, Broken, External };
+    enum class State { Download, Installing, Completed, Installed, Update, Broken, Soon };
     Q_ENUM(State)
 
     explicit TranslationStateManager(QObject* parent = nullptr);
@@ -30,8 +30,7 @@ public:
     Q_INVOKABLE void evaluate(bool hasUpdate, bool packageInstalled,
                                bool isInstalling, bool installCompleted,
                                const QString& impactLevel,
-                               const QString& externalUrl,
-                               const QString& source = QString());
+                               bool comingSoon);
 
     QString state() const;
     QString label() const;
@@ -45,7 +44,6 @@ private:
     QString m_stateStr{QStringLiteral("download")};
     QString m_label;
     QString m_accessibleText;
-    QString m_externalSource;
 
     static QString stateToString(State s);
     QString stateToLabel(State s) const;

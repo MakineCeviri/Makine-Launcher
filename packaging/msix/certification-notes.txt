@@ -41,7 +41,7 @@ Anonymous operation results (e.g. install succeeded or failed, app version) and 
 
 OTHER BEHAVIOUR
 - "Windows ile başlat" (Start with Windows) and "Kapatınca tepside çalışsın" (Keep running in the tray) are off by default.
-- Some entries are hosted by partner translation sites (Hangar Çeviri, ApexYama); their button opens the partner website instead of installing.
+- Catalog entries without a package of ours show a disabled "Yakında" (coming soon) state; nothing is downloaded or opened.
 - Translations are made by the community and are not official; each game page says so.
 
 DISTRIBUTION

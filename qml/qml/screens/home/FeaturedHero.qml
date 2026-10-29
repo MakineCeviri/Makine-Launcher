@@ -54,7 +54,7 @@ Item {
         }
         for (const e of recent) {
             if (out.length >= 5) break
-            if (e.externalUrl) continue
+            if (e.comingSoon) continue
             add({ kind: e.packageInstalled ? "installed" : e.isInstalled ? "installable" : "new",
                   gameId: e.id || e.steamAppId, name: e.name || "", steamAppId: e.steamAppId || "",
                   installPath: e.installPath || "", engine: e.engine || "", version: e.version || "" })

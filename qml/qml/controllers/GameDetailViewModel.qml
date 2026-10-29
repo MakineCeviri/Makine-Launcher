@@ -26,10 +26,7 @@ QtObject {
     property bool isEditorsPick: false
     property string editorsNote: ""
     property bool isManualGame: false
-    property string externalUrl: ""
-    property bool isApex: false
-    property bool isHangar: false
-    property string apexTier: ""  // "pro" or "both"
+    property bool comingSoon: false  // no package of ours yet ("Yakında")
 
     // ===== GAME INSTALL STATE =====
     property bool isGameInstalled: false
@@ -122,7 +119,7 @@ QtObject {
         gameId = ""; gameName = ""; steamAppId = ""; imageUrl = ""
         heroImageUrl = ""; verified = false; engine = ""
         hasTranslation = false; isEditorsPick = false; editorsNote = ""
-        isManualGame = false; externalUrl = ""; isApex = false; isHangar = false; apexTier = ""; isGameInstalled = false; packageInstalled = false
+        isManualGame = false; comingSoon = false; isGameInstalled = false; packageInstalled = false
         hasTranslationUpdate = false; autoInstall = false; fromLibrary = false
         description = ""; developers = []; publishers = []
         releaseDate = ""; genres = []; metacriticScore = 0
@@ -152,10 +149,7 @@ QtObject {
         steamAppId = d.steamAppId || ""
         hasTranslation = d.hasTranslation || false
         isManualGame = d.isManualGame || false
-        externalUrl = d.externalUrl || ""
-        isApex = d.isApex || false
-        isHangar = d.isHangar || false
-        apexTier = d.apexTier || ""
+        comingSoon = d.comingSoon || false
         isGameInstalled = d.isGameInstalled || false
         packageInstalled = d.packageInstalled || false
         autoInstall = d.autoInstall || false

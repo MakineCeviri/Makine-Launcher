@@ -55,7 +55,7 @@ QtObject {
             console.warn("InstallFlowController: viewModel not set")
             return
         }
-        InstallFlowService.startInstall(gameId, gameName, viewModel.externalUrl || "")
+        InstallFlowService.startInstall(gameId, gameName)
     }
 
     function startUpdateFlow(gameId, gameName) {

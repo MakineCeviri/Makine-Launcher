@@ -415,7 +415,7 @@ Item {
         repeat: false
         onTriggered: {
             if (!root.viewModel.hasTranslation || !root.viewModel.isGameInstalled
-                || root.viewModel.isInstallingTranslation || root.viewModel.externalUrl)
+                || root.viewModel.isInstallingTranslation || root.viewModel.comingSoon)
                 return
             if (!root.viewModel.packageInstalled)
                 root.translateClicked()
@@ -501,7 +501,7 @@ Item {
     FolderDropOverlay {
         anchors.fill: parent
         z: 200
-        accepts: root.viewModel.hasTranslation && root.viewModel.externalUrl === ""
+        accepts: root.viewModel.hasTranslation && !root.viewModel.comingSoon
         title: qsTr("%1 klasörünü bırak").arg(root.viewModel.gameName)
         subtitle: qsTr("Oyunun klasörü, .exe dosyası ya da içindeki herhangi bir klasör olabilir; yamanın gideceği yeri biz buluruz.")
         onFolderDropped: (url) => heroSection.inspectFolder(url)

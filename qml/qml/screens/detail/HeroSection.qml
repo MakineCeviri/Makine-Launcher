@@ -177,7 +177,7 @@ ColumnLayout {
             StatusBadge {
                 onArt: true
                 visible: !heroRoot.vm.isGameInstalled && heroRoot.vm.hasTranslation
-                         && heroRoot.vm.externalUrl === ""
+                         && !heroRoot.vm.comingSoon
                 tint: "#FF9F0A"
                 text: qsTr("Bilgisayarında bulunamadı")
             }
@@ -470,10 +470,6 @@ ColumnLayout {
                 ContributorsSection {
                     Layout.fillWidth: true
                     contributors: heroRoot.vm.contributors
-                    externalUrl: heroRoot.vm.externalUrl
-                    isApex: heroRoot.vm.isApex
-                    isHangar: heroRoot.vm.isHangar
-                    apexTier: heroRoot.vm.apexTier
                 }
             }
         }

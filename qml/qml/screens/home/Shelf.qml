@@ -143,7 +143,7 @@ Card {
                     status: cell.model.status
                             ?? (cell.model.packageInstalled ? "installed"
                                 : cell.model.isInstalled ? "installable"
-                                : (cell.model.externalUrl ?? "") !== "" ? "external" : "")
+                                : cell.model.comingSoon ? "soon" : "")
                     onClicked: shelf.gameClicked(cell._gameKey, cell.model.name ?? "",
                                                  cell.model.installPath ?? "", cell.model.engine ?? "")
                 }
