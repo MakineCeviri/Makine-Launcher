@@ -21,8 +21,7 @@ TranslationStateManager::TranslationStateManager(QObject* parent)
 void TranslationStateManager::evaluate(bool hasUpdate, bool packageInstalled,
                                         bool isInstalling, bool installCompleted,
                                         const QString& impactLevel,
-                                        const QString& externalUrl,
-                                        const QString& source)
+                                        bool comingSoon)
 {
     State newState = State::Download;
 
@@ -39,14 +38,11 @@ void TranslationStateManager::evaluate(bool hasUpdate, bool packageInstalled,
         newState = State::Update;
     } else if (packageInstalled) {
         newState = State::Installed;
-    } else if (!externalUrl.isEmpty()) {
-        newState = State::External;
+    } else if (comingSoon) {
+        newState = State::Soon;
     }
 
-    const bool sourceChanged = (m_externalSource != source);
-    m_externalSource = source;
-
-    if (newState == m_state && !sourceChanged)
+    if (newState == m_state)
         return;
 
     m_state = newState;
@@ -68,7 +64,7 @@ QString TranslationStateManager::stateToString(State s)
     case State::Installing: return QStringLiteral("installing");
     case State::Update:     return QStringLiteral("update");
     case State::Installed:  return QStringLiteral("installed");
-    case State::External:   return QStringLiteral("external");
+    case State::Soon:       return QStringLiteral("soon");
     case State::Download:   return QStringLiteral("download");
     }
     return QStringLiteral("download");
@@ -82,10 +78,7 @@ QString TranslationStateManager::stateToLabel(State s) const
     case State::Update:     return tr("G\u00FCncelleme Mevcut");
     case State::Installed:  return tr("T\u00FCrk\u00E7e Yama Kurulu");
     case State::Installing: return tr("Haz\u0131rlan\u0131yor...");
-    case State::External:
-        if (m_externalSource.contains(QLatin1String("hangar")))
-            return tr("Hangar \u00C7eviri'de \u0130ndir");
-        return tr("ApexYama'da \u0130ndir");
+    case State::Soon:       return tr("Yakında");
     case State::Download:   return tr("T\u00FCrk\u00E7e Yama \u0130ndir");
     }
     return tr("T\u00FCrk\u00E7e Yama \u0130ndir");
@@ -99,10 +92,7 @@ QString TranslationStateManager::stateToAccessibleText(State s) const
     case State::Update:     return tr("G\u00FCncelleme mevcut");
     case State::Installed:  return tr("Kurulu");
     case State::Installing: return tr("Kuruluyor");
-    case State::External:
-        if (m_externalSource.contains(QLatin1String("hangar")))
-            return tr("Hangar \u00C7eviri'den indir");
-        return tr("ApexYama'dan indir");
+    case State::Soon:       return tr("Yakında, yama hazırlanıyor");
     case State::Download:   return tr("T\u00FCrk\u00E7e Yama \u0130ndir");
     }
     return tr("T\u00FCrk\u00E7e Yama \u0130ndir");

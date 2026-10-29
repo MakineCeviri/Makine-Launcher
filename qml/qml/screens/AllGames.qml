@@ -82,7 +82,7 @@ Item {
             "mine": proxy.countWithStatus("mine"),
             "installed": proxy.countWithStatus("installed"),
             "local": proxy.countWithStatus("local"),
-            "external": proxy.countWithStatus("external")
+            "soon": proxy.countWithStatus("soon")
         }
     }
     readonly property var _sorts: [ { value: "", text: qsTr("A–Z") }, { value: "newest", text: qsTr("En yeni yama") } ]
@@ -93,7 +93,7 @@ Item {
     function _status(m) {
         return m.packageInstalled ? "installed"
              : m.isInstalled ? "installable"
-             : (m.externalUrl || "") !== "" ? "external" : ""
+             : m.comingSoon ? "soon" : ""
     }
     function _date(v) {
         const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v || "")
@@ -114,7 +114,7 @@ Item {
             { value: "mine", text: qsTr("Bilgisayarımda"), icon: Icons.monitor },
             { value: "installed", text: qsTr("Yaması kurulu"), icon: Icons.circleCheck },
             { value: "local", text: qsTr("Launcher'dan kurulur"), icon: Icons.download },
-            { value: "external", text: qsTr("Dış sitede"), icon: Icons.externalLink }
+            { value: "soon", text: qsTr("Yakında"), icon: Icons.clock }
         ]
         const out = []
         for (const f of all) {
@@ -190,8 +190,8 @@ Item {
                   ? qsTr("Türkçe yaması kurulu oyunların. Güncellemek ya da kaldırmak için oyunun sayfasını aç.")
                 : allGames.filter === "local"
                   ? qsTr("Bu yamaları launcher kendisi indirip kurar: oyunun sayfasındaki tek düğme yeter, orijinal dosyalar yedeklenir.")
-                : allGames.filter === "external"
-                  ? qsTr("Bu yamalar başka çeviri ekiplerinin sitelerinde yayımlanıyor. Oyunun sayfasındaki düğme seni o sayfaya götürür; kurulumu o site anlatır.")
+                : allGames.filter === "soon"
+                  ? qsTr("Bu oyunların Türkçe yamaları hazırlanıyor. Hazır olunca burada kurulur olarak görünür.")
                 : qsTr("Kataloğumuzdaki bütün Türkçe yamalar. Bir oyuna tıkla: sayfasında yamanın nasıl kurulduğunu ve emeği geçenleri görürsün.")
         }
 

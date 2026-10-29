@@ -46,7 +46,7 @@ class CatalogProxyModel : public QAbstractListModel
     Q_PROPERTY(int rowLimit READ rowLimit WRITE setRowLimit NOTIFY rowLimitChanged)
     Q_PROPERTY(bool wrapAround READ wrapAround WRITE setWrapAround NOTIFY wrapAroundChanged)
     /// "" every game · "mine" on this PC · "installed" patch installed ·
-    /// "local" installed by the launcher · "external" on another site
+    /// "local" installed by the launcher · "soon" no package of ours yet
     Q_PROPERTY(QString statusFilter READ statusFilter WRITE setStatusFilter NOTIFY statusFilterChanged)
     /// "" A–Z (the source's order) · "newest" newest package first. A search
     /// ranks by relevance either way.

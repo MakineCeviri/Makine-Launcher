@@ -45,7 +45,7 @@ Item {
         for (const g of library)
             out.push({ gameId: g.id, steamAppId: g.steamAppId || "", name: g.name || "",
                        status: g.status || "ready" })
-        const rank = { "ready": 0, "update": 1, "installed": 2, "external": 3 }
+        const rank = { "ready": 0, "update": 1, "installed": 2, "soon": 3 }
         out.sort((a, b) => (rank[a.status] ?? 4) - (rank[b.status] ?? 4) || a.name.localeCompare(b.name))
         return out
     }

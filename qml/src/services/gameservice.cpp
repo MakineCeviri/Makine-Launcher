@@ -1449,12 +1449,11 @@ QVariantList GameService::installedTranslations() const
 QVariantList GameService::library() const
 {
     MAKINE_ZONE_NAMED("GameService::library");
-    QHash<QString, QString> external;
+    QSet<QString> soon;
     for (const QVariant& v : supportedGames()) {
         const QVariantMap m = v.toMap();
-        const QString url = m.value(QStringLiteral("externalUrl")).toString();
-        if (!url.isEmpty())
-            external.insert(m.value(QStringLiteral("steamAppId")).toString(), url);
+        if (m.value(QStringLiteral("comingSoon")).toBool())
+            soon.insert(m.value(QStringLiteral("steamAppId")).toString());
     }
     QHash<QString, QVariantMap> installed;
     for (const QVariant& v : installedTranslations()) {
@@ -1473,9 +1472,8 @@ QVariantList GameService::library() const
             status = it->value(QStringLiteral("hasUpdate")).toBool() ? QStringLiteral("update")
                                                                       : QStringLiteral("installed");
             m[QStringLiteral("version")] = it->value(QStringLiteral("version"));
-        } else if (const auto ext = external.constFind(appId); ext != external.cend()) {
-            status = QStringLiteral("external");
-            m[QStringLiteral("externalUrl")] = *ext;
+        } else if (soon.contains(appId)) {
+            status = QStringLiteral("soon");
         }
         m[QStringLiteral("status")] = status;
         rows << m;
@@ -3392,21 +3390,10 @@ QVariantMap GameService::resolveGameData(const QString& gameId,
     const bool hasTranslation = hasGame && gameData.value("hasTranslation").toBool();
     const bool pkgInstalled = hasGame && gameData.value("packageInstalled").toBool();
 
-    // Catalog lookup for external URL / Apex / Hangar flags
+    // Catalog lookup for the "Yakında" flag (no package of ours yet)
     const QVariantMap catalog = getCatalogEntry(imageKey);
     const bool hasCatalog = !catalog.isEmpty();
-    const QString externalUrl = hasCatalog ? catalog.value("externalUrl").toString() : QString();
-    const QString sourceField = hasCatalog ? catalog.value("source").toString() : QString();
-    const QString translationSource = hasCatalog ? catalog.value("translationSource").toString() : QString();
-    const bool isApex = hasCatalog
-        && (translationSource == QLatin1String("apex")
-            || sourceField == QLatin1String("apex")
-            || sourceField == QLatin1String("hangar_apex"));
-    const bool isHangar = hasCatalog
-        && (translationSource == QLatin1String("hangar")
-            || sourceField == QLatin1String("hangar")
-            || sourceField == QLatin1String("hangar_apex"));
-    const QString apexTier = hasCatalog ? catalog.value("apexTier").toString() : QString();
+    const bool comingSoon = hasCatalog && catalog.value("comingSoon").toBool();
 
     // Contributors from catalog (index.json) — available immediately, no async
     const QVariantList catalogContribs = hasCatalog
@@ -3423,11 +3410,8 @@ QVariantMap GameService::resolveGameData(const QString& gameId,
         {"isManualGame",      isManual},
         {"isGameInstalled",   isInstalled},
         {"packageInstalled",  pkgInstalled},
-        {"isApex",            isApex},
-        {"isHangar",          isHangar},
-        {"apexTier",          apexTier},
         {"autoInstall",       forceAutoInstall},
-        {"externalUrl",       externalUrl},
+        {"comingSoon",         comingSoon},
         {"contributors",      catalogContribs}
     };
 }

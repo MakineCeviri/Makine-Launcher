@@ -8,18 +8,13 @@ import "../../components"
 pragma ComponentBehavior: Bound
 
 /**
- * ContributorsSection — who made the Turkish patch, grouped by role, and
- * where a patch published by another team lives. The last part of the
+ * ContributorsSection — who made the Turkish patch, grouped by role. The last part of the
  * detail page's one container (HeroSection).
  */
 Item {
     id: contribRoot
 
     required property var contributors  // [{name, role}]
-    property string externalUrl: ""
-    property bool isApex: false
-    property bool isHangar: false
-    property string apexTier: ""  // "pro" or "both"
 
     Layout.fillWidth: true
     implicitHeight: contentLayout.implicitHeight + 40
@@ -115,27 +110,6 @@ Item {
             font.pixelSize: Dimensions.footnote
             color: Theme.textMuted
             wrapMode: Text.WordWrap
-        }
-
-        // Where the patch is published, when another team publishes it
-        ListRow {
-            visible: contribRoot.isApex || contribRoot.isHangar
-            Layout.leftMargin: -16
-            Layout.rightMargin: -14
-            icon: Icons.globe
-            iconTint: contribRoot.isHangar && !contribRoot.isApex ? "#8B5CF6" : "#D4A843"
-            clickable: true
-            showChevron: false
-            title: contribRoot.isHangar && !contribRoot.isApex ? qsTr("Hangar Çeviri")
-                 : qsTr("Apex Yama")
-            subtitle: contribRoot.isHangar && !contribRoot.isApex
-                      ? qsTr("Bu çeviri Hangar Çeviri'de yayımlanıyor.")
-                      : contribRoot.apexTier === "pro"
-                        ? qsTr("Bu çeviri Apex Yama'da profesyonel olarak bulunuyor.")
-                        : qsTr("Bu çeviri Apex Yama'da profesyonel ve ücretsiz olarak bulunuyor.")
-            onClicked: Qt.openUrlExternally(contribRoot.isHangar && !contribRoot.isApex
-                                            ? "https://www.hangarceviri.com" : "https://apexyama.com")
-            Icon { glyph: Icons.arrowUpRight; size: 15; color: Theme.textMuted }
         }
     }
 }

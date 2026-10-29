@@ -47,7 +47,7 @@ Item {
     readonly property bool _located: (bar._folder.path || "") !== ""
     readonly property bool _missing: bar._located && bar._folder.exists === false
     readonly property bool _notFound: !bar._located && bar.vm.hasTranslation
-                                      && !bar.vm.isGameInstalled && bar.vm.externalUrl === ""
+                                      && !bar.vm.isGameInstalled && !bar.vm.comingSoon
     readonly property bool _notice: bar._missing || bar._suggestion !== null
     // Where the game is, said from the folder we know.
     readonly property string _where: bar._suggestion === null ? ""
@@ -84,7 +84,7 @@ Item {
         if (path === bar._auditedPath && !again) return
         if (path !== bar._auditedPath) bar._suggestion = null
         bar._auditedPath = path
-        if (path !== "" && bar._folder.exists && bar.vm.externalUrl === "")
+        if (path !== "" && bar._folder.exists && !bar.vm.comingSoon)
             GameService.inspectGameFolder(bar.vm.gameId, path, true)
     }
     function _isInside(child, parentPath) {
@@ -187,8 +187,8 @@ Item {
     }
     Component.onCompleted: _refresh()
 
-    // A patch from another site installs itself; the folder is ours to know only for our own.
-    visible: bar.vm.hasTranslation && bar.vm.externalUrl === "" && (bar._located || bar._notFound)
+    // A patch we do not have yet ("Yakında") needs no folder.
+    visible: bar.vm.hasTranslation && !bar.vm.comingSoon && (bar._located || bar._notFound)
     implicitHeight: bar._notFound ? hint.implicitHeight
                   : bar._notice ? notice.implicitHeight
                   : row.implicitHeight

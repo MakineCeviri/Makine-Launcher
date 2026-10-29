@@ -176,23 +176,23 @@ protected:
     CatalogProxyModel proxy;
 
     static QVariantMap game(const char *name, const char *id, bool onPc, bool patched,
-                            const char *externalUrl, const char *version)
+                            bool soon, const char *version)
     {
         return {{QStringLiteral("name"), QString::fromUtf8(name)},
                 {QStringLiteral("steamAppId"), QString::fromUtf8(id)},
                 {QStringLiteral("isInstalled"), onPc},
                 {QStringLiteral("packageInstalled"), patched},
-                {QStringLiteral("externalUrl"), QString::fromUtf8(externalUrl)},
+                {QStringLiteral("comingSoon"), soon},
                 {QStringLiteral("version"), QString::fromUtf8(version)}};
     }
 
     void SetUp() override
     {
         source.resetFromCatalog({
-            game("Gamma", "3", false, false, "https://example.org", "2025-12-01"),
-            game("Alpha", "1", true, false, "", "2026-01-01"),
-            game("Delta", "4", false, false, "", ""),
-            game("Beta", "2", true, true, "", "2026-03-01"),
+            game("Gamma", "3", false, false, true, "2025-12-01"),
+            game("Alpha", "1", true, false, false, "2026-01-01"),
+            game("Delta", "4", false, false, false, ""),
+            game("Beta", "2", true, true, false, "2026-03-01"),
         });
         proxy.setSourceModel(&source);
         flushRebuild();
@@ -212,7 +212,7 @@ TEST_F(CatalogProxyStatusTest, StatusFilterKeepsTheMatchingGamesInOrder)
     EXPECT_EQ(with(QStringLiteral("mine")), (QStringList{"Alpha", "Beta"}));
     EXPECT_EQ(with(QStringLiteral("installed")), (QStringList{"Beta"}));
     EXPECT_EQ(with(QStringLiteral("local")), (QStringList{"Alpha", "Beta", "Delta"}));
-    EXPECT_EQ(with(QStringLiteral("external")), (QStringList{"Gamma"}));
+    EXPECT_EQ(with(QStringLiteral("soon")), (QStringList{"Gamma"}));
     EXPECT_EQ(proxy.sourceCount(), 1);
 
     EXPECT_EQ(proxy.countWithStatus(QStringLiteral("mine")), 2);

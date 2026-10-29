@@ -349,15 +349,15 @@ bool CatalogProxyModel::hasStatus(int sourceRow, const QString &status) const
         return true;
     const QModelIndex i = m_source->index(sourceRow, 0);
     const bool onPc = i.data(SupportedGamesModel::IsInstalledRole).toBool();
-    const bool external = !i.data(SupportedGamesModel::ExternalUrlRole).toString().isEmpty();
+    const bool soon = i.data(SupportedGamesModel::ComingSoonRole).toBool();
     if (status == QLatin1String("mine"))
         return onPc;
     if (status == QLatin1String("installed"))
         return i.data(SupportedGamesModel::PackageInstalledRole).toBool();
     if (status == QLatin1String("local"))
-        return !external;
-    if (status == QLatin1String("external"))
-        return external;
+        return !soon;
+    if (status == QLatin1String("soon"))
+        return soon;
     return true;
 }
 

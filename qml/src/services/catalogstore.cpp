@@ -9,6 +9,7 @@
 
 #include "catalogstore.h"
 #include "apppaths.h"
+#include "cdnconfig.h"
 #include "profiler.h"
 
 #include <makine/path_utils.hpp>
@@ -54,16 +55,15 @@ QVariantList CatalogStore::catalog() const
             entry.insert(QStringLiteral("downloadSize"), ce.downloadSize);
         if (!ce.dataUrl.isEmpty())
             entry.insert(QStringLiteral("dataUrl"), ce.dataUrl);
+        // No package of ours on the CDN (empty dataUrl, or one that points at
+        // another site): the card says "Yakında" and nothing is downloaded.
+        entry.insert(QStringLiteral("comingSoon"), !cdn::isCdnUrl(ce.dataUrl));
         if (!ce.checksum.isEmpty())
             entry.insert(QStringLiteral("checksum"), ce.checksum);
         if (!ce.dirName.isEmpty())
             entry.insert(QStringLiteral("dirName"), ce.dirName);
-        if (!ce.externalUrl.isEmpty())
-            entry.insert(QStringLiteral("externalUrl"), ce.externalUrl);
         if (!ce.source.isEmpty())
             entry.insert(QStringLiteral("source"), ce.source);
-        if (!ce.apexTier.isEmpty())
-            entry.insert(QStringLiteral("apexTier"), ce.apexTier);
         if (!ce.contributors.isEmpty())
             entry.insert(QStringLiteral("contributors"), ce.contributors);
 
@@ -141,9 +141,7 @@ CatalogStore::CatalogEntry CatalogStore::parseCatalogEntry(const QJsonObject& en
     ce.dataUrl = entry[QStringLiteral("dataUrl")].toString();
     ce.checksum = entry[QStringLiteral("checksum")].toString();
     ce.dirName = entry[QStringLiteral("dirName")].toString();
-    ce.externalUrl = entry[QStringLiteral("externalUrl")].toString();
     ce.source = entry[QStringLiteral("source")].toString();
-    ce.apexTier = entry[QStringLiteral("apexTier")].toString();
 
     // Parse inline contributors from index.json
     const QJsonArray contribs = entry[QStringLiteral("contributors")].toArray();

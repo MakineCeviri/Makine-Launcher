@@ -336,7 +336,6 @@ qt_add_qml_module(MakineLauncher
         resources/images/logo.png
         resources/images/logo_white.png
         resources/images/logo_anim.webp
-        resources/images/apex_logo.svg
         # Fonts (Inter - Google Fonts)
         resources/fonts/Inter-Regular.ttf
         resources/fonts/Inter-Medium.ttf

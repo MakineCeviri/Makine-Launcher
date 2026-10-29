@@ -122,8 +122,8 @@ public:
     QVariantList supportedGames() const;
     QVariantList installedTranslations() const;
     /// This PC's games that have a Turkish patch, each with `status` — what it
-    /// needs next: update | ready | installed | external (the patch is on
-    /// another site; `externalUrl`) — in that order, then by name.
+    /// needs next: update | ready | installed | soon (no package of ours
+    /// yet; `comingSoon` in the catalog) — in that order, then by name.
     QVariantList library() const;
     SupportedGamesModel* supportedGamesModel() const { return m_supportedGamesModel; }
     int installedTranslationCount() const;
@@ -442,7 +442,7 @@ public:
      * @brief Resolve all game metadata needed for the detail screen.
      *
      * Consolidates: manual-game check, steamAppId resolution, catalog lookup,
-     * image resolve, translation status, external URL / Apex flags.
+     * image resolve, translation status, "Yakında" flag.
      * Replaces the business logic previously in GameDataResolver.qml.
      */
     Q_INVOKABLE QVariantMap resolveGameData(const QString& gameId,

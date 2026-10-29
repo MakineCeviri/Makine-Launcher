@@ -32,9 +32,7 @@ static QJsonObject makeEntry(const QString& name, const QString& version,
     obj["dataUrl"] = "https://cdn.makineceviri.org/data/test.makine";
     obj["checksum"] = "abc123";
     obj["dirName"] = "test_game";
-    obj["externalUrl"] = "";
     obj["source"] = "";
-    obj["apexTier"] = "";
     return obj;
 }
 
@@ -72,9 +70,7 @@ TEST_F(CatalogStoreTest, ParseCatalogEntryAllFields)
     obj["dataUrl"] = "https://cdn.example.com/ds2.makine";
     obj["checksum"] = "sha256abc";
     obj["dirName"] = "dark_souls_2";
-    obj["externalUrl"] = "https://example.com";
-    obj["source"] = "apex";
-    obj["apexTier"] = "pro";
+    obj["source"] = "oyunbul";
 
     auto ce = CatalogStore::parseCatalogEntry(obj);
 
@@ -85,9 +81,32 @@ TEST_F(CatalogStoreTest, ParseCatalogEntryAllFields)
     EXPECT_EQ(ce.dataUrl, "https://cdn.example.com/ds2.makine");
     EXPECT_EQ(ce.checksum, "sha256abc");
     EXPECT_EQ(ce.dirName, "dark_souls_2");
-    EXPECT_EQ(ce.externalUrl, "https://example.com");
-    EXPECT_EQ(ce.source, "apex");
-    EXPECT_EQ(ce.apexTier, "pro");
+    EXPECT_EQ(ce.source, "oyunbul");
+}
+
+// "Yakında": a package of ours on the CDN is the only thing that makes a game installable.
+TEST_F(CatalogStoreTest, ComingSoonWhenNoCdnPackage)
+{
+    QJsonObject packages;
+    packages["1"] = makeEntry("Hosted", "1");
+    QJsonObject none = makeEntry("NoUrl", "1");
+    none.remove("dataUrl");
+    packages["2"] = none;
+    QJsonObject elsewhere = makeEntry("Elsewhere", "1");
+    elsewhere["dataUrl"] = "https://example.com/some-page";
+    elsewhere["externalUrl"] = "https://example.com/some-page";
+    packages["3"] = elsewhere;
+    store.parseIndex(makeIndexJson(1, packages));
+
+    QHash<QString, bool> soon;
+    for (const QVariant& v : store.catalog()) {
+        const QVariantMap m = v.toMap();
+        soon.insert(m.value("steamAppId").toString(), m.value("comingSoon").toBool());
+        EXPECT_FALSE(m.contains("externalUrl"));
+    }
+    EXPECT_FALSE(soon.value("1"));
+    EXPECT_TRUE(soon.value("2"));
+    EXPECT_TRUE(soon.value("3"));
 }
 
 TEST_F(CatalogStoreTest, ParseIndexPopulatesCatalog)
