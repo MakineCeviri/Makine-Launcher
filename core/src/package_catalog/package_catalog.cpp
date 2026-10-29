@@ -545,11 +545,13 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
         return;
     }
 
-    const auto& packagesObj = doc["packages"];
-
-    for (auto it = packagesObj.begin(); it != packagesObj.end(); ++it) {
+    // "soon": games whose patch is not ours yet (same entry shape, no package).
+    // Listed so the game is detected and shown as "Yakında"; "packages" wins.
+    const auto loadEntries = [&](const json& obj, bool keepExisting) {
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
         const auto& entry = it.value();
         if (!entry.is_object()) continue;
+        if (keepExisting && packages_.contains(it.key())) continue;
 
         PackageCatalogEntry info;
         info.steamAppId = it.key();
@@ -584,6 +586,11 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
 
         packages_[info.steamAppId] = std::move(info);
     }
+    };
+
+    loadEntries(doc["packages"], false);
+    if (doc.contains("soon") && doc["soon"].is_object())
+        loadEntries(doc["soon"], true);
 
     MAKINE_LOG_DEBUG(log::PACKAGE, "Index loaded: {} packages", packages_.size());
 }

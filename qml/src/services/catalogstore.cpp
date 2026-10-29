@@ -182,6 +182,18 @@ void CatalogStore::parseIndex(const QByteArray& data)
         newCatalog.insert(it.key(), parseCatalogEntry(it.value().toObject()));
     }
 
+    // "soon": no package of ours yet. Never carries a dataUrl, so comingSoon;
+    // an appId also in "packages" keeps the package.
+    const QJsonObject soon = root[QStringLiteral("soon")].toObject();
+    for (auto it = soon.constBegin(); it != soon.constEnd(); ++it) {
+        if (newCatalog.contains(it.key()))
+            continue;
+        CatalogEntry ce = parseCatalogEntry(it.value().toObject());
+        ce.dataUrl.clear();
+        ce.checksum.clear();
+        newCatalog.insert(it.key(), std::move(ce));
+    }
+
     // Track version-changed packages for detail invalidation
     for (auto it = newCatalog.constBegin(); it != newCatalog.constEnd(); ++it) {
         auto old = m_catalog.constFind(it.key());

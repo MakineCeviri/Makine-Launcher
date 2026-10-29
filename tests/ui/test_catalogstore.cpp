@@ -109,6 +109,34 @@ TEST_F(CatalogStoreTest, ComingSoonWhenNoCdnPackage)
     EXPECT_TRUE(soon.value("3"));
 }
 
+// The index's "soon" object: listed as comingSoon, a clash with "packages" keeps the package.
+TEST_F(CatalogStoreTest, SoonSectionIsComingSoon)
+{
+    QJsonObject packages;
+    packages["1"] = makeEntry("Hosted", "1");
+    QJsonObject root;
+    root["version"] = 1;
+    root["packages"] = packages;
+    QJsonObject soon;
+    QJsonObject s = makeEntry("Later", "1");
+    s["dataUrl"] = "https://cdn.makineceviri.org/data/ignored.makine";
+    soon["2"] = s;
+    soon["1"] = makeEntry("Clash", "9");
+    root["soon"] = soon;
+    store.parseIndex(QJsonDocument(root).toJson());
+
+    EXPECT_EQ(store.catalogCount(), 2);
+    QHash<QString, QVariantMap> by;
+    for (const QVariant& v : store.catalog()) {
+        const QVariantMap m = v.toMap();
+        by.insert(m.value("steamAppId").toString(), m);
+    }
+    EXPECT_FALSE(by["1"].value("comingSoon").toBool());
+    EXPECT_EQ(by["1"].value("name").toString(), "Hosted");
+    EXPECT_TRUE(by["2"].value("comingSoon").toBool());
+    EXPECT_FALSE(by["2"].contains("dataUrl"));
+}
+
 TEST_F(CatalogStoreTest, ParseIndexPopulatesCatalog)
 {
     QJsonObject packages;
