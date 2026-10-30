@@ -1352,8 +1352,13 @@ static void wireSignals(
     // tearing down under one is a use-after-free. They are not cancelled:
     // a cancelled install drops its journal and leaves the rollback to the
     // event loop, which is not running any more.
+    // The window goes first: quit from the tray mid-backup left it on screen,
+    // frozen for the wait, and the hang watchdog filed that wait as a hang
+    // (Sentry 2026-10-29: the GUI stack in QThreadPool::waitForDone, 8 players).
     QObject::connect(&app, &QCoreApplication::aboutToQuit, [trayManager]() {
         trayManager->hide();
+        for (auto* w : QGuiApplication::topLevelWindows()) w->hide();
+        makine::CrashReporter::stopHangWatchdog();
         QThreadPool::globalInstance()->clear();
         if (!QThreadPool::globalInstance()->waitForDone(30000)) {
             // Still copying. Leaving without teardown keeps the operation

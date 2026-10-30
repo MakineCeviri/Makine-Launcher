@@ -127,6 +127,11 @@ public:
      * on aboutToQuit and in shutdown(). No-op when Sentry is not running.
      */
     static void startHangWatchdog();
+
+    /// Teardown is not a hang: the quit handler that waits for workers
+    /// (main.cpp) calls this first — aboutToQuit reaches it before the
+    /// watchdog's own handler, and closingDown() is still false there.
+    static void stopHangWatchdog();
 };
 
 } // namespace makine
