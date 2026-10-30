@@ -4142,13 +4142,7 @@ bool LocalPackageManager::needsUndoPrograms(const QString& steamAppId) const
     const bool named = std::any_of(pkg->installSteps.cbegin(), pkg->installSteps.cend(),
         [](const InstallStep& st) { return st.action == QLatin1String("run") && !st.uninstall.isEmpty(); });
     if (!named) return false;
-    bool changes = false, tracked = false;
-    for (const auto& f : state->installedFiles) {
-        if (f.starts_with(changescan::kMarker)) changes = true;
-        if (f == runstage::kNoteFile) tracked = true;
-    }
-    // A record written before changes were tracked cannot say; run it then.
-    return changes || !tracked;
+    return changescan::recordLeftToProgram(state->installedFiles, runstage::kNoteFile);
 }
 
 LocalPackageManager::UndoResult LocalPackageManager::runUndoPrograms(const QString& steamAppId,

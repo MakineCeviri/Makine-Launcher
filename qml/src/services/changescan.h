@@ -24,6 +24,10 @@
 #include <QString>
 #include <QStringList>
 
+#include <string>
+#include <string_view>
+#include <vector>
+
 namespace makine::changescan {
 
 struct FileState {
@@ -97,6 +101,25 @@ inline QStringList markers(const Diff& d, int cap = 2000)
         }
     }
     return out;
+}
+
+// Does an install record leave anything to the patch's undo program? What the
+// program changed is on record (markers). A record from before that was tracked
+// (no launcher note, `noteFile`) cannot say, so the program runs — unless the
+// record lists files the launcher copied itself: that patch came from an older
+// recipe with no program. RDR2's was copied hook files (dinput8.dll …) until
+// KUR.bat; its KALDIR.bat, run over such a record, changed nothing or stopped
+// at its own prompt, and the update was refused (Sentry 2026-10-29: 30 players).
+inline bool recordLeftToProgram(const std::vector<std::string>& installedFiles,
+                                std::string_view noteFile)
+{
+    bool changes = false, tracked = false, copied = false;
+    for (const std::string& f : installedFiles) {
+        if (f.starts_with(kMarker)) changes = true;
+        else if (f == noteFile) tracked = true;
+        else if (!f.starts_with('_')) copied = true;
+    }
+    return changes || (!tracked && !copied);
 }
 
 } // namespace makine::changescan
