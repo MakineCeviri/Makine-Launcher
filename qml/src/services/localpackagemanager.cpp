@@ -4202,6 +4202,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
 {
     MAKINE_ZONE_NAMED("LPM::uninstallPackage");
     INTEGRITY_GATE();
+    QMutexLocker oneAtATime(&m_uninstallMutex);
     CrashReporter::addBreadcrumb("package",
         QStringLiteral("uninstallPackage: %1").arg(steamAppId).toUtf8().constData());
 

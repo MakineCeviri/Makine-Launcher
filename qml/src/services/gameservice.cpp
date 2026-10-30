@@ -1820,10 +1820,11 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
         return;
     }
 
-    // Same the other way: an uninstall, or the restore of a failed install,
-    // still has the crash journal and may be writing into this game.
+    // Same the other way: an uninstall, or the restore of a failed install
+    // and the removal of its files, still has the crash journal and may be
+    // writing into this game.
     if (const BackupManager* bm = BackupManager::instance();
-        !m_uninstalling.isEmpty() || (bm && bm->isRestoring())) {
+        !m_uninstalling.isEmpty() || m_removals > 0 || (bm && bm->isRestoring())) {
         emit translationInstallCompleted(gameId, false,
             tr("Bir yamanın kaldırılması ya da geri yüklemesi sürüyor. O bitince tekrar deneyin."));
         return;
@@ -2657,9 +2658,10 @@ void GameService::uninstallWithStoreRepair(const QString& gameId, const QString&
     // Remove what the patch added, drop the record, and start the store's
     // repair for the files it overwrote.
     m_storeRepairStarted.insert(gameId);
-    finalizeUninstall(gameId, gamePath);
-    if (!m_coreBridge->isPackageInstalled(gameId))
-        repairGameFiles(gameId);
+    finalizeUninstall(gameId, gamePath, {}, [this, gameId]() {
+        if (!m_coreBridge->isPackageInstalled(gameId))
+            repairGameFiles(gameId);
+    });
 }
 
 bool GameService::translationReplacedOriginalFiles(const QString& gameId)
@@ -2878,13 +2880,19 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         // Verify is their best path forward).
         // What the patch's own program changed before it failed is undone by
         // its undo program, which only "Kaldır" runs: that record stays too.
+        const auto finish = [this, gameId, originalError](bool removed) {
+            if (removed)
+                markUninstalled(gameId);
+            markInstalledIfRecorded(gameId);
+            emit translationInstallCompleted(gameId, false, originalError);
+        };
         if (m_coreBridge && !gamePath.isEmpty() && m_coreBridge->isPackageInstalled(gameId)
             && !translationReplacedOriginalFiles(gameId)
-            && !m_coreBridge->needsUndoPrograms(gameId)
-            && m_coreBridge->uninstallPackage(gameId, gamePath))
-            markUninstalled(gameId);
-        markInstalledIfRecorded(gameId);
-        emit translationInstallCompleted(gameId, false, originalError);
+            && !m_coreBridge->needsUndoPrograms(gameId)) {
+            removePackageFiles(gameId, gamePath, {}, finish);
+            return;
+        }
+        finish(false);
         return;
     }
 
@@ -2926,26 +2934,28 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
     const auto cancelWait = awaitRestore(bm, gameId,
         [this, gameId, gamePath, originalError,
          backupPath = latest.value(QStringLiteral("backupPath")).toString()]() {
-            // Still on record after this means files the failed install added
-            // could not be deleted; "returned to how it was" was said anyway.
-            if (!m_coreBridge->uninstallPackage(gameId, gamePath, backupPath)
-                && m_coreBridge->isPackageInstalled(gameId)) {
-                qCWarning(lcGameService) << "Install rollback left files behind for" << gameId;
-                markInstalledIfRecorded(gameId);
+            removePackageFiles(gameId, gamePath, backupPath,
+                               [this, gameId, originalError](bool removed) {
+                // Still on record after this means files the failed install added
+                // could not be deleted; "returned to how it was" was said anyway.
+                if (!removed && m_coreBridge->isPackageInstalled(gameId)) {
+                    qCWarning(lcGameService) << "Install rollback left files behind for" << gameId;
+                    markInstalledIfRecorded(gameId);
+                    emit translationInstallCompleted(gameId, false,
+                        tr("Kurulum başarısız oldu. Oyunun orijinal dosyaları geri yüklendi, ama "
+                           "yamanın eklediği bazı dosyalar silinemedi. Oyunu kapatıp yamayı "
+                           "kaldırmayı deneyin.\n%1").arg(originalError));
+                    return;
+                }
+                // A reinstall over an installed patch drops the old record too;
+                // the page kept showing the patch as installed.
+                markUninstalled(gameId);
+                retireBackups(gameId);
+                qCInfo(lcGameService) << "Install rollback complete for" << gameId;
                 emit translationInstallCompleted(gameId, false,
-                    tr("Kurulum başarısız oldu. Oyunun orijinal dosyaları geri yüklendi, ama "
-                       "yamanın eklediği bazı dosyalar silinemedi. Oyunu kapatıp yamayı "
-                       "kaldırmayı deneyin.\n%1").arg(originalError));
-                return;
-            }
-            // A reinstall over an installed patch drops the old record too;
-            // the page kept showing the patch as installed.
-            markUninstalled(gameId);
-            retireBackups(gameId);
-            qCInfo(lcGameService) << "Install rollback complete for" << gameId;
-            emit translationInstallCompleted(gameId, false,
-                tr("Kurulum başarısız oldu, oyun kurulum öncesi haline döndürüldü.\n%1")
-                    .arg(originalError));
+                    tr("Kurulum başarısız oldu, oyun kurulum öncesi haline döndürüldü.\n%1")
+                        .arg(originalError));
+            });
         },
         [this, gameId, originalError](const QString& reason) {
             // The restore's own failure report is the Sentry event; a
@@ -3047,40 +3057,67 @@ void GameService::markInstalledIfRecorded(const QString& gameId)
 }
 
 void GameService::finalizeUninstall(const QString& gameId, const QString& gamePath,
-                                    const QString& restoredFrom)
+                                    const QString& restoredFrom, std::function<void()> then)
 {
     MAKINE_ZONE_NAMED("GameService::finalizeUninstall");
-    bool success = m_coreBridge->uninstallPackage(gameId, gamePath, restoredFrom);
-    if (success && !restoredFrom.isEmpty())
-        retireBackups(gameId);
-    if (success)
-        markUninstalled(gameId);
-    // Off without its failing undo program, after a restore of what we
-    // copied: what the program changed goes to the store's repair, like an
-    // original the backup lacked. (With no backup uninstallWithStoreRepair
-    // has started it already.)
-    const bool repairProgram = success && m_undoFailures.value(gameId) >= 2
-                               && !m_storeRepairStarted.contains(gameId);
-    if (success) m_undoFailures.remove(gameId);
-    if (repairProgram) m_storeRepairStarted.insert(gameId);
+    removePackageFiles(gameId, gamePath, restoredFrom,
+                       [this, gameId, restoredFrom, then = std::move(then)](bool success) {
+        if (success && !restoredFrom.isEmpty())
+            retireBackups(gameId);
+        if (success)
+            markUninstalled(gameId);
+        // Off without its failing undo program, after a restore of what we
+        // copied: what the program changed goes to the store's repair, like an
+        // original the backup lacked. (With no backup uninstallWithStoreRepair
+        // has started it already.)
+        const bool repairProgram = success && m_undoFailures.value(gameId) >= 2
+                                   && !m_storeRepairStarted.contains(gameId);
+        if (success) m_undoFailures.remove(gameId);
+        if (repairProgram) m_storeRepairStarted.insert(gameId);
 
-    // Still on record after a failed uninstall means files could not be
-    // deleted — most often because the game, or something holding its
-    // files, is still running.
-    const bool filesLeft = !success && m_coreBridge->isPackageInstalled(gameId);
+        // Still on record after a failed uninstall means files could not be
+        // deleted — most often because the game, or something holding its
+        // files, is still running.
+        const bool filesLeft = !success && m_coreBridge->isPackageInstalled(gameId);
 
-    // Which of the two it was, so the event can tell them apart.
-    if (!success)
-        reportOperationFailure("uninstall", gameId,
-            filesLeft ? QStringLiteral("uninstallPackage returned false: files left on disk")
-                      : QStringLiteral("uninstallPackage returned false: no install record"));
-    emit translationUninstalled(gameId, success,
-        success     ? tr("Yama başarıyla kaldırıldı")
-        : filesLeft ? tr("Yama tamamen kaldırılamadı: bazı dosyalar silinemedi. "
-                         "Oyunu kapatıp tekrar deneyin.")
-                    : tr("Yama kaldırılamadı"));
-    if (repairProgram)
-        repairGameFiles(gameId);
+        // Which of the two it was, so the event can tell them apart.
+        if (!success)
+            reportOperationFailure("uninstall", gameId,
+                filesLeft ? QStringLiteral("uninstallPackage returned false: files left on disk")
+                          : QStringLiteral("uninstallPackage returned false: no install record"));
+        emit translationUninstalled(gameId, success,
+            success     ? tr("Yama başarıyla kaldırıldı")
+            : filesLeft ? tr("Yama tamamen kaldırılamadı: bazı dosyalar silinemedi. "
+                             "Oyunu kapatıp tekrar deneyin.")
+                        : tr("Yama kaldırılamadı"));
+        if (repairProgram)
+            repairGameFiles(gameId);
+        if (then)
+            then();
+    });
+}
+
+// The delete loop is a delete and an existence check per file: ~1 s for an
+// Elden Ring record (5,453 files), longer on a slow disk, and on the UI
+// thread every second of it was a hang ("after package: uninstallPackage",
+// Sentry 2026-10-29). Installs wait for it (m_removals), as they waited for
+// the UI thread; uninstalls wait in LocalPackageManager.
+void GameService::removePackageFiles(const QString& gameId, const QString& gamePath,
+                                     const QString& restoredFrom, std::function<void(bool)> done)
+{
+    ++m_removals;
+    auto* watcher = new QFutureWatcher<bool>(this);
+    connect(watcher, &QFutureWatcher<bool>::finished, this,
+            [this, watcher, done = std::move(done)]() {
+        const bool removed = watcher->result();
+        watcher->deleteLater();
+        --m_removals;
+        done(removed);
+    });
+    CoreBridge* cb = m_coreBridge;
+    watcher->setFuture(QtConcurrent::run([cb, gameId, gamePath, restoredFrom]() {
+        return cb->uninstallPackage(gameId, gamePath, restoredFrom);
+    }));
 }
 
 void GameService::recoverTranslation(const QString& gameId)

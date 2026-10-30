@@ -543,8 +543,14 @@ private:
     // The backup's restore and the removal of what we copied.
     void uninstallRestoreAndRemove(const QString& gameId, const QString& gamePath);
     // restoredFrom: the backup folder just restored; its files are originals.
+    // `then` runs after translationUninstalled.
     void finalizeUninstall(const QString& gameId, const QString& gamePath,
-                           const QString& restoredFrom = {});
+                           const QString& restoredFrom = {},
+                           std::function<void()> then = {});
+    // CoreBridge::uninstallPackage on the thread pool, `done` with its result
+    // back on this thread.
+    void removePackageFiles(const QString& gameId, const QString& gamePath,
+                            const QString& restoredFrom, std::function<void(bool)> done);
     // Patch replaced originals and no backup can restore them: uninstall what
     // it added, then start the store's file repair.
     void uninstallWithStoreRepair(const QString& gameId, const QString& gamePath);
@@ -651,6 +657,7 @@ private:
     bool m_promptFresh = false;
     bool m_autoKeyQueued = false;
     QSet<QString> m_uninstalling;   // games with an uninstall in flight
+    int m_removals = 0;             // removePackageFiles still deleting
     QSet<QString> m_storeRepairStarted;  // last uninstall handed originals to the store
     QHash<QString, int> m_restoreFailures;  // failed uninstall restores per game, this session
     QString m_undoGameId;                    // whose undo program is running

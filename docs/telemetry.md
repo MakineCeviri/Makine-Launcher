@@ -159,8 +159,8 @@ Veri tarafı (panel / paket):
 - **AC Valhalla (2208920):** kurulum notuna yedek için ~26 GB boş alan gerektiği yazılmalı (tarifte `requiredFreeSpace`
   henüz yok — `yama-araclari.md` F).
 
-Açık kalan: Kaldırmanın silme döngüsü hâlâ GUI'de (~1 sn / 5.453 dosya bu makinede). Bazı 0.2.4 donmaları
-yığınsız geldi (`guiStack` 0 döndü: çözücü 250 ms'de bitmedi ya da iş parçacığı durdurulamadı).
+Açık kalan: Bazı 0.2.4 donmaları yığınsız geldi (`guiStack` 0 döndü: çözücü 250 ms'de bitmedi ya da iş parçacığı
+durdurulamadı).
 
 Ardından (dal `fix/quit-and-uninstall`):
 - **Ctrl+Q:** `Qt.quit()` → `QQmlEngine::quit` hiçbir yere bağlı değildi ("no receivers"), Ctrl+Q hiçbir şey
@@ -168,6 +168,13 @@ Ardından (dal `fix/quit-and-uninstall`):
   çıkış `quitApp()` ile önce `forceQuit` koyuyor (yoksa "tepsiye küçült" açıkken çıkış yalnız pencereyi gizliyor).
   Derlenmiş uygulamada betikle Ctrl+Q ve tepsinin "Tamamen Kapat" komutu, tepsiye küçült açık / kapalı: dördü de
   ~0,3 sn'de çıkış kodu 0, aboutToQuit çalıştı (öncesinde Ctrl+Q 15 sn'de çıkmadı).
+- **Kaldırmanın silme döngüsü iş parçacığı havuzunda:** `GameService::removePackageFiles` (`QFutureWatcher` +
+  `QtConcurrent::run`, `runUndoPrograms` gibi) — `finalizeUninstall` ve başarısız kurulumun geri alınması
+  (`performInstallRollback`, iki yol) sonucu GUI'de alıp eskisi gibi sürdürüyor (günlük ve kayıt
+  `uninstallPackage`'ta, hata bildirimi ve mesajlar sonuçta; değişmedi). Silme sürerken kurulum reddediliyor
+  (`m_removals`, kaldırma sürerken verilen mesaj), iki kaldırma `LocalPackageManager`'da sırayla (günlük ve durum
+  dosyası ortak). 5.453 dosyalık sahte Elden Ring kaydı, 3'er ölçüm: GUI'nin en uzun durması 938-986 ms → 22-23 ms
+  (toplam süre aynı, 985-1.058 ms); kilitli dosyada "Yama tamamen kaldırılamadı", kayıtta o dosya kalıyor.
 
 ## Sınıflandırma — gürültüyü ayırmak
 
