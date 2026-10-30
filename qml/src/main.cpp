@@ -806,6 +806,7 @@ static void createServices(
 // Wire inter-service signal/slot connections.
 static void wireSignals(
     QGuiApplication& app,
+    QQmlEngine& engine,
     GameService* gameService,
     ManifestSyncService* manifestSync,
     SystemTrayManager* trayManager,
@@ -1329,6 +1330,7 @@ static void createServices(
 
 static void wireSignals(
     QGuiApplication& app,
+    QQmlEngine& engine,
     GameService* gameService,
     ManifestSyncService* manifestSync,
     SystemTrayManager* trayManager,
@@ -1346,6 +1348,11 @@ static void wireSignals(
     // Tray quit -> app quit directly (bypass QML round-trip)
     QObject::connect(trayManager, &SystemTrayManager::quitRequested,
                      &app, &QCoreApplication::quit);
+    // Qt.quit() in QML (Ctrl+Q) quits the same way. Nothing was connected to
+    // QQmlEngine::quit ("no receivers" in the log), so Ctrl+Q did nothing.
+    // Queued: a quit asked for from a QML handler runs once it has returned.
+    QObject::connect(&engine, &QQmlEngine::quit, &app, &QCoreApplication::quit,
+                     Qt::QueuedConnection);
 
     // Clean shutdown: remove tray icon and drain thread pool before exit.
     // Workers hold the services that are destroyed right after this returns;
@@ -1919,7 +1926,7 @@ int main(int argc, char *argv[])
         gameService, manifestSync, imageCache, trayManager, journal, processScanner);
 
     // Wire inter-service signal/slot connections
-    wireSignals(app, gameService, manifestSync, trayManager, processScanner);
+    wireSignals(app, engine, gameService, manifestSync, trayManager, processScanner);
 
     // Attach QML warning handlers and log environment info
     logStartupDiagnostics(app, engine);
