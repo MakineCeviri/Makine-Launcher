@@ -406,6 +406,23 @@ TEST_F(GameFolderRulesTest, WhatThePatchEditsInPlaceFindsTheRootTheLayoutDidNot)
     EXPECT_TRUE(rootWithRequired(path("ELDEN RING"), "Elden Ring", e).isEmpty());
 }
 
+TEST_F(GameFolderRulesTest, ARepackWithoutTheProtectedStarterIsStillMovedUp)
+{
+    // SteamRIP / DODI / P2P Elden Ring: no start_protected_game.exe (the anti-cheat starter
+    // the patch writes), Game/ picked by hand. Asked for the file patchBytes writes, no folder
+    // around had it and the patch read Game/Game/eldenring.exe (0.2.4: 25 players); the file
+    // it reads names the root.
+    touch("Elden.Ring.v1.17.2-P2P/unins000.exe");
+    touch("Elden.Ring.v1.17.2-P2P/Game/eldenring.exe");
+    Expectations writes;
+    writes.requiredFiles = {"Game/start_protected_game.exe"};
+    EXPECT_TRUE(rootWithRequired(path("Elden.Ring.v1.17.2-P2P/Game"), "Elden Ring", writes).isEmpty());
+    Expectations reads;
+    reads.requiredFiles = {"Game/eldenring.exe"};
+    EXPECT_EQ(rootWithRequired(path("Elden.Ring.v1.17.2-P2P/Game"), "Elden Ring", reads),
+              path("Elden.Ring.v1.17.2-P2P"));
+}
+
 TEST_F(GameFolderRulesTest, NoRootWhenNoFolderAroundHasThem)
 {
     // A folder with an .exe of the right name but none of the game's data.

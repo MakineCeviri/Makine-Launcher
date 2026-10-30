@@ -64,6 +64,22 @@ TEST(StepRules, BackupListsEveryGameFileAStepChangesOrDeletes)
         EXPECT_TRUE(backupTarget(QString::fromLatin1(a), "x", "y").isEmpty()) << a;
 }
 
+TEST(StepRules, InPlaceSourceIsTheGameFileAStepNeedsBeforeItRuns)
+{
+    // Elden Ring's patchBytes reads eldenring.exe and writes start_protected_game.exe:
+    // the file the folder must have is the one it reads, which a repack ships too.
+    EXPECT_EQ(inPlaceSource("patchBytes", "Game/eldenring.exe", "Game/start_protected_game.exe"),
+              "Game/eldenring.exe");
+    EXPECT_EQ(inPlaceSource("patchBytes", "Game/eldenring.exe", {}), "Game/eldenring.exe");
+    // The rest edit their dest in place; src is in the package.
+    EXPECT_EQ(inPlaceSource("forgeReimport", "DataPC_35_dlc", "dlc_35/DataPC_35_dlc.forge"),
+              "dlc_35/DataPC_35_dlc.forge");
+    EXPECT_EQ(inPlaceSource("xdelta", "aco156.aco", "DataPC_patch_01.forge"), "DataPC_patch_01.forge");
+    EXPECT_EQ(inPlaceSource("vpatch", "patches/BigFile_PC_d01.pat", "BigFile_PC.d01"), "BigFile_PC.d01");
+    for (const char* a : {"copy", "copyFile", "copyDir", "delete", "run", "rename", ""})
+        EXPECT_TRUE(inPlaceSource(QString::fromLatin1(a), "x", "y").isEmpty()) << a;
+}
+
 TEST(StepRules, EldenRingOptionRecipeStaysExecutable)
 {
     // 1245620, option "patch" — the launcher's most-used scripted install.

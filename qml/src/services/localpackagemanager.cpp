@@ -478,8 +478,7 @@ QStringList LocalPackageManager::inPlaceTargetsFor(const QString& steamAppId, co
     if (!pkg) return {};
     QStringList out;
     for (const InstallStep& st : chosenSteps(*pkg, variant, selectedOptions)) {
-        if (!steprules::isInPlaceAction(st.action)) continue;
-        const QString f = recipeRelativePath(st.action == QLatin1String("patchBytes") && st.dest.isEmpty() ? st.src : st.dest);
+        const QString f = recipeRelativePath(steprules::inPlaceSource(st.action, st.src, st.dest));
         if (!f.isEmpty() && !out.contains(f, Qt::CaseInsensitive)) out.append(f);
     }
     return out.mid(0, 40);

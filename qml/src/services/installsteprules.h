@@ -110,6 +110,18 @@ inline QString backupTarget(const QString& action, const QString& src, const QSt
     return {};
 }
 
+// The game file an in-place step needs before it runs, which tells the game's
+// folder: the one it edits, or for patchBytes the one it reads (its dest is
+// written from that). Taking patchBytes' dest asked a repack of Elden Ring for
+// Game/start_protected_game.exe, which it does not ship, so a "Game" folder
+// picked by hand was never moved up and the patch read Game/Game/eldenring.exe
+// (0.2.4: 25 players). Empty for every other step.
+inline QString inPlaceSource(const QString& action, const QString& src, const QString& dest)
+{
+    if (action == QLatin1String("patchBytes")) return src;
+    return isInPlaceAction(action) ? dest : QString();
+}
+
 // Which required parameter of a KNOWN action is empty, if any.
 //
 // An unknown action name is not the only way a recipe can be unrunnable. The
