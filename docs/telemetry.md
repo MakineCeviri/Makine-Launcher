@@ -159,10 +159,35 @@ Veri tarafı (panel / paket):
 - **AC Valhalla (2208920):** kurulum notuna yedek için ~26 GB boş alan gerektiği yazılmalı (tarifte `requiredFreeSpace`
   henüz yok — `yama-araclari.md` F).
 
-Açık kalan: Ctrl+Q ve tepsinin QML yolu `Qt.quit()` çağırıyor ama `QQmlEngine::quit` hiçbir yere bağlı değil
-(breadcrumb "no receivers"; tepsi C++ bağlantısıyla çıkıyor, Ctrl+Q hiçbir şey yapmıyor). Kaldırmanın silme
-döngüsü hâlâ GUI'de (~1 sn / 5.453 dosya bu makinede). Bazı 0.2.4 donmaları yığınsız geldi (`guiStack` 0 döndü:
-çözücü 250 ms'de bitmedi ya da iş parçacığı durdurulamadı).
+Açık kalan: Bazı 0.2.4 donmaları yığınsız geldi (`guiStack` 0 döndü: çözücü 250 ms'de bitmedi ya da iş parçacığı
+durdurulamadı).
+
+Ardından (dal `fix/quit-and-uninstall`):
+- **Ctrl+Q:** `Qt.quit()` → `QQmlEngine::quit` hiçbir yere bağlı değildi ("no receivers"), Ctrl+Q hiçbir şey
+  yapmıyordu. `main.cpp` sinyali tepsinin yoluna, `QCoreApplication::quit`'e bağlıyor (kuyruklu); Main.qml'deki her
+  çıkış `quitApp()` ile önce `forceQuit` koyuyor (yoksa "tepsiye küçült" açıkken çıkış yalnız pencereyi gizliyor).
+  Derlenmiş uygulamada betikle Ctrl+Q ve tepsinin "Tamamen Kapat" komutu, tepsiye küçült açık / kapalı: dördü de
+  ~0,3 sn'de çıkış kodu 0, aboutToQuit çalıştı (öncesinde Ctrl+Q 15 sn'de çıkmadı).
+- **Kaldırmanın silme döngüsü iş parçacığı havuzunda:** `GameService::removePackageFiles` (`QFutureWatcher` +
+  `QtConcurrent::run`, `runUndoPrograms` gibi) — `finalizeUninstall` ve başarısız kurulumun geri alınması
+  (`performInstallRollback`, iki yol) sonucu GUI'de alıp eskisi gibi sürdürüyor (günlük ve kayıt
+  `uninstallPackage`'ta, hata bildirimi ve mesajlar sonuçta; değişmedi). Silme sürerken kurulum reddediliyor
+  (`m_removals`, kaldırma sürerken verilen mesaj), iki kaldırma `LocalPackageManager`'da sırayla (günlük ve durum
+  dosyası ortak). 5.453 dosyalık sahte Elden Ring kaydı, 3'er ölçüm: GUI'nin en uzun durması 938-986 ms → 22-23 ms
+  (toplam süre aynı, 985-1.058 ms); kilitli dosyada "Yama tamamen kaldırılamadı", kayıtta o dosya kalıyor.
+- **Çıkışta işçilerin sonucu kaybolmuyor:** aboutToQuit işçileri bekledikten sonra `GameService::settleOnQuit`
+  çalışıyor. Bekleyişte biten bir kaldırmanın sonucu işleniyor (yedeklerin silinmesi, kayıt, bildirim); kurulum
+  işçilerinin `LocalPackageManager`'a kuyrukladığı kayıt ve günlük kapanışı (`saveInstallState`, `failInstall`)
+  teslim ediliyor. Önceden bekleyişte biten kurulum kaydedilmiyor, sonraki açılışta geri alınıyordu; başarısız
+  kurulumun yazdıkları kayıtsız kalıyordu. Çıkışta yeni iş başlamıyor (`m_quitting`: başarısız kurulumun geri
+  alınması "Kaldır"a kalıyor). `BackupManager`'ın kuyruğu bilerek teslim edilmiyor: teslim kurulumu başlatırdı;
+  günlüğü açık kaldığı için sonraki açılış yarım yedeği siliyor. Betikle: kaldırmayı başlatıp hemen çıkış — sonuç
+  artık işleniyor (öncesinde hiç); bekleyişte havuzdan `LocalPackageManager`'a kuyruklanan çağrı teslim edildi.
+- **`removeAttemptFiles`** (yedeksiz, eski kaydın üstüne başarısız güncellemenin kendi dosyaları): `TreeContainment`
+  ve havuzda (`runRemoval`). 5.000 dosyalık deneme + 453 dosyalık eski kayıt, 2'şer ölçüm: GUI 5,6-5,7 sn donuyordu
+  (bekçi eşiğinin üstü) → 17-32 ms, toplam 0,88-0,93 sn; eski 453 dosya ve kayıt kalıyor.
+- Bilerek bırakıldı: başka bir oyunun geri yüklemesi ~1 sn'lik silmeyle aynı anda başlayabilir (günlük tek işlem
+  tutar) — önceden de bir kaldırmanın silmesi başka oyunun geri yüklemesiyle çakışabiliyordu.
 
 ## Sınıflandırma — gürültüyü ayırmak
 

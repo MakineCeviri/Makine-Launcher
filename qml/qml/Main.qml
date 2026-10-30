@@ -216,6 +216,13 @@ ApplicationWindow {
         window.hide()
     }
 
+    // Every quit from the UI (tray, Ctrl+Q). A quit closes every window
+    // first, and with minimize-to-tray on a plain Qt.quit() only hid this one.
+    function quitApp() {
+        window.forceQuit = true
+        Qt.quit()
+    }
+
     // ===== CONTROLLERS =====
     GameDataResolver { id: gameDataResolver }
     GameDetailViewModel { id: detailVM }
@@ -235,8 +242,7 @@ ApplicationWindow {
             window.show(); window.raise(); window.requestActivate()
         }
         function onQuitRequested() {
-            window.forceQuit = true
-            Qt.quit()
+            window.quitApp()
         }
         function onSettingsRequested() {
             window.show(); window.raise(); window.requestActivate()
@@ -299,7 +305,7 @@ ApplicationWindow {
     // ===== KEYBOARD SHORTCUTS =====
     Shortcut {
         sequence: "Ctrl+Q"
-        onActivated: Qt.quit()
+        onActivated: window.quitApp()
     }
     // Back and forward walk the history (a game's page goes back where it
     // was opened from, not always home)

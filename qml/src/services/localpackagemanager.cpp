@@ -4202,6 +4202,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
 {
     MAKINE_ZONE_NAMED("LPM::uninstallPackage");
     INTEGRITY_GATE();
+    QMutexLocker oneAtATime(&m_uninstallMutex);
     CrashReporter::addBreadcrumb("package",
         QStringLiteral("uninstallPackage: %1").arg(steamAppId).toUtf8().constData());
 
@@ -4450,6 +4451,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
 bool LocalPackageManager::removeAttemptFiles(const QString& steamAppId, const QString& gamePath,
                                              const QStringList& earlierRecord)
 {
+    QMutexLocker oneAtATime(&m_uninstallMutex);
     auto maybeState = m_catalog.getInstalledState(steamAppId.toStdString());
     if (!maybeState) return true;
     packages::InstalledPackageState state = *maybeState;
@@ -4459,9 +4461,10 @@ bool LocalPackageManager::removeAttemptFiles(const QString& steamAppId, const QS
     const QStringList own = steprules::notOnRecord(added, earlierRecord);
 
     std::set<std::string> gone;
+    security::TreeContainment inGame(gamePath);
     for (const QString& rel : own) {
         const QString fullPath = QDir::cleanPath(gamePath + "/" + rel);
-        if (!security::isPathContained(gamePath, fullPath)) continue;
+        if (!inGame.contains(fullPath)) continue;
         if (rawfile::exists(fullPath) && !QFile::remove(fullPath)) {
             qCWarning(lcPackageManager) << "Failed to remove:" << fullPath;
             continue;
