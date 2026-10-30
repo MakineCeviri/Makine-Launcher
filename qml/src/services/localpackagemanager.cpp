@@ -4246,6 +4246,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     // Delete installed files (with path traversal protection)
     int deleted = 0;
     std::vector<std::string> remaining;  // records that could not be undone
+    security::TreeContainment inGame(basePath);
 
     // Newest first, undoing the install in reverse. In record order a file
     // copied and then renamed ("x", "_rename:x:y") was renamed back to x after
@@ -4378,7 +4379,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
 
         QString fullPath = QDir::cleanPath(basePath + "/" + relPath);
         // Prevent path traversal: ensure resolved path stays within game directory
-        if (!security::isPathContained(basePath, fullPath)) {
+        if (!inGame.contains(fullPath)) {
             qCWarning(lcPackageManager) << "Path traversal blocked:" << relPath;
             continue;
         }
