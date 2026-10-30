@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QProcess>
 
 namespace makine::testing {
 
@@ -162,3 +163,39 @@ TEST(PathSecurityReal, EmptyArgumentsAreNotContained) {
     EXPECT_FALSE(makine::security::isPathContained("", "C:/Games/x"));
     EXPECT_FALSE(makine::security::isPathContained("C:/Games", ""));
 }
+
+// The uninstall's check, one folder resolved for all its files: same answers as
+// isPathContained file by file, a linked folder on the way included.
+TEST(PathSecurityReal, TreeContainmentAnswersLikeIsPathContained) {
+    RealDir base;
+    makine::security::TreeContainment tree(base.get());
+    EXPECT_TRUE(tree.contains(base.get() + QStringLiteral("/DataPC_13_dlc/21596.aco")));
+    EXPECT_TRUE(tree.contains(base.get() + QStringLiteral("/DataPC_13_dlc/21597.aco")));
+    EXPECT_TRUE(tree.contains(base.get() + QStringLiteral("/top.txt")));
+    EXPECT_TRUE(tree.contains(base.get().toUpper() + QStringLiteral("/DataPC_13_dlc/x.aco")));
+    EXPECT_FALSE(tree.contains(QDir::cleanPath(base.get() + QStringLiteral("/DataPC_13_dlc/../../escaped.txt"))));
+    EXPECT_FALSE(tree.contains(base.get() + QStringLiteral("Extra/f.txt")));
+    EXPECT_FALSE(tree.contains(base.get()));   // the tree itself is not one of its files
+    EXPECT_FALSE(makine::security::TreeContainment(QString()).contains(base.get() + QStringLiteral("/a")));
+}
+
+#ifdef Q_OS_WIN
+TEST(PathSecurityReal, TreeContainmentAgreesThroughAJunction) {
+    RealDir base;
+    const QString outside = base.get() + QStringLiteral("_outside");
+    QDir().mkpath(outside);
+    const QString link = base.get() + QStringLiteral("/linked");
+    QProcess::execute(QStringLiteral("cmd.exe"),
+        {QStringLiteral("/c"), QStringLiteral("mklink"), QStringLiteral("/J"),
+         QDir::toNativeSeparators(link), QDir::toNativeSeparators(outside)});
+    if (!QFileInfo(link).isDir()) {
+        QDir(outside).removeRecursively();
+        GTEST_SKIP() << "could not create a junction here";
+    }
+    makine::security::TreeContainment tree(base.get());
+    const QString through = link + QStringLiteral("/victim.txt");
+    EXPECT_EQ(tree.contains(through), makine::security::isPathContained(base.get(), through));
+    QDir().rmdir(link);   // the junction only, not what it points to
+    QDir(outside).removeRecursively();
+}
+#endif

@@ -10,6 +10,9 @@
 #include <QTemporaryDir>
 #include <QThread>
 
+#include <string>
+#include <vector>
+
 using namespace makine::changescan;
 
 namespace {
@@ -81,4 +84,18 @@ TEST(ChangeScan, StopsAtTheLimit)
     const Snapshot s = take(game.path(), {}, 3);
     EXPECT_FALSE(s.complete);
     EXPECT_EQ(s.files.size(), 3);
+}
+
+TEST(ChangeScan, WhatARecordLeavesToTheUndoProgram)
+{
+    using Files = std::vector<std::string>;
+    // Installed by the program, tracked: its changes are on record.
+    EXPECT_TRUE(recordLeftToProgram({".makine", "_program:update_4.rpf", "_program:RDR2.exe"}, ".makine"));
+    // Tracked, the program changed nothing that is still on record: nothing to undo.
+    EXPECT_FALSE(recordLeftToProgram({".makine"}, ".makine"));
+    // Before tracking (0.1.x ran programs and recorded nothing): cannot say, run it.
+    EXPECT_TRUE(recordLeftToProgram(Files{}, ".makine"));
+    EXPECT_TRUE(recordLeftToProgram({"_steamlang:1174180:english"}, ".makine"));
+    // RDR2 as 0.1.5 installed it, the copied hook: the launcher undoes that, not KALDIR.bat.
+    EXPECT_FALSE(recordLeftToProgram({"dinput8.dll", "TurkishPatch/strings.gxt2"}, ".makine"));
 }

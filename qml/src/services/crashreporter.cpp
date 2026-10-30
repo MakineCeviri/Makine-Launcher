@@ -605,6 +605,13 @@ void CrashReporter::startHangWatchdog()
 #endif
 }
 
+void CrashReporter::stopHangWatchdog()
+{
+#ifdef MAKINE_HAS_SENTRY
+    ::stopHangWatchdog();
+#endif
+}
+
 void CrashReporter::addBreadcrumb(const char* category, const char* message,
                                    const char* level)
 {

@@ -478,8 +478,7 @@ QStringList LocalPackageManager::inPlaceTargetsFor(const QString& steamAppId, co
     if (!pkg) return {};
     QStringList out;
     for (const InstallStep& st : chosenSteps(*pkg, variant, selectedOptions)) {
-        if (!steprules::isInPlaceAction(st.action)) continue;
-        const QString f = recipeRelativePath(st.action == QLatin1String("patchBytes") && st.dest.isEmpty() ? st.src : st.dest);
+        const QString f = recipeRelativePath(steprules::inPlaceSource(st.action, st.src, st.dest));
         if (!f.isEmpty() && !out.contains(f, Qt::CaseInsensitive)) out.append(f);
     }
     return out.mid(0, 40);
@@ -4143,13 +4142,7 @@ bool LocalPackageManager::needsUndoPrograms(const QString& steamAppId) const
     const bool named = std::any_of(pkg->installSteps.cbegin(), pkg->installSteps.cend(),
         [](const InstallStep& st) { return st.action == QLatin1String("run") && !st.uninstall.isEmpty(); });
     if (!named) return false;
-    bool changes = false, tracked = false;
-    for (const auto& f : state->installedFiles) {
-        if (f.starts_with(changescan::kMarker)) changes = true;
-        if (f == runstage::kNoteFile) tracked = true;
-    }
-    // A record written before changes were tracked cannot say; run it then.
-    return changes || !tracked;
+    return changescan::recordLeftToProgram(state->installedFiles, runstage::kNoteFile);
 }
 
 LocalPackageManager::UndoResult LocalPackageManager::runUndoPrograms(const QString& steamAppId,
@@ -4246,6 +4239,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
     // Delete installed files (with path traversal protection)
     int deleted = 0;
     std::vector<std::string> remaining;  // records that could not be undone
+    security::TreeContainment inGame(basePath);
 
     // Newest first, undoing the install in reverse. In record order a file
     // copied and then renamed ("x", "_rename:x:y") was renamed back to x after
@@ -4378,7 +4372,7 @@ bool LocalPackageManager::uninstallPackage(const QString& steamAppId, const QStr
 
         QString fullPath = QDir::cleanPath(basePath + "/" + relPath);
         // Prevent path traversal: ensure resolved path stays within game directory
-        if (!security::isPathContained(basePath, fullPath)) {
+        if (!inGame.contains(fullPath)) {
             qCWarning(lcPackageManager) << "Path traversal blocked:" << relPath;
             continue;
         }

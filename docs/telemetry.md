@@ -102,7 +102,7 @@ kapsanır, güncelliğini yitiremez.
 | `install` | `CoreBridge::packageInstallCompleted(false)`, `packageInstallError` | Kurulum, **handler eksikliği (fail-loud)** dahil |
 | `uninstall` | `GameService` — 3 ret yolu + `finalizeUninstall` | Kaldırma reddi ve başarısızlığı |
 | `restore` | `BackupManager::backupRestoreFailed` | Geri yükleme |
-| `backup` | `BackupManager::backupError`, `selectiveBackupCompleted(false)` | Yedekleme |
+| `backup` | `BackupManager::backupError` (seçmeli yedeğin her başarısızlığı nedenini buradan söyler; `selectiveBackupCompleted(false)` 2026-10-30'dan beri ayrıca bildirilmez) | Yedekleme |
 | `sync` | `ManifestSyncService::syncError` | Katalog senkronu |
 | `scan` | `CoreBridge::scanError` + tarama özeti | Kütüphane taraması; katalog boş veya hiç oyun bulunamadı |
 | `integrity` | `GameService::checkPatchIntegrity` | **Kurulu yamanın dosyaları kaybolmuş** — mağaza doğrulaması, oyun güncellemesi veya antivirüs karantinası |
@@ -133,6 +133,36 @@ Veri tarafı (launcher değil, paketler): AC Odyssey'nin `xdelta` yamaları baz�
 (`vpatch_nomatch`), AC Shadows'un aracı bazı `.forge` dosyalarını "FARKLI SURUM" buluyor — yamaların oyunun
 güncel sürümüne göre yenilenmesi gerekiyor. 0.1.5'in (eski Store) en büyük issue'su RDR2 `integrity` (79 kullanıcı)
 0.2.3'te 3 kullanıcıya indi.
+
+## Gözden geçirme — 2026-10-30 (0.2.4 GitHub'da, Store 0.2.3)
+
+`just triage` (14 gün, production): 100 açık issue; `system` %89. 0.2.4'ün GUI yığınlı donmaları (`hang.stack:yes`,
+26 olay) ilk kez nerede takıldığını söyledi. Dal `fix/sentry-2026-10-30`:
+
+| Issue (kullanıcı) | Kök neden | Ne yapıldı |
+|---|---|---|
+| Donma `after download: packageReady` (59) | 57'si 0.2.3: paketin dosya listesi GUI'de (0.2.4'te düzeldi, `ece5fa1`). 0.2.4'ün 2'si AC Valhalla, yığınsız; breadcrumb'da çıkış (`QQmlEngine::quit`) | Aşağıdaki çıkış beklemesi (`5e7c7ea`) — yığın olmadığı için çıkarım |
+| Donma `after navigation: game 1174180` (16), `game-install 2208920` (10), `game 2208920` (7) | Yığınlı olayların en büyük grubu (8): GUI `QThreadPool::waitForDone`'da (`main.cpp` aboutToQuit). Yedek / kurulum / RDR2 programı sürerken çıkış: işçiler 30 sn'ye kadar bekleniyor, pencere ekranda donuk, bekçinin kendi aboutToQuit'i bu bekleyişten sonra çalışıyor (`closingDown()` henüz false) | Pencereler önce gizleniyor, bekçi `CrashReporter::stopHangWatchdog` ile duruyor (`5e7c7ea`) |
+| Donma `after package: uninstallPackage` (6) | `uninstallPackage` GUI'de, her dosyada `isPathContained` iki yolu diske soruyordu (`resolveThroughExisting`, `DeleteFileW` yığınları; başarısız Elden Ring kurulumunun geri alınması) | `security::TreeContainment`: klasör başına bir kez. 5.453 dosyada 4,9-5,1 sn → 0,84-1,0 sn (`9fd6fd7`). Kalan süre silmenin kendisi |
+| Donma `after manifest: ManifestSync` (6) ve yığınlı diğerleri | Yığınlar: GUI render iş parçacığını bekliyor (`WindowControls` → Qt6Quick `WaitForSingleObject`; açılışta `Phase 10`), tepsi menüsü (`TrackPopupMenu` yazı tipi ölçümü), sürükle-bırak COM çağrısı, klasör penceresi (`SHCreateItemFromParsingName`) ya da örnek alındığında boşta (`PeekMessage`) | Kod değişmedi: sürücü / Windows kabuğu. Render beklemesi büyürse ayrı bakılmalı |
+| Elden Ring `Adım 3: patchBytes … bulunamadı` (44) | Ön kontrol patchBytes için **yazdığı** dosyayı (`Game/start_protected_game.exe`) soruyordu; SteamRIP / DODI / P2P repack'lerde o dosya yok, elle seçilen `…/Game` hiç yukarı taşınmadı, yama `Game/Game/eldenring.exe`'yi aradı (%85 `manual`) | `steprules::inPlaceSource`: patchBytes için okuduğu `src` (`e89af2c`). Doğru kökte `Game/eldenring.exe` okunamayanlar (SteamRIP, bir Steam kopyası) ortam: exe yok ya da antivirüs |
+| `integrity [1245620]: 5453/5453` (36) | 90 olayın 90'ı `0.1.5.0-beta` (eski Store). 0.2.x'te aynı kayıt için olay yok (0.2.x başlığı `(e.g. …)` taşır); 0.2.4'teki Elden Ring bütünlük issue'su 1/12 (`start_protected_game.exe` — mağaza doğrulaması) | Kod değişmedi; 0.1.5 kullanıcıları Store'dan güncellendikçe sönüyor |
+| RDR2 kaldırma `changed nothing (first press)` (24), `KALDIR.bat: durduruldu` (6) | Tarif kopyalanan hook yamasından (overlay, `dinput8.dll` …) KUR.bat / KALDIR.bat'a geçti; eski kaydı (işaretsiz, notsuz) "takipten önceki program kurulumu" sanıp güncellemede yeni KALDIR.bat çalıştırılıyordu | Launcher'ın kopyaladığı dosyaları listeleyen takipsiz kayıt programa verilmiyor, geri yükleme + silme kaldırıyor (`changescan::recordLeftToProgram`, `bf51e6e`) |
+| `sync failed: Katalog indirilemedi: Operation timed out` (14) | 12'si 0.1.5; 0.2.4'teki 4'ü ilk açılışta (önbellek yok), `user` tarafı, 15 sn'den 5 dk'ya geri çekilerek yeniden deneniyor. 123 KB'lık index bizden 0,25 sn'de iniyor | Kod değişmedi: oyuncunun ağı. Kendi kesintimizi uptime izleyicisi yakalar |
+| `backup failed [2208920]: selective backup failed; install aborted` (6) | AC Valhalla'nın forge yedeği 25-27 GB istiyor; dolu disk `backupError` (user) ile bildirilip `selectiveBackupCompleted(false)` ile bir kez de `system` olarak gidiyordu | İkinci bildirim kaldırıldı, kurulum hatası gerekli / mevcut alanı söylüyor (`007f514`) |
+
+Veri tarafı (panel / paket):
+- **RDR2 (1174180) tarifi:** `run` adımına `"args": ["--oyun", "${gamePath}"]` ve `"uninstallArgs": ["--oyun", "${gamePath}"]`
+  (seviye 3, `install_methods_compat` gerekmez). Argümansız KUR.bat / KALDIR.bat `LAUNCHER`'ı tanımlamıyor: sonda
+  `pause` sayfanın açık stdin'inde oyuncu Enter'a basana kadar bekliyor (`tool_timeout` 2 saat, "durduruldu"
+  74 sn-3 dk sonra) ve RDR2Loc oyunu kendi arıyor (`RDR2_DIR` boş) — başka bir RDR2 kopyasına gidebilir.
+- **AC Valhalla (2208920):** kurulum notuna yedek için ~26 GB boş alan gerektiği yazılmalı (tarifte `requiredFreeSpace`
+  henüz yok — `yama-araclari.md` F).
+
+Açık kalan: Ctrl+Q ve tepsinin QML yolu `Qt.quit()` çağırıyor ama `QQmlEngine::quit` hiçbir yere bağlı değil
+(breadcrumb "no receivers"; tepsi C++ bağlantısıyla çıkıyor, Ctrl+Q hiçbir şey yapmıyor). Kaldırmanın silme
+döngüsü hâlâ GUI'de (~1 sn / 5.453 dosya bu makinede). Bazı 0.2.4 donmaları yığınsız geldi (`guiStack` 0 döndü:
+çözücü 250 ms'de bitmedi ya da iş parçacığı durdurulamadı).
 
 ## Sınıflandırma — gürültüyü ayırmak
 

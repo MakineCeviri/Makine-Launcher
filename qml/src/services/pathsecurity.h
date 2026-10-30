@@ -12,6 +12,7 @@
 #include <QString>
 #include <QDir>
 #include <QFileInfo>
+#include <QHash>
 #include <QLoggingCategory>
 
 static inline const QLoggingCategory &lcPathSecurity() {
@@ -88,6 +89,32 @@ inline bool isPathContained(const QString& basePath, const QString& fullPath) {
     return canonFull.startsWith(canonBase, kCase) ||
            canonFull.compare(canonBase.chopped(1), kCase) == 0;
 }
+
+// isPathContained for the many files of one tree, each folder resolved once.
+// Resolving opens the path on disk (~0.7 ms); per file it was 3.9 of the 4.8 s
+// an Elden Ring uninstall (5,453 files) spent on the UI thread (Sentry
+// 2026-10-29). What leads out of a tree is a folder on the way — a linked one,
+// a "..": deleting a file that is itself a link deletes the link.
+class TreeContainment {
+public:
+    explicit TreeContainment(const QString& basePath) : m_base(basePath) {}
+
+    bool contains(const QString& fullPath)
+    {
+        const QString cleaned = QDir::cleanPath(fullPath);
+        const qsizetype slash = cleaned.lastIndexOf(QLatin1Char('/'));
+        if (slash <= 0 || m_base.isEmpty()) return false;
+        const QString folder = cleaned.left(slash);
+        auto it = m_folders.constFind(folder);
+        if (it == m_folders.cend())
+            it = m_folders.insert(folder, isPathContained(m_base, folder));
+        return *it;
+    }
+
+private:
+    QString m_base;
+    QHash<QString, bool> m_folders;
+};
 
 // Safely join base + relative path, return empty if escape detected
 inline QString safePathJoin(const QString& basePath, const QString& relativePath) {

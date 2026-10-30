@@ -1890,9 +1890,11 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
 
     // A patch its own program installed is the same: run again over itself, a
     // tool that backs up "originals" would back up the patched files. Its
-    // undo program takes the old version out first.
+    // undo program takes the old version out first — or, when the old version
+    // was copied files (an older recipe), the restore does.
     if (mode == InstallMode::Update
-        && (m_coreBridge->recipeWritesInPlace(gameId) || m_coreBridge->needsUndoPrograms(gameId))) {
+        && (m_coreBridge->recipeWritesInPlace(gameId) || m_coreBridge->needsUndoPrograms(gameId)
+            || m_coreBridge->ownProgramRecipe(gameId) == LocalPackageManager::OwnProgram::WithUndo)) {
         // In-place steps (patchBytes, forgeReimport, xdelta, vpatch) edit files
         // the installed version already edited: a patch finds nothing left to
         // replace, and the original is only in the first install's backup, which

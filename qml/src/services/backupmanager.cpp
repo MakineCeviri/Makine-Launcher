@@ -56,12 +56,11 @@ BackupManager::BackupManager(QObject *parent)
             [](const QString& gameId, const QString& reason) {
                 CrashReporter::reportFailure("restore", gameId, reason);
             });
-    connect(this, &BackupManager::selectiveBackupCompleted, this,
-            [](const QString& gameId, bool success) {
-                if (!success)
-                    CrashReporter::reportFailure("backup", gameId,
-                        QStringLiteral("selective backup failed; install aborted"));
-            });
+    // A failed selective backup is not reported again on its own: each way
+    // it fails says why through backupError first (disk space, files left
+    // uncopied), or is the user's cancel. "selective backup failed; install
+    // aborted" filed a full disk a second time, as ours (Sentry 2026-10-29:
+    // AC Valhalla's 25 GB of archives, 6 players).
 }
 
 BackupManager::~BackupManager()
@@ -180,11 +179,14 @@ void BackupManager::createSelectiveBackupAsync(const QString& gameId, const QStr
         qCWarning(lcBackup) << "Pre-backup disk check failed for" << gameId
                             << "— need" << requiredBytes
                             << "have" << availableBytes;
-        emit backupError(tr("Yedekleme için yeterli disk alanı yok "
-                            "(gerekli: %1, mevcut: %2). "
-                            "Boş alan açıp tekrar deneyin.")
-                         .arg(BackupInfo::formatSize(requiredBytes),
-                              BackupInfo::formatSize(availableBytes)));
+        // The install's message too (GameService reads lastError): it said
+        // "check disk space or write access" without the numbers.
+        m_lastError = tr("Yedekleme için yeterli disk alanı yok "
+                         "(gerekli: %1, mevcut: %2). "
+                         "Boş alan açıp tekrar deneyin.")
+                          .arg(BackupInfo::formatSize(requiredBytes),
+                               BackupInfo::formatSize(availableBytes));
+        emit backupError(m_lastError);
         emit selectiveBackupCompleted(gameId, false);
         return;
     }
