@@ -136,9 +136,9 @@ Item {
             title: qsTr("Tüm Oyunlar")
             subtitle: allGames._query !== "" || allGames.filter !== ""
                       ? qsTr("%1 oyun gösteriliyor · toplam %2 Türkçe yama")
-                            .arg(proxy.sourceCount).arg(allGames._counts[""])
+                            .arg(proxy.sourceCount).arg(allGames._counts[""] - allGames._counts["soon"])
                       : qsTr("%1 oyun için Türkçe yama · %2 tanesi bilgisayarında")
-                            .arg(allGames._counts[""]).arg(allGames._counts["mine"])
+                            .arg(allGames._counts[""] - allGames._counts["soon"]).arg(allGames._counts["mine"])
 
             SegmentedControl {
                 model: allGames._filters

@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "0.2.5-beta",
+      "date": "2026-10-30",
+      "title": "Daha sağlam kurulum",
+      "summary": "Exe'si alt klasörde duran oyunlar artık kuruluyor, yaması hazırlanan oyunlar \"Yakında\" olarak görünüyor; kaldırma ve kapanış donmuyor.",
+      "changes": [
+        { "type": "new", "text": "Yakında: yaması hazırlanan oyunlar Kütüphanem'de ve Tüm oyunlar'da \"Yakında\" olarak görünür; hazır olduğunda buradan kurabilirsin. Başka sitelere yönlendiren düğmeler kalktı." },
+        { "type": "improved", "text": "Oyunu alt klasörde başlayan oyunlar (Phantom Blade Zero gibi) bulunur ve kurulur. Oyun klasörünü değiştirirken içindeki bir klasörü seçtiysen launcher oyunun klasörüne kendisi çıkar; Elden Ring'in Game klasörü repack sürümlerinde de." },
+        { "type": "improved", "text": "Binlerce dosyalı bir yamayı kaldırırken ya da yarım kalan bir güncellemeyi temizlerken launcher artık donmuyor." },
+        { "type": "fixed", "text": "Ctrl+Q launcher'ı kapatıyor; tepsiye küçültme açıkken de. Kapanırken bir yedek ya da yamanın programı sürüyorsa pencere donuk kalmıyor, o sırada biten kurulum da kaybolmuyor." },
+        { "type": "fixed", "text": "Red Dead Redemption 2'de eski yöntemle kurulmuş yamayı kaldırmak \"oyunda hiçbir şey değişmedi\" hatası veriyordu. Disk dolu olduğunda yedekleme hatası artık gereken ve boş alanı söylüyor." }
+      ]
+    },
+    {
       "version": "0.2.4-beta",
       "date": "2026-10-27",
       "title": "Makine ve Topluluk",

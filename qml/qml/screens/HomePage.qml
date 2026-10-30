@@ -37,15 +37,20 @@ Item {
     readonly property int _patched: _lib.filter(g => g.status === "installed" || g.status === "update").length
     readonly property int _ready: _lib.filter(g => g.status === "ready").length
     readonly property int _updates: _lib.filter(g => g.status === "update").length
+    // "Yakında" games are in the library but have no patch yet: not counted as patched games.
+    readonly property int _soon: _lib.filter(g => g.status === "soon").length
 
     readonly property string _summary: {
         if (GameService.isScanning && _lib.length === 0)
             return qsTr("Bilgisayarındaki oyunlara bakıyoruz…")
         if (_lib.length === 0)
             return qsTr("Kütüphanelerinde Türkçe yaması olan bir oyun bulamadık. Oyunun klasörünü ekle ya da pencereye sürükleyip bırak.")
-        let s = qsTr("Bilgisayarında Türkçe yaması olan %1 oyun var; %2 tanesinde yama kurulu.").arg(_lib.length).arg(_patched)
+        let s = _lib.length > _soon
+            ? qsTr("Bilgisayarında Türkçe yaması olan %1 oyun var; %2 tanesinde yama kurulu.").arg(_lib.length - _soon).arg(_patched)
+            : qsTr("Bilgisayarındaki oyunların Türkçe yaması henüz hazır değil.")
         if (_ready > 0) s += " " + qsTr("%1 oyunun yaması kurulmayı bekliyor.").arg(_ready)
         else if (_updates > 0) s += " " + qsTr("%1 yamanın güncellemesi var.").arg(_updates)
+        if (_soon > 0) s += " " + qsTr("%1 oyunun yaması yakında.").arg(_soon)
         return s
     }
 
@@ -185,7 +190,7 @@ Item {
                 Layout.fillWidth: true
                 visible: homePage._mine.length > 0
                 title: qsTr("Bilgisayarındaki oyunlar")
-                subtitle: qsTr("Türkçe yaması olan oyunların; adın önündeki işaret yamanın durumunu söyler (üstüne gelince yazar).")
+                subtitle: qsTr("Katalogdaki oyunların; adın önündeki işaret yamanın durumunu söyler (üstüne gelince yazar).")
                 seeAllText: qsTr("Kütüphanem")
                 model: homePage._mine
                 onGameClicked: (gameId, gameName, installPath, engine) =>

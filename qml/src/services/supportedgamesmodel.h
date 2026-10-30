@@ -40,6 +40,8 @@ class SupportedGamesModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
+    // Games with a patch to install — the catalogue minus the "Yakında" ones.
+    Q_PROPERTY(int patchCount READ patchCount NOTIFY countChanged)
 
 public:
     enum Role {
@@ -63,6 +65,7 @@ public:
 
     // QAbstractListModel interface
     int rowCount(const QModelIndex &parent = {}) const override;
+    int patchCount() const;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 

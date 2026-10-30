@@ -30,7 +30,7 @@ Item {
     function primaryAction() { step.next() }
 
     readonly property int _catalogCount: GameService.supportedGamesModel
-                                         ? GameService.supportedGamesModel.count : 0
+                                         ? GameService.supportedGamesModel.patchCount : 0
     readonly property bool _wide: step.width >= 900
 
     // Covers for the wall: the newest patches whose cover is already on disk

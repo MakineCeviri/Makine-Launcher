@@ -1,7 +1,7 @@
-Sürüm 0.2.4 — Makine, launcher'ın içinde Topluluk ve yenilenen sayfalar
+Sürüm 0.2.5 — Daha sağlam kurulum
 
-• Makine: ana sayfada kendi köşesinde, öbür sayfalarda kenar çubuğunun altında duran yoldaşın. Oyunlarını ararken bakınır, yama inerken ışık toplar, kurulunca sevinir, bir sorun olursa söyler. Ayarlar > Görünüm > Makine'den yerini ve boyutunu seçebilir ya da kapatabilirsin.
-• Topluluk: makineceviri.org'daki topluluk launcher'ın içinde. E-postana gelen 6 haneli kodla ya da Discord'la giriş yapıp yazabilir, yanıtlayabilir ve oylamalara katılabilirsin.
-• Yeni görünüm: Kütüphanem, Tüm Oyunlar (liste görünümüyle), Nasıl çalışır, Hakkında ve Yenilikler yenilendi; açılış ve hoş geldin ekranı launcher'ın görünümünde.
-• Elden Ring gibi büyük yamalarda kurulumdan önceki donma giderildi; oyunun içindeki bir klasör seçildiyse doğru klasör bulunur.
-• Yamanın kendi programı başarısız olursa launcher nedenini de söyler.
+• Yaması hazırlanan oyunlar Kütüphanem'de ve Tüm Oyunlar'da "Yakında" olarak görünür; başka sitelere yönlendiren düğmeler kalktı.
+• Exe'si alt klasörde duran oyunlar (Phantom Blade Zero gibi) bulunur ve kurulur; oyunun içindeki bir klasör seçildiyse launcher oyunun klasörüne kendisi çıkar.
+• Binlerce dosyalı bir yamayı kaldırmak ya da yarım kalan güncellemeyi temizlemek artık launcher'ı dondurmuyor.
+• Ctrl+Q launcher'ı kapatıyor; kapanırken süren bir yedek ya da program pencereyi dondurmuyor.
+• Red Dead Redemption 2'de eski yamanın kaldırılması ve dolu diskteki yedekleme hatası düzeltildi.

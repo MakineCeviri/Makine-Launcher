@@ -33,9 +33,10 @@ Item {
     // scan reports, "nothing found" would be a guess.
     property bool _scanDone: false
     readonly property bool _scanning: GameService.isScanning || !step._scanDone
-    // GameService.library: this PC's games with a patch and each one's state
-    // (ready, update, installed, external — a patch on another team's site).
+    // GameService.library: this PC's catalogue games and each one's state
+    // (ready, update, installed, soon — no patch of ours yet).
     readonly property var _games: step._sorted(GameService.library)
+    readonly property int _patchable: step._games.filter(g => g.status !== "soon").length
     readonly property int _catalogCount: GameService.supportedGamesModel
                                          ? GameService.supportedGamesModel.count : 0
     readonly property int _shown: Math.min(step._games.length, 5)
@@ -71,7 +72,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             textFormat: Text.PlainText
             text: step._scanning ? qsTr("Oyunların aranıyor…")
-                : step._games.length > 0 ? qsTr("Türkçe yaması olan %1 oyunun var").arg(step._games.length)
+                : step._patchable > 0 ? qsTr("Türkçe yaması olan %1 oyunun var").arg(step._patchable)
                 : qsTr("Henüz Türkçe yaması olan bir oyun bulamadık")
             wrapMode: Text.WordWrap
             font.family: Dimensions.fontDisplay

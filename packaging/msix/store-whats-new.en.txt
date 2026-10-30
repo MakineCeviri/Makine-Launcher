@@ -1,7 +1,7 @@
-Version 0.2.4 — Makine, the community inside the launcher, and refreshed pages
+Version 0.2.5 — Sturdier installs
 
-• Makine: your companion, in his own corner on the home page and at the foot of the sidebar elsewhere. He looks around while your games are found, gathers light while a patch downloads, cheers when it is installed and tells you when something goes wrong. Choose his place and size, or turn him off, in Settings > Appearance > Makine.
-• Community: the makineceviri.org community wall inside the launcher. Sign in with a 6-digit code sent to your e-mail, or with Discord, to post, reply and vote.
-• New look: My Library, All Games (with a list view), How it works, About and What's New were redesigned; the splash and welcome screens follow the launcher's look.
-• Installing large patches such as Elden Ring no longer freezes the launcher first; if a folder inside the game was picked, the right folder is found.
-• When a patch's own installer fails, the launcher now says why.
+• Games whose patch is still being prepared show as "Coming soon" in My Library and All Games; buttons that sent you to other sites are gone.
+• Games whose exe lives in a subfolder (such as Phantom Blade Zero) are found and installed; if a folder inside the game was picked, the launcher moves up to the game's folder itself.
+• Removing a patch with thousands of files, or cleaning up a failed update, no longer freezes the launcher.
+• Ctrl+Q closes the launcher; a backup or patch program still running at exit no longer freezes the window.
+• Fixed removing an old-style Red Dead Redemption 2 patch, and the backup error on a full disk.

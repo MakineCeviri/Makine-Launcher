@@ -26,6 +26,12 @@ int SupportedGamesModel::rowCount(const QModelIndex &parent) const
     return parent.isValid() ? 0 : m_entries.size();
 }
 
+int SupportedGamesModel::patchCount() const
+{
+    return static_cast<int>(std::count_if(m_entries.cbegin(), m_entries.cend(),
+                                          [](const CatalogEntry &e) { return !e.comingSoon; }));
+}
+
 QVariant SupportedGamesModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid() || index.row() < 0 || index.row() >= m_entries.size())

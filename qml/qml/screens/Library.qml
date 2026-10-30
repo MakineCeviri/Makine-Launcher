@@ -39,6 +39,7 @@ Item {
     readonly property int _ready: _lib.filter(g => g.status === "ready").length
     readonly property int _updates: _lib.filter(g => g.status === "update").length
     readonly property int _patched: _lib.filter(g => g.status === "installed" || g.status === "update").length
+    readonly property int _soon: _lib.filter(g => g.status === "soon").length
     readonly property var _rows: libraryRoot.filter === "all" ? _lib
         : libraryRoot.filter === "installed"
           ? _lib.filter(g => g.status === "installed" || g.status === "update")
@@ -98,8 +99,11 @@ Item {
                           ? qsTr("Oyunların taranıyor…")
                           : libraryRoot._lib.length === 0
                             ? qsTr("Bilgisayarında Türkçe yaması olan bir oyun bulamadık.")
-                            : qsTr("Bilgisayarında Türkçe yaması olan %1 oyun var; %2 tanesinde yama kurulu.")
-                                  .arg(libraryRoot._lib.length).arg(libraryRoot._patched)
+                            : (libraryRoot._lib.length > libraryRoot._soon
+                               ? qsTr("Bilgisayarında Türkçe yaması olan %1 oyun var; %2 tanesinde yama kurulu.")
+                                     .arg(libraryRoot._lib.length - libraryRoot._soon).arg(libraryRoot._patched)
+                               : qsTr("Bilgisayarındaki oyunların Türkçe yaması henüz hazır değil."))
+                              + (libraryRoot._soon > 0 ? " " + qsTr("%1 oyunun yaması yakında.").arg(libraryRoot._soon) : "")
 
                 AppButton {
                     style: "gray"
