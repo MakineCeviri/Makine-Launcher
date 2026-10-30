@@ -1,25 +1,26 @@
-Makine Launcher 0.2.4.0 (0.2.4-beta) - Notes for Certification
+Makine Launcher 0.2.5.0 (0.2.5-beta) - Notes for Certification
 --------------------------------------------------------------
 
 WHAT IT IS
 A Win32 desktop utility that installs community-made Turkish translation patches into PC games the user already owns (Steam, Epic Games, GOG, Ubisoft Connect). Not a game. No account, login or purchase is needed. The UI is in Turkish only.
 
-WHAT CHANGED SINCE 0.2.3.0
-- "Makine": an optional animated companion (a small robot) that reacts to what the launcher does (looks around while games are found, glows while a patch downloads, cheers when it is installed, says when something failed). He stands in a corner of the home page and at the foot of the sidebar elsewhere, drawn in a small transparent window owned by the launcher window: no taskbar button, never takes focus, click-through except his head and hands, hidden while the launcher is minimized. Only if the user picks it in Settings > Görünüm (Appearance) > Makine does he move onto the desktop or above the taskbar clock; the same page turns him off.
-- "Topluluk" (Community): the makineceviri.org community wall, readable without an account. Posting, replying and voting need a sign-in with a 6-digit code sent to the user's e-mail, or Discord in the browser. The session token is stored encrypted with Windows DPAPI.
-- Redesigned pages, a splash screen and the welcome flow in the launcher's own look.
-- Large patches (5,000+ files) no longer freeze the window before installing.
+WHAT CHANGED SINCE 0.2.4.0
+- Catalogue games whose patch is still being prepared are listed as "Yakında" (coming soon): a disabled state, nothing is downloaded or opened. Buttons that sent the user to other websites were removed.
+- Games whose executable lives in a subfolder of the install folder are recognised and patched; if the user picks a folder inside the game, the launcher moves up to the game's own folder.
+- Removing a large patch and cleaning up a failed update run in the background; the window no longer freezes.
+- Ctrl+Q quits the app (also with "keep running in the tray" on); quitting while a backup or a patch's installer is running no longer leaves the window frozen.
+- Fixes: removing an older-style Red Dead Redemption 2 patch, and a clearer error when the disk is too full for the backup.
 
 FIRST RUN (about 1 minute)
 1. Launch "Makine Launcher" from Start. A 3-step welcome opens: "Başlayalım" (Let's start) -> "Devam" (Continue; game libraries are scanned in the background) -> preferences -> "Makine Launcher'ı aç" (Open Makine Launcher). "Atla, ayarları sonra yaparım" skips it.
 2. "Ana Sayfa" (Home) shows featured patches and shelves of covers. On a PC without supported games "Kütüphanem" (My library) is empty. This is expected.
 
 QUICK TEST (no game needed)
-1. "Tüm Oyunlar" (All games): the whole catalogue (about 240 games).
+1. "Tüm Oyunlar" (All games): the whole catalogue (about 240 games; those without a patch yet show "Yakında").
 2. Click a cover: description (Steam store API), what the install will do, patch notes, credits. If the game is not installed the button reads "Oyun Klasörünü Seç ve Kur" (Pick the game folder and install); nothing is written unless a matching game folder is chosen.
 3. "Yenilikler" (What's new) shows this version's notes and "Güncelsin" (You are up to date).
 4. "Topluluk" (Community) shows the wall; signing in is optional.
-5. "Ayarlar" (Settings) > "Hakkında" (About) shows version 0.2.4.0-beta and links the privacy policy. Settings > Görünüm > Makine: "Nerede dursun" (Where he stays) moves the companion, "Makine'yi göster" (Show Makine) turns him off.
+5. "Ayarlar" (Settings) > "Hakkında" (About) shows version 0.2.5.0-beta and links the privacy policy. Settings > Görünüm > Makine: "Nerede dursun" (Where he stays) moves the companion, "Makine'yi göster" (Show Makine) turns him off.
 
 OPTIONAL FULL TEST (needs a catalogue game installed through Steam, Epic, GOG or Ubisoft Connect)
 1. The launcher finds the game on its own, or the user adds it with "Oyun ekle" (Add game) or by dropping the game folder on the window.
@@ -40,12 +41,14 @@ DATA AND PRIVACY
 Anonymous operation results (e.g. install succeeded or failed, app version) and crash/error reports (stack trace, app and Windows version, the failing step); user names are removed from file paths. No personal files are collected. Only a community sign-in sends an e-mail address (to makineceviri.org, for the code); the chosen display name and posts then show on makineceviri.org. Crash reports can be turned off in Settings > General. Privacy policy: https://makineceviri.org/gizlilik-politikasi/ (linked in Settings > About).
 
 OTHER BEHAVIOUR
+- "Makine", the optional animated companion (since 0.2.4), is drawn in a small transparent window owned by the launcher window: no taskbar button, never takes focus, click-through except his head and hands, hidden while the launcher is minimized. Settings > Görünüm (Appearance) > Makine moves him or turns him off.
+- "Topluluk" (Community) is readable without an account; posting needs a sign-in with a 6-digit e-mail code or Discord in the browser. The session token is stored encrypted with Windows DPAPI.
 - "Windows ile başlat" (Start with Windows) and "Kapatınca tepside çalışsın" (Keep running in the tray) are off by default.
 - Catalog entries without a package of ours show a disabled "Yakında" (coming soon) state; nothing is downloaded or opened.
 - Translations are made by the community and are not official; each game page says so.
 
 DISTRIBUTION
-Source code: https://github.com/MakineCeviri/Makine-Launcher (tag v0.2.4-beta). The companion "Makine" is a closed-source component of Makine Çeviri, included under an additional permission (AGPL-3.0 section 7, see the README).
+Source code: https://github.com/MakineCeviri/Makine-Launcher (tag v0.2.5-beta). The companion "Makine" is a closed-source component of Makine Çeviri, included under an additional permission (AGPL-3.0 section 7, see the README).
 
 CONTACT
 Developer: Sezer UZUN (Makine Çeviri) - sezeruzun@makineceviri.org - https://makineceviri.org
