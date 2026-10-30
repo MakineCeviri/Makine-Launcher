@@ -1824,7 +1824,7 @@ void GameService::installPackageCommon(const QString& gameId, const QString& var
     // and the removal of its files, still has the crash journal and may be
     // writing into this game.
     if (const BackupManager* bm = BackupManager::instance();
-        !m_uninstalling.isEmpty() || m_removals > 0 || (bm && bm->isRestoring())) {
+        !m_uninstalling.isEmpty() || !m_removals.isEmpty() || (bm && bm->isRestoring())) {
         emit translationInstallCompleted(gameId, false,
             tr("Bir yamanın kaldırılması ya da geri yüklemesi sürüyor. O bitince tekrar deneyin."));
         return;
@@ -2850,6 +2850,9 @@ void GameService::reportOperationFailure(const char* operation, const QString& g
 void GameService::performInstallRollback(const QString& gameId, const QString& originalError)
 {
     MAKINE_ZONE_NAMED("GameService::performInstallRollback");
+    // Quitting (settleOnQuit): nothing new starts. The failed install's record
+    // stays, and "Kaldır" takes it out.
+    if (m_quitting) return;
     auto idxIt = m_gameIdToIndex.constFind(gameId);
     QString gamePath;
     if (idxIt != m_gameIdToIndex.constEnd() && *idxIt >= 0 && *idxIt < m_games.count())
@@ -2862,14 +2865,17 @@ void GameService::performInstallRollback(const QString& gameId, const QString& o
         // what this attempt wrote. Only the attempt's own files go. Removing
         // the record took the working patch with it whenever the update of an
         // add-only patch (it has no backup) failed, timed out or was cancelled.
-        const bool clean =
-            m_coreBridge->removeAttemptFiles(gameId, gamePath, *m_installOverRecord);
-        markInstalledIfRecorded(gameId);
-        emit translationInstallCompleted(gameId, false, clean
-            ? tr("Kurulum tamamlanamadı; önceki yama kurulu kalıyor.\n%1").arg(originalError)
-            : tr("Kurulum tamamlanamadı; önceki yama kurulu kalıyor, ama bu denemenin "
-                 "eklediği bazı dosyalar silinemedi. Oyunu kapatıp tekrar deneyin.\n%1")
-                  .arg(originalError));
+        CoreBridge* cb = m_coreBridge;
+        runRemoval([cb, gameId, gamePath, earlier = *m_installOverRecord]() {
+            return cb->removeAttemptFiles(gameId, gamePath, earlier);
+        }, [this, gameId, originalError](bool clean) {
+            markInstalledIfRecorded(gameId);
+            emit translationInstallCompleted(gameId, false, clean
+                ? tr("Kurulum tamamlanamadı; önceki yama kurulu kalıyor.\n%1").arg(originalError)
+                : tr("Kurulum tamamlanamadı; önceki yama kurulu kalıyor, ama bu denemenin "
+                     "eklediği bazı dosyalar silinemedi. Oyunu kapatıp tekrar deneyin.\n%1")
+                      .arg(originalError));
+        });
         return;
     }
     if (!bm || !bm->hasBackup(gameId)) {
@@ -3097,27 +3103,50 @@ void GameService::finalizeUninstall(const QString& gameId, const QString& gamePa
     });
 }
 
-// The delete loop is a delete and an existence check per file: ~1 s for an
+// The delete loops are a delete and an existence check per file: ~1 s for an
 // Elden Ring record (5,453 files), longer on a slow disk, and on the UI
 // thread every second of it was a hang ("after package: uninstallPackage",
-// Sentry 2026-10-29). Installs wait for it (m_removals), as they waited for
-// the UI thread; uninstalls wait in LocalPackageManager.
+// Sentry 2026-10-29). Installs wait for them (m_removals), as they waited for
+// the UI thread; removals wait for each other in LocalPackageManager.
+void GameService::runRemoval(std::function<bool()> work, std::function<void(bool)> done)
+{
+    auto* watcher = new QFutureWatcher<bool>(this);
+    m_removals.insert(watcher, [watcher, done = std::move(done)]() {
+        // No result only at quit: cleared from the pool before it ran, nothing deleted.
+        if (watcher->future().resultCount() == 0) return;
+        const bool removed = watcher->result();
+        watcher->deleteLater();
+        done(removed);
+    });
+    connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher]() {
+        if (const auto settle = m_removals.take(watcher)) settle();
+    });
+    watcher->setFuture(QtConcurrent::run(std::move(work)));
+}
+
 void GameService::removePackageFiles(const QString& gameId, const QString& gamePath,
                                      const QString& restoredFrom, std::function<void(bool)> done)
 {
-    ++m_removals;
-    auto* watcher = new QFutureWatcher<bool>(this);
-    connect(watcher, &QFutureWatcher<bool>::finished, this,
-            [this, watcher, done = std::move(done)]() {
-        const bool removed = watcher->result();
-        watcher->deleteLater();
-        --m_removals;
-        done(removed);
-    });
     CoreBridge* cb = m_coreBridge;
-    watcher->setFuture(QtConcurrent::run([cb, gameId, gamePath, restoredFrom]() {
+    runRemoval([cb, gameId, gamePath, restoredFrom]() {
         return cb->uninstallPackage(gameId, gamePath, restoredFrom);
-    }));
+    }, std::move(done));
+}
+
+// The workers' results come back through the event loop, stopped by the time
+// quit has waited for them (main.cpp). Lost, a removal kept the backups it
+// should have retired, and an install that ended during the wait lost what it
+// queues to LocalPackageManager: a finished one its record and journal commit
+// (the next start rolled it back), a failed one the record of what it wrote.
+void GameService::settleOnQuit()
+{
+    m_quitting = true;
+    if (QObject* packages = m_coreBridge ? m_coreBridge->packageManager() : nullptr)
+        QCoreApplication::sendPostedEvents(packages, QEvent::MetaCall);
+    while (!m_removals.isEmpty()) {
+        const auto settle = m_removals.take(m_removals.begin().key());
+        settle();
+    }
 }
 
 void GameService::recoverTranslation(const QString& gameId)

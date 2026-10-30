@@ -175,6 +175,19 @@ Ardından (dal `fix/quit-and-uninstall`):
   (`m_removals`, kaldırma sürerken verilen mesaj), iki kaldırma `LocalPackageManager`'da sırayla (günlük ve durum
   dosyası ortak). 5.453 dosyalık sahte Elden Ring kaydı, 3'er ölçüm: GUI'nin en uzun durması 938-986 ms → 22-23 ms
   (toplam süre aynı, 985-1.058 ms); kilitli dosyada "Yama tamamen kaldırılamadı", kayıtta o dosya kalıyor.
+- **Çıkışta işçilerin sonucu kaybolmuyor:** aboutToQuit işçileri bekledikten sonra `GameService::settleOnQuit`
+  çalışıyor. Bekleyişte biten bir kaldırmanın sonucu işleniyor (yedeklerin silinmesi, kayıt, bildirim); kurulum
+  işçilerinin `LocalPackageManager`'a kuyrukladığı kayıt ve günlük kapanışı (`saveInstallState`, `failInstall`)
+  teslim ediliyor. Önceden bekleyişte biten kurulum kaydedilmiyor, sonraki açılışta geri alınıyordu; başarısız
+  kurulumun yazdıkları kayıtsız kalıyordu. Çıkışta yeni iş başlamıyor (`m_quitting`: başarısız kurulumun geri
+  alınması "Kaldır"a kalıyor). `BackupManager`'ın kuyruğu bilerek teslim edilmiyor: teslim kurulumu başlatırdı;
+  günlüğü açık kaldığı için sonraki açılış yarım yedeği siliyor. Betikle: kaldırmayı başlatıp hemen çıkış — sonuç
+  artık işleniyor (öncesinde hiç); bekleyişte havuzdan `LocalPackageManager`'a kuyruklanan çağrı teslim edildi.
+- **`removeAttemptFiles`** (yedeksiz, eski kaydın üstüne başarısız güncellemenin kendi dosyaları): `TreeContainment`
+  ve havuzda (`runRemoval`). 5.000 dosyalık deneme + 453 dosyalık eski kayıt, 2'şer ölçüm: GUI 5,6-5,7 sn donuyordu
+  (bekçi eşiğinin üstü) → 17-32 ms, toplam 0,88-0,93 sn; eski 453 dosya ve kayıt kalıyor.
+- Bilerek bırakıldı: başka bir oyunun geri yüklemesi ~1 sn'lik silmeyle aynı anda başlayabilir (günlük tek işlem
+  tutar) — önceden de bir kaldırmanın silmesi başka oyunun geri yüklemesiyle çakışabiliyordu.
 
 ## Sınıflandırma — gürültüyü ayırmak
 

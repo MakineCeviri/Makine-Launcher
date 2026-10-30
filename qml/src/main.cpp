@@ -1362,7 +1362,7 @@ static void wireSignals(
     // The window goes first: quit from the tray mid-backup left it on screen,
     // frozen for the wait, and the hang watchdog filed that wait as a hang
     // (Sentry 2026-10-29: the GUI stack in QThreadPool::waitForDone, 8 players).
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, [trayManager]() {
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [trayManager, gameService]() {
         trayManager->hide();
         for (auto* w : QGuiApplication::topLevelWindows()) w->hide();
         makine::CrashReporter::stopHangWatchdog();
@@ -1373,6 +1373,7 @@ static void wireSignals(
             logToFile(QStringLiteral("Shutdown: workers still running after 30 s, exiting without teardown"));
             std::_Exit(0);
         }
+        gameService->settleOnQuit();
     });
 
     // Connect ManifestSync signals BEFORE syncing,

@@ -383,8 +383,9 @@ private:
     QMutex m_inputMutex;
     QByteArray m_pendingInput;     // guarded by m_inputMutex
     bool m_acceptsInput{false};    // guarded by m_inputMutex
-    // One uninstallPackage at a time, as when they all ran on the UI thread:
-    // they share the crash journal and the installed-state file.
+    // One uninstallPackage / removeAttemptFiles at a time, as when they ran
+    // on the UI thread: they share the installed-state file (and the
+    // uninstalls the crash journal).
     QMutex m_uninstallMutex;
     // Windows error of the last failed copy, for the failure report (0 = none).
     unsigned long m_lastCopyWinError{0};

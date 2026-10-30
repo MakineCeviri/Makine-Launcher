@@ -330,6 +330,10 @@ public:
      */
     Q_INVOKABLE void uninstallTranslation(const QString& gameId);
 
+    /// On aboutToQuit, once the thread pool is done: what the workers left
+    /// for the stopped event loop that must not be lost.
+    void settleOnQuit();
+
     /**
      * @brief Ask the game's store to restore the original files.
      *
@@ -547,8 +551,10 @@ private:
     void finalizeUninstall(const QString& gameId, const QString& gamePath,
                            const QString& restoredFrom = {},
                            std::function<void()> then = {});
-    // CoreBridge::uninstallPackage on the thread pool, `done` with its result
-    // back on this thread.
+    // A delete loop on the thread pool, `done` with its result back on this
+    // thread (or in settleOnQuit).
+    void runRemoval(std::function<bool()> work, std::function<void(bool)> done);
+    // runRemoval of CoreBridge::uninstallPackage.
     void removePackageFiles(const QString& gameId, const QString& gamePath,
                             const QString& restoredFrom, std::function<void(bool)> done);
     // Patch replaced originals and no backup can restore them: uninstall what
@@ -657,7 +663,8 @@ private:
     bool m_promptFresh = false;
     bool m_autoKeyQueued = false;
     QSet<QString> m_uninstalling;   // games with an uninstall in flight
-    int m_removals = 0;             // removePackageFiles still deleting
+    QHash<QObject*, std::function<void()>> m_removals;  // runRemoval watcher → its result
+    bool m_quitting = false;        // settleOnQuit ran: nothing new starts
     QSet<QString> m_storeRepairStarted;  // last uninstall handed originals to the store
     QHash<QString, int> m_restoreFailures;  // failed uninstall restores per game, this session
     QString m_undoGameId;                    // whose undo program is running
