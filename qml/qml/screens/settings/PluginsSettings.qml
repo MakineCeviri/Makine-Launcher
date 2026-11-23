@@ -121,6 +121,7 @@ ColumnLayout {
         case "needs-consent": return qsTr("İzin bekliyor")
         case "incompatible": return qsTr("Uyumsuz")
         case "remote-off": return qsTr("Geçici olarak kapalı")
+        case "idle": return qsTr("Hazır, ilk kullanımda başlar")
         case "invalid": return qsTr("Geçersiz")
         default: return s
         }

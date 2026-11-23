@@ -243,6 +243,12 @@ target_include_directories(test_pluginmanifest PRIVATE
 target_link_libraries(test_pluginmanifest PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_pluginmanifest COMMAND test_pluginmanifest)
 
+# When a plugin's host starts: never at launch, on first use or a declared event.
+add_executable(test_pluginwake test_pluginwake.cpp)
+target_include_directories(test_pluginwake PRIVATE ${MAKINE_PROJECT_ROOT}/qml/src/services)
+target_link_libraries(test_pluginwake PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_pluginwake COMMAND test_pluginwake)
+
 if(NOT MAKINE_UI_ONLY)
     # Ed25519 registry signature + entry rules (OpenSSL).
     add_executable(test_pluginregistry test_pluginregistry.cpp

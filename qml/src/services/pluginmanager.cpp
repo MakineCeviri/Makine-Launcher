@@ -8,6 +8,7 @@
 #include "networksecurity.h"
 #include "pluginprocess.h"
 #include "pluginregistry.h"
+#include "pluginwake.h"
 #include "processscanner.h"
 
 #include <makine/plugin/abi.h>
@@ -280,12 +281,15 @@ void PluginManager::load()
     emit pluginsChanged();
 }
 
-void PluginManager::startEnabled()
+void PluginManager::afterWindowShown()
 {
     if (m_started || m_shuttingDown) return;
     m_started = true;
+    // The rule says no (pluginwake::Reason::Launch); asked anyway so the policy lives in one place.
     for (auto& [id, p] : m_plugins)
-        if (p.enabled) startPlugin(p);
+        if (p.enabled && p.manifest
+            && pluginwake::startsHost(pluginwake::Reason::Launch, !p.bundledDir.isEmpty(), p.manifest->events))
+            startPlugin(p);
     refreshCatalog();
 }
 
@@ -296,11 +300,11 @@ void PluginManager::setRemoteSwitches(const QVariantMap& off)
     QSettings().setValue(kRemoteOffKey, m_remoteOff);
     for (auto& [id, p] : m_plugins) {
         if (m_remoteOff.contains(id)) {
-            if (p.process) stopThen(p, nullptr);   // onFinished -> startPlugin -> remote-off
-            else if (p.enabled) startPlugin(p);
+            if (p.process) stopThen(p, nullptr);   // onFinished -> park -> remote-off
+            else if (p.enabled) park(p);
         } else if (before.contains(id)) {
-            if (p.enabled && m_started) startPlugin(p);
-            else setState(p, p.enabled ? QStringLiteral("starting") : QStringLiteral("disabled"));
+            if (p.enabled) park(p);
+            else setState(p, QStringLiteral("disabled"));
         }
     }
     emit pluginsChanged();
@@ -354,6 +358,7 @@ void PluginManager::loadFolder(const plugininstaller::ResolvedFolder& resolved)
         setState(p, QStringLiteral("invalid"),
                  tr("Eklenti dosyaları okunamadı; kaldırıp yeniden kurun. (%1)").arg(folder.error));
     else if (!p.enabled) setState(p, QStringLiteral("disabled"));
+    else park(p);
 }
 
 void PluginManager::reloadOne(const QString& id)
@@ -429,6 +434,35 @@ void PluginManager::startPlugin(Installed& p)
     proc->start(init);
 }
 
+void PluginManager::park(Installed& p)
+{
+    if (p.process) return;
+    if (m_remoteOff.contains(p.id))
+        setState(p, QStringLiteral("remote-off"), m_remoteOff.value(p.id).toString());
+    else
+        setState(p, QStringLiteral("idle"));
+}
+
+void PluginManager::whenReady(Installed& p, std::function<void()> run, std::function<void(const QString&)> fail)
+{
+    if (p.process && p.process->isReady()) return run();
+    if (!p.enabled || !p.manifest) {
+        if (fail) fail(tr("Eklenti kapalı."));
+        return;
+    }
+    p.waiting.append({std::move(run), std::move(fail)});
+    if (!p.process) startPlugin(p);
+    if (!p.process)   // consent missing, switched off, incompatible, no host
+        failWaiting(p, p.lastError.isEmpty() ? tr("Eklenti başlatılamadı.") : p.lastError);
+}
+
+void PluginManager::failWaiting(Installed& p, const QString& why)
+{
+    const auto waiting = std::exchange(p.waiting, {});
+    for (const auto& w : waiting)
+        if (w.second) w.second(why);
+}
+
 void PluginManager::stopThen(Installed& p, std::function<void()> next)
 {
     if (!p.process) {
@@ -450,6 +484,8 @@ void PluginManager::onReady(const QString& id, PluginProcess* proc)
         p->updatePending = false;
         plugininstaller::dropPrevious(AppPaths::pluginsDir(), id);
     }
+    const auto waiting = std::exchange(p->waiting, {});
+    for (const auto& w : waiting) w.first();
 }
 
 void PluginManager::onStartFailed(const QString& id, PluginProcess* proc, int code,
@@ -474,6 +510,7 @@ void PluginManager::onStartFailed(const QString& id, PluginProcess* proc, int co
             if (Installed* q = find(id)) {
                 appendLog(*q, MAKINE_LOG_WARN, note);
                 startPlugin(*q);
+                if (!q->process) failWaiting(*q, note);
             }
             emit pluginError(id, note);
             return;
@@ -488,12 +525,14 @@ void PluginManager::onStartFailed(const QString& id, PluginProcess* proc, int co
                     appendLog(*q, MAKINE_LOG_WARN,
                               tr("Yeni sürüm başlatılamadı (%1); Makine ile gelen sürüme dönüldü.").arg(reason));
                     startPlugin(*q);
+                    if (!q->process) failWaiting(*q, reason);
                 }
                 return;
             }
         }
     }
     setState(*p, QStringLiteral("error"), reason);
+    failWaiting(*p, reason);
     // A bundled plugin the player never installed shows its error on its own
     // screen and in Eklentiler, not as a toast on every start.
     if (p->bundledDir.isEmpty()) emit pluginError(id, reason);
@@ -519,12 +558,11 @@ void PluginManager::onFinished(const QString& id, PluginProcess* proc, bool requ
 
     if (requested || m_shuttingDown) {
         appendLog(*p, MAKINE_LOG_INFO, tr("Durduruldu."));
-        setState(*p, p->enabled ? QStringLiteral("starting") : QStringLiteral("disabled"));
-        if (auto next = std::exchange(p->afterStop, {})) {
+        failWaiting(*p, tr("Eklenti durduruldu."));
+        if (p->enabled) park(*p);
+        else setState(*p, QStringLiteral("disabled"));
+        if (auto next = std::exchange(p->afterStop, {}))
             next();   // may erase *p
-            return;
-        }
-        if (p->enabled) startPlugin(*p);
         return;
     }
 
@@ -536,6 +574,7 @@ void PluginManager::onFinished(const QString& id, PluginProcess* proc, bool requ
     if (p->crashTimes.size() >= kMaxCrashes) {
         const QString reason = tr("Eklenti 5 dakika içinde %1 kez çöktü ve durduruldu.").arg(p->crashTimes.size());
         setState(*p, QStringLiteral("crashed"), reason);
+        failWaiting(*p, reason);
         if (p->bundledDir.isEmpty()) emit pluginError(id, reason);
         return;
     }
@@ -647,15 +686,20 @@ QVariantMap PluginManager::pluginState(const QString& id) const
 void PluginManager::invoke(const QString& id, const QString& method, const QVariantMap& params)
 {
     Installed* p = find(id);
-    if (!p || !p->process || !p->process->isReady()) {
-        emit invokeFinished(id, method, false, tr("Eklenti çalışmıyor."));
+    if (!p) {
+        emit invokeFinished(id, method, false, tr("Eklenti bulunamadı."));
         return;
     }
-    p->process->invoke(method, QJsonObject::fromVariantMap(params),
-                       [this, id, method](const QJsonValue& result, const QJsonObject& error) {
-        if (!error.isEmpty()) emit invokeFinished(id, method, false, error.value(u"message").toString());
-        else emit invokeFinished(id, method, true, result.toVariant());
-    }, kInvokeTimeoutMs);
+    // A screen asking is first use (pluginwake::Reason::Screen): the host starts here.
+    whenReady(*p, [this, id, method, params] {
+        Installed* q = find(id);
+        if (!q || !q->process) return;
+        q->process->invoke(method, QJsonObject::fromVariantMap(params),
+                           [this, id, method](const QJsonValue& result, const QJsonObject& error) {
+            if (!error.isEmpty()) emit invokeFinished(id, method, false, error.value(u"message").toString());
+            else emit invokeFinished(id, method, true, result.toVariant());
+        }, kInvokeTimeoutMs);
+    }, [this, id, method](const QString& why) { emit invokeFinished(id, method, false, why); });
 }
 
 bool PluginManager::openUrl(const QString& url)
@@ -750,7 +794,7 @@ void PluginManager::setEnabled(const QString& id, bool enabled)
     saveEnabled();
     if (enabled) {
         p->crashTimes.clear();
-        startPlugin(*p);
+        park(*p);   // starts on first use
     } else if (p->process) {
         stopThen(*p, nullptr);
     } else {
@@ -777,7 +821,7 @@ void PluginManager::grantCapabilities(const QString& id)
     for (const auto& c : p->manifest->capabilities)
         if (!p->granted.contains(c.id)) p->granted.append(c.id);
     QSettings().setValue(key("granted", id), p->granted);
-    if (p->enabled) startPlugin(*p);
+    if (p->enabled) park(*p);
     emit pluginsChanged();
 }
 
@@ -867,15 +911,16 @@ void PluginManager::replaceInstalled(const plugininstaller::StagedPlugin& staged
     Installed* existing = find(id);
     const bool hadWorkingVersion = existing && existing->manifest;
     const bool enable = existing ? existing->enabled : true;
+    const bool wasRunning = existing && existing->process;
     setBusy(id, 0.95);
 
-    auto commit = [this, staged, verified, grant, id, hadWorkingVersion, enable] {
+    auto commit = [this, staged, verified, grant, id, hadWorkingVersion, enable, wasRunning] {
         QString error;
         if (!plugininstaller::commit(staged, AppPaths::pluginsDir(), &error)) {
             QDir(staged.dir).removeRecursively();
             setBusy({}, 0.0);
             emit pluginError(id, tr("Kurulamadı: %1").arg(error));
-            if (Installed* p = find(id); p && p->enabled) startPlugin(*p);
+            if (Installed* p = find(id); p && p->enabled && wasRunning) startPlugin(*p);
             return;
         }
         QSettings s;
@@ -897,7 +942,9 @@ void PluginManager::replaceInstalled(const plugininstaller::StagedPlugin& staged
         setBusy({}, 0.0);
         appendLog(*p, MAKINE_LOG_INFO, tr("Kuruldu: %1").arg(p->manifest->version));
         emit pluginInstalled(id);
-        if (p->enabled) startPlugin(*p);
+        // Back up only if it was running; otherwise on first use like any other start.
+        if (p->enabled && wasRunning) startPlugin(*p);
+        else if (p->enabled) park(*p);
         else setState(*p, QStringLiteral("disabled"));
         emit pluginsChanged();
         emit catalogChanged();
@@ -915,11 +962,12 @@ void PluginManager::uninstall(const QString& id, bool removeData)
         emit pluginError(id, tr("Makine ile gelen eklenti kaldırılamaz; kapatabilirsiniz."));
         return;
     }
-    stopThen(*p, [this, id, removeData] {
+    const bool wasRunning = p->process != nullptr;
+    stopThen(*p, [this, id, removeData, wasRunning] {
         QString error;
         if (!plugininstaller::remove(AppPaths::pluginsDir(), id, &error)) {
             emit pluginError(id, tr("Kaldırılamadı: %1").arg(error));
-            if (Installed* q = find(id); q && q->enabled) startPlugin(*q);
+            if (Installed* q = find(id); q && q->enabled && wasRunning) startPlugin(*q);
             return;
         }
         QSettings s;
@@ -937,7 +985,7 @@ void PluginManager::uninstall(const QString& id, bool removeData)
         if (Installed* q = find(id); q && !q->bundledDir.isEmpty()) {
             reloadOne(id);
             appendLog(*q, MAKINE_LOG_INFO, tr("Makine ile gelen sürüme dönüldü."));
-            if (q->enabled) startPlugin(*q);
+            if (q->enabled && wasRunning) startPlugin(*q);
             emit pluginsChanged();
             emit catalogChanged();
             return;
@@ -957,21 +1005,22 @@ void PluginManager::runAction(const QString& id, const QString& actionId)
     for (const auto& a : p->manifest->actions)
         if (a.id == actionId) action = &a;
     if (!action) return;
-    if (!p->process || !p->process->isReady()) {
-        emit actionFinished(id, actionId, false, tr("Eklenti çalışmıyor."));
-        return;
-    }
-    // Long timeout: an action may wait for the user (a region pick, a consent).
-    p->process->invoke(action->method, QJsonObject{},
-                       [this, id, actionId](const QJsonValue& result, const QJsonObject& error) {
-        if (!error.isEmpty()) {
-            emit actionFinished(id, actionId, false, error.value(u"message").toString());
-            return;
-        }
-        const QString message = result.isString() ? result.toString()
-                                                  : result.toObject().value(u"message").toString();
-        emit actionFinished(id, actionId, true, message);
-    }, 120000);
+    // Pressing an action is first use (pluginwake::Reason::Action): the host starts here.
+    whenReady(*p, [this, id, actionId, method = action->method] {
+        Installed* q = find(id);
+        if (!q || !q->process) return;
+        // Long timeout: an action may wait for the user (a region pick, a consent).
+        q->process->invoke(method, QJsonObject{},
+                           [this, id, actionId](const QJsonValue& result, const QJsonObject& error) {
+            if (!error.isEmpty()) {
+                emit actionFinished(id, actionId, false, error.value(u"message").toString());
+                return;
+            }
+            const QString message = result.isString() ? result.toString()
+                                                      : result.toObject().value(u"message").toString();
+            emit actionFinished(id, actionId, true, message);
+        }, 120000);
+    }, [this, id, actionId](const QString& why) { emit actionFinished(id, actionId, false, why); });
 }
 
 // ── Settings ────────────────────────────────────────────────────────────────
@@ -1261,9 +1310,23 @@ void PluginManager::answerRegion(int requestId, int x, int y, int width, int hei
 
 void PluginManager::broadcast(const QString& event, const QJsonObject& payload)
 {
-    for (auto& [id, p] : m_plugins)
-        if (p.process && p.process->isReady() && p.manifest && p.manifest->events.contains(event))
+    for (auto& [id, p] : m_plugins) {
+        if (!p.manifest || !p.manifest->events.contains(event)) continue;
+        if (p.process && p.process->isReady()) {
             p.process->sendEvent(event, payload);
+            continue;
+        }
+        // A declared event may wake a host that is not up yet (pluginwake.h); never before
+        // the window is up, so a game already running at launch starts nothing.
+        if (!m_started || !p.enabled || p.process
+            || !pluginwake::startsHost(pluginwake::Reason::Event, !p.bundledDir.isEmpty(),
+                                       p.manifest->events, event, p.values))
+            continue;
+        const QString pluginId = id;
+        whenReady(p, [this, pluginId, event, payload] {
+            if (Installed* q = find(pluginId); q && q->process) q->process->sendEvent(event, payload);
+        }, nullptr);
+    }
 }
 
 void PluginManager::hideOverlayOf(const QString& id)

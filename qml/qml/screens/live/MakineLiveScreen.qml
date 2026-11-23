@@ -60,9 +60,11 @@ Item {
         PluginManager.invoke(pluginId, method, params || {})
     }
 
-    Component.onCompleted: { _refreshInfo(); _refreshState(); if (_running) _call("state") }
-    onVisibleChanged: if (visible && _running) _call("state")
-    on_RunningChanged: if (_running && visible) _call("state")
+    // Opening the page is the plugin's first use: asking for its state starts its
+    // host (PluginManager.invoke). Nothing runs before the page is opened.
+    readonly property bool _wanted: visible && _exists && _info.enabled === true && _pluginState !== "remote-off"
+    Component.onCompleted: { _refreshInfo(); _refreshState(); if (_wanted) _call("state") }
+    on_WantedChanged: if (_wanted) _call("state")
 
     Connections {
         target: PluginManager
@@ -128,7 +130,7 @@ Item {
                     title: !live._exists ? qsTr("Makine Live bu sürümde yok")
                          : live._pluginState === "remote-off" ? qsTr("Makine Live şu an kapalı")
                          : !live._info.enabled ? qsTr("Makine Live kapalı")
-                         : live._pluginState === "starting" ? qsTr("Makine Live açılıyor…")
+                         : live._pluginState === "starting" || live._pluginState === "idle" ? qsTr("Makine Live açılıyor…")
                          : qsTr("Makine Live çalışmıyor")
                     subtitle: live._pluginState === "remote-off"
                               ? (live._info.lastError || qsTr("Kısa bir bakım var; birazdan yeniden açılacak."))

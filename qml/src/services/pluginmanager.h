@@ -20,6 +20,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <utility>
 
 namespace makine {
 class GameService;
@@ -43,7 +44,8 @@ class QNetworkAccessManager;
  *   verified, enabled, state, statusText, lastError, capabilities [{id,label,reason}],
  *   missingCapabilities [{id,label,reason}], actions [{id,label,description}],
  *   hasSettings, updateAvailable, availableVersion, bundled, screen {title, icon}.
- *   state: disabled | starting | running | error | crashed | needs-consent |
+ *   state: disabled | idle (enabled, host not started yet: pluginwake.h) |
+ *          starting | running | error | crashed | needs-consent |
  *          incompatible | invalid | remote-off (launcher.json switched it off;
  *          lastError holds the message)
  * `catalog` entries: id, name, version, description, publisher, homepage, size,
@@ -83,9 +85,9 @@ public:
 
     /// Reads installed and bundled plugins. Disk only, no process, no network.
     void load();
-    /// Starts the enabled plugins and fetches the registry. Called once the
-    /// main window is up, never on the startup path.
-    void startEnabled();
+    /// Fetches the registry. Called once the main window is up, never on the
+    /// startup path. Starts no plugin: hosts start on first use (pluginwake.h).
+    void afterWindowShown();
     /// The plugins launcher.json switches off (id → message). Persisted, so a
     /// later start without the file keeps the last known switches.
     void setRemoteSwitches(const QVariantMap& off);
@@ -132,7 +134,8 @@ public:
 
     /// The latest ui.state a plugin sent for its screen; empty while it is not running.
     Q_INVOKABLE QVariantMap pluginState(const QString& id) const;
-    /// Calls the plugin's invoke(method, params); the answer comes as invokeFinished.
+    /// Calls the plugin's invoke(method, params), starting its host first if it is
+    /// not up yet; the answer comes as invokeFinished.
     Q_INVOKABLE void invoke(const QString& id, const QString& method, const QVariantMap& params = {});
     /// Opens a link a plugin screen shows, under the same allow-list as ui.openUrl.
     Q_INVOKABLE bool openUrl(const QString& url);
@@ -191,6 +194,8 @@ private:
         QJsonObject secrets;        // settings.json "secrets": base64 DPAPI blobs
         QStringList log;
         QJsonObject uiState;        // ui.state, for the plugin's screen
+        // Calls waiting for the host to be ready: run, or fail with the reason.
+        QList<std::pair<std::function<void()>, std::function<void(const QString&)>>> waiting;
 
         bool runsBundled() const { return !bundledDir.isEmpty() && dir == bundledDir; }
     };
@@ -212,6 +217,11 @@ private:
     QVariantMap toVariant(const Installed& p) const;
 
     void startPlugin(Installed& p);
+    /// Enabled, host not running: idle, or remote-off when switched off.
+    void park(Installed& p);
+    /// Runs `run` once the host is ready, starting it if needed; `fail` otherwise.
+    void whenReady(Installed& p, std::function<void()> run, std::function<void(const QString&)> fail);
+    void failWaiting(Installed& p, const QString& why);
     void stopThen(Installed& p, std::function<void()> next);
     void onReady(const QString& id, PluginProcess* proc);
     void onStartFailed(const QString& id, PluginProcess* proc, int code, const QString& message,

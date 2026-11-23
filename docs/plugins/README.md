@@ -224,7 +224,11 @@ own (`contributes.screen: {"title": "Makine Live", "icon": "<Icons token>"}` in
 its manifest) gets a sidebar entry; the screen renders the latest `ui.state`
 through `PluginManager.pluginState(id)` and `pluginStateChanged(id)`.
 
-Launcher side, as built (2026-11): `invoke` from a screen has the actions' 120 s
+Launcher side, as built (2026-11): no host starts at launch. A host starts on
+first use (the screen's first `invoke`, an action) or on an event the plugin
+declared; a bundled plugin only on `game.started`, and only when its stored
+`autoStart` setting (a `toggle` in `contributes.settings`, written with
+`settings.set`) is true. Once up it stays up until exit or disable. `invoke` from a screen has the actions' 120 s
 timeout (a call may wait for the user); the screen opens a link the plugin put in
 its state (`login.url`) through `PluginManager.openUrl`, under the same allow-list
 as `ui.openUrl` (exact host, https, no port or user info); the state is cleared

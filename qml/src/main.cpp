@@ -713,8 +713,8 @@ private:
 
 namespace {
 constexpr int kStartupSettleMs = 5000;
-// Plugin hosts start this long after the first frame (or after a minimized
-// start), so a bundled plugin never competes with the window coming up.
+// The plugin registry is fetched this long after the first frame (or after a
+// minimized start). Plugin hosts start only on first use (pluginwake.h).
 constexpr int kPluginStartDelayMs = 2000;
 }
 
@@ -1233,8 +1233,8 @@ static void createServices(
     engine.rootContext()->setContextProperty("CommunityService", communityService);
 
     // ===== Phase 6b: Plugin system (ADR-0009) =====
-    // Manifests only here: no process, no network. The hosts start after the
-    // first frame (setupRootWindow) or, minimized, once the event loop runs.
+    // Manifests only here: no process, no network. The registry is fetched after
+    // the first frame; a plugin's host starts on its first use (pluginwake.h).
     auto* pluginManager = new PluginManager(&app);
     pluginManager->setGameService(gameService);
     pluginManager->setProcessScanner(processScanner);
@@ -1567,7 +1567,7 @@ static void setupRootWindow(
             // event loop iterations, populating QML progressively.
             gameService->initialize();
             if (pluginManager)
-                QTimer::singleShot(kPluginStartDelayMs, pluginManager, &PluginManager::startEnabled);
+                QTimer::singleShot(kPluginStartDelayMs, pluginManager, &PluginManager::afterWindowShown);
 
         }, Qt::QueuedConnection);
 
@@ -2051,7 +2051,7 @@ int main(int argc, char *argv[])
         gameService->initialize();
         if (auto* plugins = qobject_cast<PluginManager*>(
                 engine.rootContext()->contextProperty("PluginManager").value<QObject*>()))
-            QTimer::singleShot(kPluginStartDelayMs, plugins, &PluginManager::startEnabled);
+            QTimer::singleShot(kPluginStartDelayMs, plugins, &PluginManager::afterWindowShown);
         logToFile(QStringLiteral("Started minimized: splash closed, library loading"));
     }
 
