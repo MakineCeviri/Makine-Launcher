@@ -10,15 +10,20 @@ pragma ComponentBehavior: Bound
  * Frameless overlay a plugin draws over the game (overlay.show).
  *
  * Two shapes: one translated text under the picked region (the plain `text`
- * call), or a subtitle of several `lines` styled by `overlayStyle`
- * (docs/plugins/README.md: preset classic · contrast · band · minimal, font,
- * sizePx, maxLines, textColor, bandColor, bandOpacity, outlinePx, shadow,
- * widthPct, marginPx, position bottom · top · region, showSource). Every
- * style key is optional; the defaults read as a normal film subtitle.
+ * call), or a subtitle of several `lines` drawn by SubtitleBlock with the
+ * plugin's `overlayStyle` (docs/plugins/README.md). Placement keys live here:
+ * widthPct (the band's widest, of the region or screen), marginPx, position
+ * region (centred on the picked subtitle region, over the original line) ·
+ * bottom · top (of the screen under the region).
+ *
+ * Click-through, never takes focus, and kept out of screen capture
+ * (PluginManager.keepOutOfCapture: WDA_EXCLUDEFROMCAPTURE) so a plugin that
+ * reads the screen never reads its own subtitles.
  */
 Window {
     id: overlayWindow
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip | Qt.WindowTransparentForInput
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip
+           | Qt.WindowTransparentForInput | Qt.WindowDoesNotAcceptFocus
     color: "transparent"
     visible: false
 
@@ -39,33 +44,14 @@ Window {
 
     readonly property bool _subtitle: lines && lines.length > 0
 
-    // ── Subtitle style, resolved: preset first, then the plugin's own keys ──
-    readonly property var _presets: ({
-        classic:  { bandOpacity: 0.0,  outlinePx: 2, shadow: true },
-        contrast: { bandOpacity: 1.0,  outlinePx: 0, shadow: false },
-        band:     { bandOpacity: 0.6,  outlinePx: 0, shadow: false },
-        minimal:  { bandOpacity: 0.0,  outlinePx: 0, shadow: true }
-    })
     function _style(key, fallback) {
         const s = overlayStyle || {}
-        if (s[key] !== undefined) return s[key]
-        const preset = _presets[s.preset || "classic"] || _presets.classic
-        return preset[key] !== undefined ? preset[key] : fallback
+        return s[key] !== undefined && s[key] !== null ? s[key] : fallback
     }
-    readonly property int _sizePx: _style("sizePx", 28)
-    readonly property int _maxLines: _style("maxLines", 3)
-    readonly property color _textColor: _style("textColor", "#FFFFFF")
-    readonly property color _bandColor: _style("bandColor", "#000000")
-    readonly property real _bandOpacity: _style("bandOpacity", 0)
-    readonly property int _outlinePx: _style("outlinePx", 2)
-    readonly property bool _shadow: _style("shadow", true)
     readonly property real _widthPct: _style("widthPct", 80)
     readonly property int _marginPx: _style("marginPx", 24)
-    readonly property bool _showSource: _style("showSource", false)
-    readonly property string _font: _style("font", "")
     readonly property bool _hasRegion: sourceRegion.width > 0 && sourceRegion.height > 0
     readonly property string _position: _style("position", _hasRegion ? "region" : "bottom")
-    readonly property var _shownLines: _subtitle ? lines.slice(Math.max(0, lines.length - _maxLines)) : []
 
     // The screen under the region (or the first one): what top/bottom refer to
     readonly property var _screen: {
@@ -79,112 +65,65 @@ Window {
         }
         return screens[0]
     }
-    readonly property rect _base: _position === "region" && _hasRegion
-        ? sourceRegion
-        : Qt.rect(_screen ? _screen.virtualX : 0, _screen ? _screen.virtualY : 0,
-                  _screen ? _screen.width : 1280, _screen ? _screen.height : 720)
+    readonly property rect _screenRect: Qt.rect(_screen ? _screen.virtualX : 0, _screen ? _screen.virtualY : 0,
+                                                _screen ? _screen.width : 1280, _screen ? _screen.height : 720)
+    readonly property bool _inRegion: _position === "region" && _hasRegion
+    // A narrow region still gets a readable band: at least 60 % of the screen
+    readonly property real _maxBand: _inRegion
+        ? Math.max(sourceRegion.width * _widthPct / 100, _screenRect.width * 0.6)
+        : _screenRect.width * _widthPct / 100
 
-    width: _subtitle ? Math.max(200, _base.width * _widthPct / 100) : Math.max(200, textItem.implicitWidth + 28)
-    height: _subtitle ? subtitleColumn.implicitHeight + 16 : textItem.implicitHeight + 20
+    width: _subtitle ? subtitle.implicitWidth : Math.max(200, textItem.implicitWidth + 28)
+    height: _subtitle ? subtitle.implicitHeight : textItem.implicitHeight + 20
 
-    x: _subtitle ? _base.x + (_base.width - width) / 2
-                 : sourceRegion.x + (sourceRegion.width - width) / 2
+    x: _subtitle
+       ? Math.round((_inRegion ? sourceRegion.x + sourceRegion.width / 2 : _screenRect.x + _screenRect.width / 2) - width / 2)
+       : sourceRegion.x + (sourceRegion.width - width) / 2
     y: !_subtitle ? sourceRegion.y + sourceRegion.height + 6
-       : _position === "top" ? _base.y + _marginPx
-       : _base.y + _base.height - height - _marginPx
+       : _inRegion ? Math.round(sourceRegion.y + sourceRegion.height / 2 - height / 2)
+       : _position === "top" ? _screenRect.y + _marginPx - subtitle.gutter
+       : _screenRect.y + _screenRect.height - height - _marginPx + subtitle.gutter
 
-    // ── Single text under the region ──
-    Rectangle {
-        anchors.fill: parent
-        visible: !overlayWindow._subtitle
-        radius: 6
-        color: overlayWindow.bgColor
-
-        Text {
-            id: textItem
-            anchors.centerIn: parent
-            width: Math.min(implicitWidth, 480)
-            text: overlayWindow.translatedText
-            font.pixelSize: overlayWindow.textSize
-            font.weight: Font.Medium
-            color: overlayWindow.textColor
-            wrapMode: Text.Wrap
-            textFormat: Text.PlainText
-        }
+    // Out of screen capture once it has a native window; a short fade on each appearance
+    onVisibleChanged: {
+        if (!visible) return
+        if (typeof PluginManager !== "undefined" && PluginManager) PluginManager.keepOutOfCapture(overlayWindow)
+        content.opacity = 0
+        fadeIn.restart()
     }
 
-    // ── Subtitle ──
-    Rectangle {
+    Item {
+        id: content
         anchors.fill: parent
-        visible: overlayWindow._subtitle && overlayWindow._bandOpacity > 0
-        radius: 4
-        color: overlayWindow._bandColor
-        opacity: overlayWindow._bandOpacity
-    }
+        NumberAnimation on opacity { id: fadeIn; running: false; to: 1; duration: 160; easing.type: Easing.OutCubic }
 
-    Column {
-        id: subtitleColumn
-        visible: overlayWindow._subtitle
-        anchors.centerIn: parent
-        width: parent.width - 24
-        spacing: 2
+        // ── Single text under the region ──
+        Rectangle {
+            anchors.fill: parent
+            visible: !overlayWindow._subtitle
+            radius: 6
+            color: overlayWindow.bgColor
 
-        Repeater {
-            model: overlayWindow._shownLines
-
-            Column {
-                id: lineItem
-                required property var modelData
-                width: subtitleColumn.width
-                spacing: 0
-
-                Item {
-                    width: parent.width
-                    height: lineText.implicitHeight
-
-                    // Drop shadow: the same line, offset and dark, behind it
-                    Text {
-                        visible: overlayWindow._shadow
-                        x: 2; y: 2
-                        width: parent.width
-                        text: lineText.text
-                        font: lineText.font
-                        wrapMode: Text.Wrap
-                        horizontalAlignment: Text.AlignHCenter
-                        textFormat: Text.PlainText
-                        color: "#000000"
-                        opacity: 0.6
-                    }
-                    Text {
-                        id: lineText
-                        width: parent.width
-                        text: lineItem.modelData.text || ""
-                        font.pixelSize: overlayWindow._sizePx
-                        font.weight: Font.DemiBold
-                        font.family: overlayWindow._font !== "" ? overlayWindow._font : Dimensions.fontText
-                        color: overlayWindow._textColor
-                        style: overlayWindow._outlinePx > 0 ? Text.Outline : Text.Normal
-                        styleColor: "#000000"
-                        wrapMode: Text.Wrap
-                        horizontalAlignment: Text.AlignHCenter
-                        textFormat: Text.PlainText
-                    }
-                }
-                Text {
-                    visible: overlayWindow._showSource && (lineItem.modelData.sourceText || "") !== ""
-                    width: parent.width
-                    text: lineItem.modelData.sourceText || ""
-                    font.pixelSize: Math.round(overlayWindow._sizePx * 0.6)
-                    font.family: lineText.font.family
-                    color: overlayWindow._textColor
-                    opacity: 0.75
-                    style: lineText.style
-                    styleColor: "#000000"
-                    wrapMode: Text.Wrap
-                    horizontalAlignment: Text.AlignHCenter
-                    textFormat: Text.PlainText
-                }
+            Text {
+                id: textItem
+                anchors.centerIn: parent
+                width: Math.min(implicitWidth, 480)
+                text: overlayWindow.translatedText
+                font.pixelSize: overlayWindow.textSize
+                font.weight: Font.Medium
+                color: overlayWindow.textColor
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
             }
+        }
+
+        // ── Subtitle ──
+        SubtitleBlock {
+            id: subtitle
+            visible: overlayWindow._subtitle
+            lines: overlayWindow.lines
+            style: overlayWindow.overlayStyle
+            maxWidth: overlayWindow._maxBand
         }
     }
 

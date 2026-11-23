@@ -211,6 +211,20 @@ plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is on
 | `overlay.pickRegion` | optional `{within: {x, y, width, height}}`: the selection is clamped to that rectangle (a console window's video area) | `overlay` |
 | `overlay.show` | optional `style` object (below), optional `lines: [{text, sourceText?}]` instead of `text` for a multi-line subtitle | `overlay` |
 
+The subtitle is drawn by `components/SubtitleBlock.qml` (the overlay and the Live
+page's preview share it). One direction, readability first: an ink band
+(`#0f1012`) hugging the text, Segoe UI Variable Display Semibold, black outline,
+soft shadow. Presets: `band` (default: band 0.78, white, 1 px outline) ·
+`contrast` (band 0.9, subtitle yellow `#f2c230`, 2 px) · `classic` (no band,
+2 px outline + shadow) · `minimal` (no band, 2 px outline). Below band 0.5 the
+outline is never under 2 px (thicker outlines are eight offset copies, Qt's own
+is 1 px). Defaults: `sizePx` 28, `maxLines` 2, `widthPct` 80, `position`
+`region` when a region is known (centred on it, over the original line). The
+overlay window is click-through, never takes focus, and is excluded from screen
+capture (`WDA_EXCLUDEFROMCAPTURE`, `PluginManager::keepOutOfCapture`): a plugin
+reading the screen does not read its own subtitles, and neither do OBS,
+Discord streams or screenshots.
+
 `overlay.show.style` (every key optional; the launcher falls back to its defaults):
 `preset` (`classic` · `contrast` · `band` · `minimal`), `font`, `sizePx`, `maxLines`,
 `textColor`, `bandColor`, `bandOpacity` (0–1), `outlinePx`, `shadow` (bool),

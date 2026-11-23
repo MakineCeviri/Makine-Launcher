@@ -30,6 +30,7 @@
 #include <QScreen>
 #include <QSettings>
 #include <QTimer>
+#include <QWindow>
 
 #include <functional>
 #include <utility>
@@ -700,6 +701,25 @@ void PluginManager::invoke(const QString& id, const QString& method, const QVari
             else emit invokeFinished(id, method, true, result.toVariant());
         }, kInvokeTimeoutMs);
     }, [this, id, method](const QString& why) { emit invokeFinished(id, method, false, why); });
+}
+
+void PluginManager::keepOutOfCapture(QWindow* window)
+{
+#ifdef Q_OS_WIN
+#ifndef WDA_EXCLUDEFROMCAPTURE
+#define WDA_EXCLUDEFROMCAPTURE 0x00000011
+#endif
+    if (!window) return;
+    const auto hwnd = reinterpret_cast<HWND>(window->winId());   // creates the native window if needed
+    DWORD current = 0;
+    if (GetWindowDisplayAffinity(hwnd, &current) && current == WDA_EXCLUDEFROMCAPTURE) return;
+    if (SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE))
+        qCDebug(lcPlugin) << "overlay excluded from screen capture";
+    else
+        qCWarning(lcPlugin) << "overlay could not be excluded from screen capture, error" << GetLastError();
+#else
+    Q_UNUSED(window)
+#endif
 }
 
 bool PluginManager::openUrl(const QString& url)
