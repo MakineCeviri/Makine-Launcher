@@ -180,6 +180,50 @@ says, and otherwise asks the user once per game (or remembers their "always").
 `init` JSON passed to `initialize`: `pluginId`, `version`, `launcherVersion`, `abi`,
 `locale`, `dataDir` (persistent, survives updates), `pluginDir`, `settings`.
 
+## Bundled plugins and the plugin screen contract (2026-11, Makine Live)
+
+Additions for plugins that ship inside the launcher package. All of them are
+optional JSON fields or new method names: **the ABI stays 2**, an older plugin
+never sees them and an older launcher answers the new methods with
+`E_UNSUPPORTED`.
+
+**Bundled plugins.** `<launcher dir>/plugins/<id>/` (read-only under MSIX) holds
+plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is one.
+- A bundled plugin counts as verified, its capabilities as granted, and it is
+  enabled on first run. The user can still disable it; that choice is kept.
+- A newer version of the same id in the user plugins folder (registry update)
+  wins over the bundled one; uninstalling it falls back to the bundled copy.
+  A bundled plugin itself cannot be uninstalled, only disabled.
+- `init` gains `bundled: true`. `dataDir` is still the per-user folder: never
+  write into `pluginDir`.
+- The host is started after the main window is shown, never on the startup path.
+  Heavy work (OCR runtime, models) loads on first use, not in `initialize`.
+- Remote off-switch: `assets/launcher.json` → `"plugins": {"<id>": {"enabled": false,
+  "message": "…"}}` stops the plugin and shows the message instead of its screen,
+  without a release. Absent or unreadable = no change.
+
+**Host API additions**
+
+| Method | Params → result | Needs |
+|--------|-----------------|-------|
+| `ui.openUrl` | `{url}` → `true`; only `https://makineceviri.org/…` and `https://discord.com/…` open, anything else is `E_DENIED` | |
+| `ui.state` | `{…any JSON object…}`: replaces the plugin's screen state (fire-and-forget via `emitEvent` is the normal use) | |
+| `overlay.pickRegion` | optional `{within: {x, y, width, height}}`: the selection is clamped to that rectangle (a console window's video area) | `overlay` |
+| `overlay.show` | optional `style` object (below), optional `lines: [{text, sourceText?}]` instead of `text` for a multi-line subtitle | `overlay` |
+
+`overlay.show.style` (every key optional; the launcher falls back to its defaults):
+`preset` (`classic` · `contrast` · `band` · `minimal`), `font`, `sizePx`, `maxLines`,
+`textColor`, `bandColor`, `bandOpacity` (0–1), `outlinePx`, `shadow` (bool),
+`widthPct` (of the region or screen), `marginPx`, `position` (`bottom` · `top` ·
+`region`), `showSource` (bool).
+
+**Launcher → plugin.** QML calls `PluginManager.invoke(id, method, params)` →
+`invoke(method, paramsJson)` in the plugin; the answer arrives as the
+`invokeFinished(id, method, ok, result)` signal. A plugin with a screen of its
+own (`contributes.screen: {"title": "Makine Live", "icon": "<Icons token>"}` in
+its manifest) gets a sidebar entry; the screen renders the latest `ui.state`
+through `PluginManager.pluginState(id)` and `pluginStateChanged(id)`.
+
 ## Status codes
 
 `MAKINE_OK` 0 · `E_FAILED` 1 · `E_INVALID_ARGUMENT` 2 · `E_NOT_FOUND` 3 ·
