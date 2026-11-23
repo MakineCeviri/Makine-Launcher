@@ -74,6 +74,10 @@ Item {
     readonly property bool _sourceOk: _consoleMode ? _hasSource : _hasRegion
     readonly property bool _ready: _loginState === "signedIn" && _sourceOk && _server.maintenance !== true
     readonly property var _announcements: Array.isArray(_state.announcements) ? _state.announcements : []
+    readonly property string _output: _consoleMode ? (_state.output || "pc") : "pc"
+    readonly property var _web: _state.web || ({})
+    readonly property var _tv: _state.tv || ({})
+    readonly property var _install: _state.tvInstall || ({})
 
     // Kept apart from _state: every subtitle line publishes a new state, the source list
     // (and its rows) only changes when its content does
@@ -99,6 +103,7 @@ Item {
         PluginManager.invoke(pluginId, method, params || {})
     }
     function _setStyle(changes) { _call("style.set", changes) }
+    function _copy(text) { copyHelper.text = text; copyHelper.selectAll(); copyHelper.copy() }
     function _isSelected(src) {
         return !!_selected && _selected.key === src.key && _selected.pid === src.pid
     }
@@ -157,6 +162,8 @@ Item {
         property bool consoleWarned: false
         // Console was offered as the first mode once
         property bool modeChosen: false
+        // The firewall note was read before the first TV search / phone page
+        property bool firewallSeen: false
     }
 
     // ── The one blocking problem, if any: {text, fix, fixText} ───────────────
@@ -193,7 +200,29 @@ Item {
         else if (kind === "sources") _call("console.sources")
     }
 
+    // Clipboard: QML has none of its own
+    TextEdit { id: copyHelper; visible: false }
+
     // ── Small parts ──────────────────────────────────────────────────────────
+    // A short input (the TV's 4-digit code), styled like the plugin settings' fields
+    component CodeField: TextField {
+        id: cf
+        implicitHeight: 34
+        leftPadding: 10
+        rightPadding: 10
+        horizontalAlignment: TextInput.AlignHCenter
+        font.pixelSize: Dimensions.body
+        color: Theme.textPrimary
+        placeholderTextColor: Theme.textMuted
+        selectByMouse: true
+        background: Rectangle {
+            radius: Dimensions.radiusMD
+            color: Theme.primary06
+            border.color: cf.activeFocus ? Theme.primary : Theme.primary12
+            border.width: 1
+        }
+    }
+
     component Body: Text {
         Layout.fillWidth: true
         textFormat: Text.PlainText
@@ -500,13 +529,15 @@ Item {
                         }
                         Link { connected: live._reading }
                         Stop {
-                            glyph: Icons.laptop
+                            glyph: live._output === "tv" ? Icons.monitor : live._output === "phone" ? Icons.smartphone : Icons.laptop
                             title: qsTr("Altyazı")
-                            ok: live._reading
-                            status: live._consoleMode ? qsTr("Bu ekranda, Remote Play penceresinin üstünde")
-                                                      : qsTr("Bu ekranda, oyunun üstünde")
-                            actionText: qsTr("Görünüm")
-                            onAction: live._scrollTo(lookLoader)
+                            ok: live._reading && (live._output !== "tv" || live._tv.state === "connected")
+                            status: live._output === "tv" ? (live._tv.state === "connected" ? qsTr("TV'de (Makine TV)") : qsTr("TV'de; bağlı değil"))
+                                  : live._output === "phone" ? qsTr("Telefonda")
+                                  : live._consoleMode ? qsTr("Bu ekranda, Remote Play penceresinin üstünde")
+                                  : qsTr("Bu ekranda, oyunun üstünde")
+                            actionText: qsTr("Değiştir")
+                            onAction: live._scrollTo(whereSection)
                         }
                     }
                 }
@@ -852,40 +883,208 @@ Item {
                 }
             }
 
-            // ── 5d. Altyazı nerede ──
+            // ── 5d. Altyazı nerede: this screen, Makine TV, phone; OBS in every mode ──
             ListSection {
+                id: whereSection
                 Layout.fillWidth: true
                 Layout.leftMargin: Dimensions.pageMargin
                 Layout.rightMargin: Dimensions.pageMargin
                 visible: live._running
                 title: qsTr("Altyazı nerede çıksın?")
-                footer: qsTr("TV ve telefon, Makine Live'ın bir sonraki güncellemesiyle bu bölüme gelir.")
+                footer: live._consoleMode ? "" : qsTr("Bilgisayardaki oyunda altyazı oyunun üstünde çıkar.")
+
+                property string platform: "android"
 
                 ListRow {
-                    icon: Icons.circleCheck
-                    iconTint: Theme.success
-                    title: qsTr("Bu ekranda")
-                    subtitle: live._consoleMode ? qsTr("Remote Play penceresinin üstünde, İngilizce altyazının yerinde.")
-                                                : qsTr("Oyunun üstünde, İngilizce altyazının yerinde.")
+                    visible: live._consoleMode
+                    icon: live._output === "tv" ? Icons.monitor : live._output === "phone" ? Icons.smartphone : Icons.laptop
+                    title: qsTr("Çıktı")
+                    subtitle: live._output === "tv" ? qsTr("Makine TV uygulamasında, TV'nin üstünde.")
+                            : live._output === "phone" ? qsTr("Telefonun ya da tabletin tarayıcısında.")
+                            : qsTr("Bu ekranda, Remote Play penceresinin üstünde.")
+                    SegmentedControl {
+                        small: true
+                        model: [{ value: "pc", text: qsTr("Bu ekranda") }, { value: "tv", text: qsTr("TV'de") },
+                                { value: "phone", text: qsTr("Telefonda") }]
+                        currentValue: live._output
+                        onActivated: (value) => live._call("output.set", { output: value })
+                    }
+                }
+
+                // Firewall: said once, before the first TV search or phone page
+                ListRow {
+                    visible: live._consoleMode && (live._output === "tv" || live._output === "phone") && !seen.firewallSeen
+                             && !!(live._web.firewallNote || live._tv.firewallNote)
+                    icon: Icons.shield
+                    iconTint: Theme.warning
+                    title: qsTr("Windows bir izin sorabilir")
+                    subtitle: live._web.firewallNote || live._tv.firewallNote || ""
+                    AppButton {
+                        style: "tinted"
+                        text: qsTr("Anladım")
+                        onClicked: seen.firewallSeen = true
+                    }
+                }
+
+                // ── TV ──
+                ListRow {
+                    visible: live._consoleMode && live._output === "tv" && !!live._tv.paired
+                    icon: live._tv.state === "connected" ? Icons.monitorCheck : Icons.wifiOff
+                    iconTint: live._tv.state === "connected" ? Theme.success : Theme.warning
+                    title: (live._tv.paired && live._tv.paired.name) || qsTr("Makine TV")
+                    subtitle: live._tv.state === "connected" ? qsTr("Bağlı; altyazı TV'de çıkar.")
+                            : live._tv.state === "connecting" ? qsTr("Bağlanıyor…")
+                            : (live._tv.detail || qsTr("TV'ye ulaşılamıyor: TV açık ve aynı ağda mı?"))
+                    AppButton {
+                        style: "gray"
+                        text: qsTr("Bağlantıyı kaldır")
+                        onClicked: live._call("tv.unpair")
+                    }
                 }
                 ListRow {
+                    visible: live._consoleMode && live._output === "tv" && !live._tv.paired
                     icon: Icons.monitor
-                    iconTint: Theme.textMuted
-                    title: qsTr("TV'de (Makine TV)")
-                    subtitle: qsTr("Konsolu TV'de oynarken altyazı TV'nin üstünde çıkar. Yakında.")
+                    title: qsTr("Makine TV'yi bul")
+                    subtitle: live._tv.state === "bad_code" ? qsTr("Kod tutmadı; TV'deki 4 haneli kodu yeniden yaz.")
+                            : qsTr("TV'de Makine TV'yi aç; ekranındaki 4 haneli kodu buraya yaz.")
+                    AppButton {
+                        style: "tinted"
+                        text: qsTr("Ara")
+                        busy: live._tv.searching === true || live._busyMethod === "tv.discover"
+                        enabled: seen.firewallSeen || !(live._web.firewallNote || live._tv.firewallNote)
+                        onClicked: live._call("tv.discover")
+                    }
+                }
+                Repeater {
+                    model: live._consoleMode && live._output === "tv" && !live._tv.paired && Array.isArray(live._tv.found)
+                           ? live._tv.found : []
+                    ListRow {
+                        id: tvRow
+                        required property var modelData
+                        icon: Icons.monitor
+                        title: modelData.name || modelData.host || ""
+                        subtitle: modelData.host || ""
+                        CodeField {
+                            id: tvCode
+                            implicitWidth: 90
+                            placeholderText: qsTr("Kod")
+                            maximumLength: 4
+                            inputMethodHints: Qt.ImhDigitsOnly
+                        }
+                        AppButton {
+                            style: "tinted"
+                            text: qsTr("Bağlan")
+                            enabled: tvCode.text.length === 4
+                            busy: live._busyMethod === "tv.pair"
+                            onClicked: live._call("tv.pair", { "id": tvRow.modelData["id"], code: tvCode.text })
+                        }
+                    }
+                }
+                // Not installed yet: Android TV / Google TV / Fire TV over ADB, LG by hand
+                ListRow {
+                    visible: live._consoleMode && live._output === "tv" && !live._tv.paired
+                    icon: Icons.download
+                    title: qsTr("TV'de Makine TV yok mu?")
+                    subtitle: live._install.state === "running" ? (live._install.step || qsTr("Kuruluyor…"))
+                            : live._install.message ? live._install.message
+                            : qsTr("Android TV, Google TV ve Fire TV'ye buradan kurulur; LG'de adım adım elle.")
+                    SegmentedControl {
+                        small: true
+                        model: [{ value: "android", text: "Android" }, { value: "firetv", text: "Fire TV" }, { value: "lg", text: "LG" }]
+                        currentValue: whereSection.platform
+                        onActivated: (value) => whereSection.platform = value
+                    }
+                }
+                Repeater {
+                    model: live._consoleMode && live._output === "tv" && !live._tv.paired && live._install.guide
+                           ? (live._install.guide[whereSection.platform] || []) : []
+                    ListRow {
+                        required property var modelData
+                        required property int index
+                        icon: Icons.listOrdered
+                        iconTint: Theme.textMuted
+                        title: qsTr("%1. adım").arg(index + 1)
+                        subtitle: typeof modelData === "string" ? modelData : (modelData.text || "")
+                    }
                 }
                 ListRow {
-                    icon: Icons.smartphone
-                    iconTint: Theme.textMuted
-                    title: qsTr("Telefonda ya da OBS'te")
-                    subtitle: qsTr("Telefonun tarayıcısında ya da OBS'te bir sayfa olarak. Yakında.")
+                    visible: live._consoleMode && live._output === "tv" && !live._tv.paired
+                    icon: whereSection.platform === "lg" ? Icons.hardDriveDownload : Icons.scan
+                    title: whereSection.platform === "lg" ? qsTr("Kurulum dosyası (.ipk)") : qsTr("Ağdaki TV'ler")
+                    subtitle: whereSection.platform === "lg"
+                              ? qsTr("Dosya İndirilenler klasörüne kaydedilir; yukarıdaki adımlarla TV'ye kur.")
+                              : (Array.isArray(live._install.hosts) && live._install.hosts.length > 0
+                                 ? qsTr("Bulunan TV'ye kurmak için Kur'a bas.")
+                                 : qsTr("TV'de geliştirici seçeneklerinden ADB hata ayıklamayı aç, sonra Tara'ya bas."))
+                    AppButton {
+                        visible: whereSection.platform !== "lg"
+                        style: "gray"
+                        text: qsTr("Tara")
+                        busy: live._install.scanning === true
+                        onClicked: live._call("tv.install.scan", { platform: "android" })
+                    }
+                    AppButton {
+                        visible: whereSection.platform !== "lg" && Array.isArray(live._install.hosts) && live._install.hosts.length > 0
+                        style: "tinted"
+                        text: qsTr("Kur")
+                        busy: live._install.state === "running"
+                        onClicked: {
+                            const h = live._install.hosts[0]
+                            live._call("tv.install", typeof h === "string" ? { platform: "android", host: h }
+                                                                           : { platform: "android", host: h.host, port: h.port })
+                        }
+                    }
+                    AppButton {
+                        style: whereSection.platform === "lg" ? "tinted" : "plain"
+                        text: qsTr("Dosyayı kaydet")
+                        onClicked: live._call("tv.install.saveFile", { platform: whereSection.platform === "lg" ? "lg" : "android" })
+                    }
                 }
+
+                // ── Phone / tablet ──
+                ListRow {
+                    visible: live._consoleMode && live._output === "phone"
+                    icon: Icons.smartphone
+                    title: live._web.phoneUrl || qsTr("Telefon sayfası açılıyor…")
+                    subtitle: live._web.error ? live._web.error
+                            : qsTr("Telefonun tarayıcısında bu adresi aç; telefon bu bilgisayarla aynı ağda olmalı.")
+                              + (live._web.clients ? " " + qsTr("%1 cihaz bağlı.").arg(live._web.clients) : "")
+                    AppButton {
+                        visible: !!live._web.phoneUrl
+                        style: "gray"
+                        text: qsTr("Kopyala")
+                        icon: Icons.copy
+                        onClicked: live._copy(live._web.phoneUrl)
+                    }
+                }
+
+                // ── OBS, any mode ──
+                ListRow {
+                    icon: Icons.layers
+                    title: qsTr("OBS kaynağı")
+                    subtitle: live._state.obs === true && live._web.obsUrl
+                              ? qsTr("OBS'te Tarayıcı kaynağı olarak ekle: %1").arg(live._web.obsUrl)
+                              : qsTr("Altyazıyı OBS'e ayrı bir katman olarak verir; yalnız bu bilgisayar görür.")
+                    AppButton {
+                        visible: live._state.obs === true && !!live._web.obsUrl
+                        style: "plain"
+                        text: qsTr("Kopyala")
+                        onClicked: live._copy(live._web.obsUrl)
+                    }
+                    AppSwitch {
+                        checked: live._state.obs === true
+                        accessibleName: qsTr("OBS kaynağı")
+                        onToggled: live._call("obs.set", { enabled: !(live._state.obs === true) })
+                    }
+                }
+
                 ListRow {
                     icon: Icons.eye
                     title: qsTr("Yayında göster")
-                    subtitle: live._style.showOnStream === true
-                              ? qsTr("Altyazı yayında ve ekran görüntülerinde de görünür.")
-                              : qsTr("Kapalıyken altyazı yayına (OBS, Discord) ve ekran görüntülerine girmez; Live da onu okumaz.")
+                    subtitle: live._style.showOnStream !== true
+                              ? qsTr("Kapalıyken altyazı yayına (OBS, Discord) ve ekran görüntülerine girmez; Live da onu okumaz.")
+                              : live._consoleMode ? qsTr("Altyazı yayında ve ekran görüntülerinde de görünür.")
+                              : qsTr("Altyazı yayında görünür. Bandın altındaki İngilizce satır yeniden okunabilir; Live kendi çevirisini ayıklar.")
                     AppSwitch {
                         checked: live._style.showOnStream === true
                         accessibleName: qsTr("Yayında göster")
@@ -917,12 +1116,28 @@ Item {
                 Repeater {
                     model: live._announcements
                     ListRow {
+                        id: annRow
                         required property var modelData
                         icon: Icons.bell
-                        title: modelData.title || modelData.text || ""
-                        subtitle: modelData.title ? (modelData.text || "") : ""
-                        clickable: !!modelData.url
-                        onClicked: PluginManager.openUrl(modelData.url)
+                        title: modelData.title || modelData.kindLabel || ""
+                        subtitle: modelData.body || ""
+                        AppButton {
+                            style: "plain"
+                            text: qsTr("Kapat")
+                            onClicked: live._call("announcement.read", { "id": annRow.modelData["id"] })
+                        }
+                    }
+                }
+                ListRow {
+                    visible: !!live._state.support
+                    icon: Icons.scrollText
+                    iconTint: Theme.success
+                    title: qsTr("Kayıt ekibe gönderildi")
+                    subtitle: live._state.support ? qsTr("%1 KB; sorunu inceleyip sana döneceğiz.").arg(live._state.support.sizeKb || 0) : ""
+                    AppButton {
+                        style: "plain"
+                        text: qsTr("Kapat")
+                        onClicked: live._call("support.dismiss")
                     }
                 }
                 ListRow {
@@ -950,7 +1165,9 @@ Item {
                 ListRow {
                     icon: Icons.discord
                     title: qsTr("Discord")
-                    subtitle: qsTr("Discord açıksa oynadığın oyunun yanında Makine Live ile Türkçe oynadığın görünür.")
+                    subtitle: live._state.discord && live._state.discord.connected
+                              ? qsTr("Bağlı: okurken profilinde Türkçe oynadığın görünür.")
+                              : qsTr("Discord açıksa okurken profilinde Türkçe oynadığın görünür.")
                 }
                 ListRow {
                     icon: Icons.handHeart
