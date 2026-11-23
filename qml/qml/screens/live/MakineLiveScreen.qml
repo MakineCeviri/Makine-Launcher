@@ -19,9 +19,11 @@ pragma ComponentBehavior: Bound
  * off, broken or switched off remotely (launcher.json), the page says so
  * instead.
  *
- * State: {login:{state,code,url,user}, mode, sources, selectedSource, region,
- *         running, status, lastLine:{source,text}, counters:{lines,poolHits},
- *         server:{maintenance,message}, style}
+ * State (Live's Engine::stateLocked): {login:{state,code,url,user,message},
+ *         mode: pc|console, sources:[{id,key,label,…,pid}], selectedSource:{key,pid}|null,
+ *         region:{pc:{x,y,width,height}|null, console:{…}}, running, status,
+ *         lastLine:{source,text}, counters:{lines,poolHits}, server:{maintenance,message},
+ *         notice, style}
  */
 Item {
     id: live
@@ -43,7 +45,8 @@ Item {
     readonly property bool _signedIn: !!_login.user
     readonly property bool _consoleMode: _state.mode === "console"
     readonly property var _sources: _state.sources || []
-    readonly property var _region: _state.region || null
+    readonly property var _region: _state.region ? _state.region[_consoleMode ? "console" : "pc"] || null : null
+    readonly property var _selected: _state.selectedSource || null
     readonly property var _lastLine: _state.lastLine || ({})
     readonly property var _counters: _state.counters || ({})
     readonly property var _server: _state.server || ({})
@@ -178,7 +181,8 @@ Item {
                     title: live._signedIn ? live._login.user
                          : live._login.code ? qsTr("Kod: %1").arg(live._login.code)
                          : qsTr("Giriş yapılmadı")
-                    subtitle: live._signedIn ? qsTr("makineceviri.org hesabınla giriş yaptın.")
+                    subtitle: live._login.message ? live._login.message
+                            : live._signedIn ? qsTr("makineceviri.org hesabınla giriş yaptın.")
                             : live._login.code ? qsTr("Giriş bekleniyor")
                             : qsTr("Çeviri havuzunu kullanmak için makineceviri.org hesabınla giriş yap.")
 
@@ -249,8 +253,9 @@ Item {
                     ListRow {
                         required property var modelData
                         readonly property string sourceId: String(modelData.id !== undefined ? modelData.id : modelData)
-                        title: modelData.name || modelData.title || sourceId
-                        subtitle: sourceId === String(live._state.selectedSource) ? qsTr("Seçili") : ""
+                        title: modelData.label || modelData.title || sourceId
+                        subtitle: live._selected && live._selected.key === modelData.key
+                                  && live._selected.pid === modelData.pid ? qsTr("Seçili") : ""
                         clickable: true
                         onClicked: live._call("console.select", { sourceId: sourceId })
                     }
@@ -258,13 +263,13 @@ Item {
                 ListRow {
                     icon: Icons.scan
                     title: qsTr("Altyazı bölgesi")
-                    subtitle: live._region
+                    subtitle: live._region && live._region.width > 0
                               ? qsTr("%1 × %2, ekranın %3, %4 noktasında")
                                     .arg(live._region.width).arg(live._region.height).arg(live._region.x).arg(live._region.y)
                               : qsTr("Altyazının çıktığı yeri seç.")
                     AppButton {
                         style: "gray"
-                        text: live._region ? qsTr("Değiştir") : qsTr("Bölge seç")
+                        text: live._region && live._region.width > 0 ? qsTr("Değiştir") : qsTr("Bölge seç")
                         busy: live._busyMethod === "region.pick"
                         onClicked: live._call("region.pick")
                     }
@@ -289,7 +294,7 @@ Item {
                 Layout.rightMargin: Dimensions.pageMargin
                 visible: live._running
                 title: qsTr("Çeviri")
-                footer: live._error
+                footer: live._error || live._state.notice || ""
 
                 ListRow {
                     icon: live._state.running ? Icons.squareStop : Icons.play
