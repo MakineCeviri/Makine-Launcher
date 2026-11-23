@@ -236,7 +236,10 @@ private:
     void loadSettings(Installed& p);
     void saveSettings(const Installed& p) const;
 
-    void saveEnabled() const;
+    /// Writes the enabled flags of the loaded plugins. Ids not loaded this run
+    /// (a bundled folder missing for once) keep their stored flag; `forget`
+    /// drops one that was uninstalled.
+    void saveEnabled(const QString& forget = {}) const;
     QString hostExe() const;
     void hideOverlayOf(const QString& id);
 

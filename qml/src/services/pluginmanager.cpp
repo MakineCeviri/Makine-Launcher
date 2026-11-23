@@ -943,7 +943,7 @@ void PluginManager::uninstall(const QString& id, bool removeData)
             return;
         }
         m_plugins.erase(id);
-        saveEnabled();
+        saveEnabled(id);
         emit pluginsChanged();
         emit catalogChanged();
     });
@@ -1291,12 +1291,14 @@ void PluginManager::setState(Installed& p, const QString& state, const QString& 
     emit pluginChanged(p.id);
 }
 
-void PluginManager::saveEnabled() const
+void PluginManager::saveEnabled(const QString& forget) const
 {
-    QStringList enabled;
+    QSettings s;
+    QStringList enabled = s.value(kEnabledKey).toStringList();
+    enabled.removeIf([this, &forget](const QString& id) { return id == forget || m_plugins.count(id) > 0; });
     for (const auto& [id, p] : m_plugins)
         if (p.enabled) enabled.append(id);
-    QSettings().setValue(kEnabledKey, enabled);
+    s.setValue(kEnabledKey, enabled);
 }
 
 void PluginManager::appendLog(Installed& p, int level, const QString& line)
