@@ -68,9 +68,10 @@ Window {
     readonly property rect _screenRect: Qt.rect(_screen ? _screen.virtualX : 0, _screen ? _screen.virtualY : 0,
                                                 _screen ? _screen.width : 1280, _screen ? _screen.height : 720)
     readonly property bool _inRegion: _position === "region" && _hasRegion
-    // A narrow region still gets a readable band: at least 60 % of the screen
+    // Over a region the band may be as wide as the region (a console window's subtitle
+    // area); a very narrow region still gets room for a readable line
     readonly property real _maxBand: _inRegion
-        ? Math.max(sourceRegion.width * _widthPct / 100, _screenRect.width * 0.6)
+        ? Math.max(sourceRegion.width, Math.min(560, _screenRect.width * 0.5))
         : _screenRect.width * _widthPct / 100
 
     width: _subtitle ? subtitle.implicitWidth : Math.max(200, textItem.implicitWidth + 28)

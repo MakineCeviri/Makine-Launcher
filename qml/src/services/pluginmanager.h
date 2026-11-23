@@ -15,7 +15,6 @@
 #include <QStringList>
 #include <QUrl>
 
-class QWindow;
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -143,7 +142,7 @@ public:
     Q_INVOKABLE bool openUrl(const QString& url);
     /// Keeps a window (the plugin overlay) out of screen capture, so a plugin reading the
     /// screen never reads its own subtitles. Idempotent; a no-op off Windows or before 2004.
-    Q_INVOKABLE void keepOutOfCapture(QWindow* window);
+    Q_INVOKABLE void keepOutOfCapture(QObject* window);
 
     Q_INVOKABLE void answerAttach(int requestId, bool allow, bool remember);
     /// Qt logical global coordinates; the plugin receives physical pixels. width <= 0 means the user cancelled.

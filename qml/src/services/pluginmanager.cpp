@@ -3,6 +3,7 @@
 
 #include "pluginmanager.h"
 #include "apppaths.h"
+#include "capturehide.h"
 #include "cdnconfig.h"
 #include "gameservice.h"
 #include "networksecurity.h"
@@ -703,23 +704,16 @@ void PluginManager::invoke(const QString& id, const QString& method, const QVari
     }, [this, id, method](const QString& why) { emit invokeFinished(id, method, false, why); });
 }
 
-void PluginManager::keepOutOfCapture(QWindow* window)
+void PluginManager::keepOutOfCapture(QObject* window)
 {
-#ifdef Q_OS_WIN
-#ifndef WDA_EXCLUDEFROMCAPTURE
-#define WDA_EXCLUDEFROMCAPTURE 0x00000011
-#endif
-    if (!window) return;
-    const auto hwnd = reinterpret_cast<HWND>(window->winId());   // creates the native window if needed
-    DWORD current = 0;
-    if (GetWindowDisplayAffinity(hwnd, &current) && current == WDA_EXCLUDEFROMCAPTURE) return;
-    if (SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE))
+    auto* w = qobject_cast<QWindow*>(window);
+    if (!w) return;
+    unsigned long error = 0;
+    // winId() creates the native window if it is not there yet
+    if (capturehide::exclude(static_cast<std::uintptr_t>(w->winId()), &error))
         qCDebug(lcPlugin) << "overlay excluded from screen capture";
     else
-        qCWarning(lcPlugin) << "overlay could not be excluded from screen capture, error" << GetLastError();
-#else
-    Q_UNUSED(window)
-#endif
+        qCWarning(lcPlugin) << "overlay could not be excluded from screen capture, error" << error;
 }
 
 bool PluginManager::openUrl(const QString& url)

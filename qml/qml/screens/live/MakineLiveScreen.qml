@@ -5,6 +5,7 @@ import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import MakineLauncher 1.0
 import "../../components"
 pragma ComponentBehavior: Bound
@@ -53,7 +54,10 @@ Item {
     readonly property string _loginState: _login.state || (_login.user ? "signedIn" : "signedOut")
     readonly property bool _signedIn: _loginState === "signedIn" || (_loginState === "offline" && !!_login.user)
     readonly property bool _consoleMode: _state.mode === "console"
-    readonly property var _sources: _state.sources || []
+    // Kept apart from _state: every subtitle line publishes a new state, the source list
+    // (and its rows) only changes when its content does
+    property var _sources: []
+    property string _sourcesKey: "[]"
     readonly property var _region: _state.region ? _state.region[_consoleMode ? "console" : "pc"] || null : null
     readonly property bool _hasRegion: !!_region && _region.width > 0 && _region.height > 0
     readonly property var _selected: _state.selectedSource || null
@@ -66,7 +70,12 @@ Item {
     readonly property bool _ready: _loginState === "signedIn" && (_consoleMode ? _hasSource : _hasRegion) && _server.maintenance !== true
 
     function _refreshInfo() { _info = PluginManager ? PluginManager.plugin(pluginId) : ({}) }
-    function _refreshState() { _state = PluginManager ? PluginManager.pluginState(pluginId) : ({}) }
+    function _applyState(st) {
+        _state = st || ({})
+        const key = JSON.stringify(_state.sources || [])
+        if (key !== _sourcesKey) { _sourcesKey = key; _sources = _state.sources || [] }
+    }
+    function _refreshState() { _applyState(PluginManager ? PluginManager.pluginState(pluginId) : ({})) }
     function _call(method, params) {
         if (!PluginManager) return
         _error = ""
@@ -83,8 +92,19 @@ Item {
     readonly property bool _wanted: visible && _exists && _info.enabled === true && _pluginState !== "remote-off"
     Component.onCompleted: { _refreshInfo(); _refreshState(); if (_wanted) _call("state") }
     on_WantedChanged: if (_wanted) _call("state")
-    // Every subtitle line publishes a new state: only read it while someone looks
-    onVisibleChanged: if (visible) _refreshState()
+    // Every subtitle line publishes a new state: read it only while the page can be seen.
+    // Minimised (the usual case while a game runs): not at all; behind the game: at most
+    // every 2 s; in front: as it comes.
+    readonly property bool _onScreen: visible && Window.visibility !== Window.Minimized
+                                      && Window.visibility !== Window.Hidden
+    on_OnScreenChanged: if (_onScreen) _refreshState()
+    Window.onActiveChanged: if (Window.active && _onScreen) _refreshState()
+    function _stateArrived() {
+        if (!_onScreen) return
+        if (Window.active) _refreshState()
+        else if (!lazyRefresh.running) lazyRefresh.start()
+    }
+    Timer { id: lazyRefresh; interval: 2000; onTriggered: live._refreshState() }
 
     // Console mode with no source list yet: look once, the user should not have to
     property bool _askedSources: false
@@ -95,12 +115,12 @@ Item {
         target: PluginManager
         function onPluginsChanged() { live._refreshInfo() }
         function onPluginChanged(id) { if (id === live.pluginId) live._refreshInfo() }
-        function onPluginStateChanged(id) { if (id === live.pluginId && live.visible) live._refreshState() }
+        function onPluginStateChanged(id) { if (id === live.pluginId) live._stateArrived() }
         function onInvokeFinished(id, method, ok, result) {
             if (id !== live.pluginId) return
             if (live._busyMethod === method) live._busyMethod = ""
             if (!ok) live._error = String(result || "")
-            else if (method === "state" && result && typeof result === "object") live._state = result
+            else if (method === "state" && result && typeof result === "object") live._applyState(result)
         }
     }
 
@@ -649,6 +669,13 @@ Item {
                     icon: Icons.refreshCw
                     title: qsTr("Listeyi yenile")
                     subtitle: qsTr("Programı yeni açtıysan bir kez daha bak.")
+                    AppButton {
+                        visible: live._sources.length > 0
+                        style: "plain"
+                        text: qsTr("Başka pencere")
+                        toolTip: qsTr("Açık bütün pencereleri listeler; konsol görüntün başka bir programdaysa onu seç.")
+                        onClicked: live._call("console.sources", { all: true })
+                    }
                     AppButton {
                         style: "gray"
                         text: qsTr("Yenile")

@@ -18,6 +18,9 @@ pragma ComponentBehavior: Bound
  * 2 px and the shadow stays on. Qt's own outline is 1 px, so a thicker one
  * is drawn as eight offset copies behind the line (cheap: static glyphs).
  *
+ * `maxLines` caps both the entries shown and how many rows one long line may
+ * wrap to before it shrinks (Live sends one entry per subtitle).
+ *
  * `style` keys (all optional; docs/plugins/README.md overlay.show.style):
  * preset band · contrast · classic · minimal, font, sizePx, maxLines,
  * textColor, bandColor, bandOpacity, outlinePx, shadow, showSource.
@@ -63,7 +66,10 @@ Item {
     readonly property real outlinePx: Math.max(_pick("outlinePx", 1), _bare ? 2 : 0)
     readonly property bool shadow: _pick("shadow", true)
     readonly property bool showSource: _pick("showSource", false)
-    readonly property string fontFamily: _pick("font", "") !== "" ? _pick("font", "") : "Segoe UI Variable Display"
+    // Windows 11 has the Variable face; Windows 10 gets plain Segoe UI
+    readonly property string _segoe: Qt.fontFamilies().indexOf("Segoe UI Variable Display") >= 0
+                                     ? "Segoe UI Variable Display" : "Segoe UI"
+    readonly property string fontFamily: _pick("font", "") !== "" ? _pick("font", "") : _segoe
 
     readonly property var shownLines: (lines && lines.length > 0)
                                       ? lines.slice(Math.max(0, lines.length - maxLines)) : []
@@ -114,10 +120,28 @@ Item {
 
                 readonly property real _innerMax: Math.max(120, block.maxWidth - 2 * block._padX - 2 * block.gutter)
 
+                // A long line shrinks (to 74 % at most) to stay within maxLines, as Live's
+                // own renderer does (overlay_render.py fit_text); past that it wraps on
+                TextMetrics {
+                    id: measure
+                    font.family: block.fontFamily
+                    font.pixelSize: block.sizePx
+                    font.weight: Font.DemiBold
+                    text: entry.modelData.text || ""
+                }
+                readonly property real _fit: {
+                    const steps = [1.0, 0.9, 0.82, 0.74]
+                    // 0.92: a wrapped line never fills its width to the last pixel
+                    const room = block.maxLines * entry._innerMax * 0.92
+                    for (let i = 0; i < steps.length; ++i)
+                        if (measure.advanceWidth * steps[i] <= room) return steps[i]
+                    return steps[steps.length - 1]
+                }
+
                 SubtitleLine {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: entry.modelData.text || ""
-                    pixelSize: block.sizePx
+                    pixelSize: Math.round(block.sizePx * entry._fit)
                     weight: Font.DemiBold
                     color: block.textColor
                     innerMax: entry._innerMax
