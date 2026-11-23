@@ -148,6 +148,13 @@ $signed = 0
 $failed = 0
 
 foreach ($file in $filesToSign) {
+    # Never re-sign a file that already carries a valid signature (third-party
+    # DLLs such as Microsoft's onnxruntime.dll keep their publisher's).
+    & $signTool verify /pa /q $file *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Already signed, kept: $file" -ForegroundColor DarkGray
+        continue
+    }
     Write-Host "Signing: $file" -ForegroundColor Cyan
 
     $args = @("sign")

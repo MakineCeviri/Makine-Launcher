@@ -31,7 +31,10 @@ param(
   # and copies the runtime DLLs sitting next to it. Static Qt is not available
   # as a prebuilt kit (it has to be compiled from source), and an MSIX is a
   # container anyway — it may carry DLLs, so static linking buys nothing here.
-  [string]$QtBinDir = ""
+  [string]$QtBinDir = "",
+  # Authenticode-sign our binaries and the bundled plugins' before packing
+  # (owner only - needs scripts/certs/). The Store re-signs the package itself.
+  [switch]$Sign
 )
 $ErrorActionPreference = "Stop"
 $repo = Split-Path $PSScriptRoot -Parent
@@ -158,6 +161,16 @@ if (-not (Test-Path (Join-Path $livePlugin "manifest.json"))) {
 New-Item -ItemType Directory -Force (Join-Path $stage "plugins") | Out-Null
 Copy-Item $livePlugin (Join-Path $stage "plugins") -Recurse -Force
 Write-Host "Staged bundled plugin: org.makineceviri.live"
+
+if ($Sign) {
+  $toSign = @("Makine-Launcher.exe", "makine-elevate.exe", "makine-plugin-host.exe") |
+      ForEach-Object { Join-Path $stage $_ } | Where-Object { Test-Path $_ }
+  # sign_exe.ps1 keeps any file that already has a valid signature.
+  $toSign += @(Get-ChildItem (Join-Path $stage "plugins") -Recurse -Include *.dll, *.exe -File |
+      ForEach-Object { $_.FullName })
+  & (Join-Path $repo "scripts/sign_exe.ps1") -Path $toSign
+  if ($LASTEXITCODE -ne 0) { throw "signing failed ($LASTEXITCODE)" }
+}
 
 # --- locate makeappx ---------------------------------------------------
 $makeappx = (Get-Command makeappx -EA SilentlyContinue).Source

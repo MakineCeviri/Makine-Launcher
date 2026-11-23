@@ -115,6 +115,10 @@ Copy-Item $livePlugin (Join-Path $stage "plugins") -Recurse -Force
 if ($Sign) {
   $toSign = @("Makine-Launcher.exe", "makine-elevate.exe", "makine-plugin-host.exe") |
       ForEach-Object { Join-Path $stage $_ } | Where-Object { Test-Path $_ }
+  # Bundled plugins' binaries too (ours and their unsigned third-party ones);
+  # sign_exe.ps1 keeps any file that already has a valid signature.
+  $toSign += @(Get-ChildItem (Join-Path $stage "plugins") -Recurse -Include *.dll, *.exe -File |
+      ForEach-Object { $_.FullName })
   & (Join-Path $repo "scripts/sign_exe.ps1") -Path $toSign
   if ($LASTEXITCODE -ne 0) { throw "signing failed ($LASTEXITCODE)" }
 }
