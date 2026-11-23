@@ -60,4 +60,17 @@ struct InstalledFolder {
 /// reported as an error rather than trusted.
 QList<InstalledFolder> scan(const QString& pluginsRoot);
 
+/// The copy of a plugin that runs, picked from the user plugins folder and the
+/// read-only folder of plugins that ship with the launcher (<launcher>/plugins).
+struct ResolvedFolder {
+    QString id;
+    InstalledFolder folder;
+    QString bundledDir;   // the shipped copy of this id, if any (it cannot be uninstalled)
+};
+
+/// One entry per id. A user copy wins over the shipped one only when its
+/// manifest is valid and its version is newer (a registry update); otherwise
+/// the shipped copy runs. Nothing here writes to either folder.
+QList<ResolvedFolder> resolve(const QList<InstalledFolder>& user, const QList<InstalledFolder>& bundled);
+
 } // namespace plugininstaller

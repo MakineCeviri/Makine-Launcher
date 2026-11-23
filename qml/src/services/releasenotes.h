@@ -18,7 +18,8 @@
  *     "page":   "https://…",    // where the ZIP is downloaded        — CDN copy only
  *     "releases": [ { "version", "date": "YYYY-MM-DD", "title", "summary",
  *                     "changes": [ { "type": "new|improved|fixed", "text" } ] } ],
- *     "roadmap":  [ { "status": "doing|next|later", "title", "text" } ]
+ *     "roadmap":  [ { "status": "doing|next|later", "title", "text" } ],
+ *     "plugins":  { "<id>": { "enabled": false, "message": "…" } }   // off-switch, CDN copy only
  *   }
  *
  * Header-only, no QObject: tests/ui/test_releasenotes.cpp.
@@ -129,6 +130,21 @@ inline Manifest parse(const QByteArray& json, QString* error = nullptr)
         if (!v.toObject().value(QStringLiteral("title")).toString().isEmpty())
             m.roadmap.append(v);
     return m;
+}
+
+/// The plugins launcher.json switches off, each with the message shown instead
+/// of its screen (may be empty). An id that is absent, or not `"enabled": false`,
+/// runs as usual (docs/plugins/README.md, remote off-switch).
+inline QVariantMap pluginsSwitchedOff(const QByteArray& json)
+{
+    QVariantMap off;
+    const QJsonObject plugins = QJsonDocument::fromJson(json).object().value(QStringLiteral("plugins")).toObject();
+    for (auto it = plugins.begin(); it != plugins.end(); ++it) {
+        const QJsonObject p = it.value().toObject();
+        if (p.value(QStringLiteral("enabled")) == QJsonValue(false))
+            off.insert(it.key(), p.value(QStringLiteral("message")).toString().left(500));
+    }
+    return off;
 }
 
 /// `fresh` over `bundled`, one entry per version, newest first.

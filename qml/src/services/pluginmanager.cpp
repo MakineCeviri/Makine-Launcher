@@ -14,7 +14,9 @@
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
+#include <QColor>
 #include <QDateTime>
+#include <QDesktopServices>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -49,6 +51,16 @@ constexpr qint64 kMaxPackageBytes = 200LL * 1024 * 1024;
 
 const QString kEnabledKey = QStringLiteral("plugins/enabled");
 const QString kDeveloperModeKey = QStringLiteral("plugins/developerMode");
+// Bundled plugins already enabled once: from then on the enabled list is the user's choice.
+const QString kBundledSeenKey = QStringLiteral("plugins/bundledSeen");
+const QString kRemoteOffKey = QStringLiteral("plugins/remoteOff");
+constexpr int kInvokeTimeoutMs = 120000;   // a screen call may wait for the user (region, login)
+
+// Read-only under MSIX: nothing is ever written here.
+QString bundledRoot()
+{
+    return QCoreApplication::applicationDirPath() + QStringLiteral("/plugins");
+}
 
 QString key(const char* group, const QString& id)
 {
@@ -102,6 +114,44 @@ QRect toLogical(const QRect& physical)
                      qRound(physical.width() / dpr), qRound(physical.height() / dpr));
     }
     return physical;
+}
+
+// overlay.show `style`: known keys only, each checked and bounded; the overlay
+// falls back to its own defaults for anything left out.
+QVariantMap sanitizeOverlayStyle(const QJsonObject& in)
+{
+    QVariantMap out;
+    const auto number = [&](const char* key, double lo, double hi) {
+        const QJsonValue v = in.value(QLatin1String(key));
+        if (v.isDouble()) out.insert(QLatin1String(key), qBound(lo, v.toDouble(), hi));
+    };
+    const auto oneOf = [&](const char* key, const QStringList& allowed) {
+        const QString v = in.value(QLatin1String(key)).toString();
+        if (allowed.contains(v)) out.insert(QLatin1String(key), v);
+    };
+    const auto color = [&](const char* key) {
+        const QString v = in.value(QLatin1String(key)).toString();
+        if (!v.isEmpty() && v.size() <= 32 && QColor::isValidColorName(v)) out.insert(QLatin1String(key), v);
+    };
+    const auto flag = [&](const char* key) {
+        const QJsonValue v = in.value(QLatin1String(key));
+        if (v.isBool()) out.insert(QLatin1String(key), v.toBool());
+    };
+    oneOf("preset", {"classic", "contrast", "band", "minimal"});
+    oneOf("position", {"bottom", "top", "region"});
+    if (const QString font = in.value(u"font").toString(); !font.isEmpty())
+        out.insert(QStringLiteral("font"), font.left(64));
+    number("sizePx", 10, 96);
+    number("maxLines", 1, 8);
+    color("textColor");
+    color("bandColor");
+    number("bandOpacity", 0, 1);
+    number("outlinePx", 0, 8);
+    flag("shadow");
+    number("widthPct", 10, 100);
+    number("marginPx", 0, 400);
+    flag("showSource");
+    return out;
 }
 
 QString appVersion()
@@ -207,8 +257,9 @@ void PluginManager::setProcessScanner(ProcessScanner* scanner)
 
 // ── Lifecycle ───────────────────────────────────────────────────────────────
 
-void PluginManager::start()
+void PluginManager::load()
 {
+    m_remoteOff = QSettings().value(kRemoteOffKey).toMap();
     const QString root = AppPaths::pluginsDir();
     QDir().mkpath(root);
     plugininstaller::cleanUp(root);
@@ -217,17 +268,42 @@ void PluginManager::start()
     const QString previousRoot = root + QStringLiteral("/.previous");
     for (const QString& id : QDir(previousRoot).entryList(QDir::Dirs | QDir::NoDotAndDotDot))
         if (!QFileInfo::exists(root + u'/' + id)) plugininstaller::rollback(root, id);
-    for (const auto& folder : plugininstaller::scan(root))
-        loadFolder(folder);
+    for (const auto& resolved : scanAll())
+        loadFolder(resolved);
+    saveEnabled();   // bundled plugins seen for the first time are enabled now
     for (auto& [id, p] : m_plugins) {
         if (QFileInfo::exists(previousRoot + u'/' + id)) {
-            if (p.enabled) p.updatePending = true;
+            if (p.enabled && !p.runsBundled()) p.updatePending = true;
             else plugininstaller::dropPrevious(root, id);
         }
-        if (p.enabled) startPlugin(p);
     }
     emit pluginsChanged();
+}
+
+void PluginManager::startEnabled()
+{
+    if (m_started || m_shuttingDown) return;
+    m_started = true;
+    for (auto& [id, p] : m_plugins)
+        if (p.enabled) startPlugin(p);
     refreshCatalog();
+}
+
+void PluginManager::setRemoteSwitches(const QVariantMap& off)
+{
+    if (off == m_remoteOff) return;
+    const QVariantMap before = std::exchange(m_remoteOff, off);
+    QSettings().setValue(kRemoteOffKey, m_remoteOff);
+    for (auto& [id, p] : m_plugins) {
+        if (m_remoteOff.contains(id)) {
+            if (p.process) stopThen(p, nullptr);   // onFinished -> startPlugin -> remote-off
+            else if (p.enabled) startPlugin(p);
+        } else if (before.contains(id)) {
+            if (p.enabled && m_started) startPlugin(p);
+            else setState(p, p.enabled ? QStringLiteral("starting") : QStringLiteral("disabled"));
+        }
+    }
+    emit pluginsChanged();
 }
 
 void PluginManager::shutdownAll()
@@ -239,17 +315,40 @@ void PluginManager::shutdownAll()
         if (p.process) p.process->waitForExit(2000);
 }
 
-void PluginManager::loadFolder(const plugininstaller::InstalledFolder& folder)
+QList<plugininstaller::ResolvedFolder> PluginManager::scanAll() const
 {
-    const QString id = folder.manifest ? folder.manifest->id : QFileInfo(folder.dir).fileName();
+    return plugininstaller::resolve(plugininstaller::scan(AppPaths::pluginsDir()),
+                                    plugininstaller::scan(bundledRoot()));
+}
+
+void PluginManager::loadFolder(const plugininstaller::ResolvedFolder& resolved)
+{
+    const plugininstaller::InstalledFolder& folder = resolved.folder;
+    const QString& id = resolved.id;
     Installed& p = m_plugins[id];
-    const QSettings s;
+    QSettings s;
     p.id = id;
     p.dir = folder.dir;
+    p.bundledDir = resolved.bundledDir;
     p.manifest = folder.manifest;
     p.enabled = s.value(kEnabledKey).toStringList().contains(id);
-    p.verified = s.value(key("verified", id)).toBool();
-    p.granted = s.value(key("granted", id)).toStringList();
+    if (!p.bundledDir.isEmpty()) {
+        // First run with this bundled plugin: on. Later the user's choice stands.
+        QStringList seen = s.value(kBundledSeenKey).toStringList();
+        if (!seen.contains(id)) {
+            seen.append(id);
+            s.setValue(kBundledSeenKey, seen);
+            p.enabled = true;
+        }
+    }
+    if (p.runsBundled()) {
+        // Shipped with the launcher: reviewed with it, so verified and granted by origin.
+        p.verified = true;
+        p.granted = p.manifest ? p.manifest->capabilityIds() : QStringList{};
+    } else {
+        p.verified = s.value(key("verified", id)).toBool();
+        p.granted = s.value(key("granted", id)).toStringList();
+    }
     loadSettings(p);
     if (!p.manifest)
         setState(p, QStringLiteral("invalid"),
@@ -259,14 +358,24 @@ void PluginManager::loadFolder(const plugininstaller::InstalledFolder& folder)
 
 void PluginManager::reloadOne(const QString& id)
 {
-    for (const auto& folder : plugininstaller::scan(AppPaths::pluginsDir()))
-        if (QFileInfo(folder.dir).fileName() == id) loadFolder(folder);
+    for (const auto& resolved : scanAll())
+        if (resolved.id == id) loadFolder(resolved);
+}
+
+void PluginManager::clearUiState(Installed& p)
+{
+    if (p.uiState.isEmpty()) return;
+    p.uiState = {};
+    emit pluginStateChanged(p.id);
 }
 
 void PluginManager::startPlugin(Installed& p)
 {
     if (!p.enabled || p.process || !p.manifest || m_shuttingDown) return;
     const PluginManifest& m = *p.manifest;
+
+    if (m_remoteOff.contains(p.id))
+        return setState(p, QStringLiteral("remote-off"), m_remoteOff.value(p.id).toString());
 
     if (!launcherAtLeast(m.minLauncher))
         return setState(p, QStringLiteral("incompatible"),
@@ -313,6 +422,7 @@ void PluginManager::startPlugin(Installed& p)
         {"dataDir", QDir::toNativeSeparators(dataDir)},
         {"pluginDir", QDir::toNativeSeparators(p.dir)},
         {"settings", settingValues(p)},
+        {"bundled", p.runsBundled()},
     };
     setState(p, QStringLiteral("starting"));
     appendLog(p, MAKINE_LOG_INFO, tr("Başlatılıyor: %1 %2").arg(m.name, m.version));
@@ -350,6 +460,7 @@ void PluginManager::onStartFailed(const QString& id, PluginProcess* proc, int co
     p->process = nullptr;
     proc->deleteLater();
     hideOverlayOf(id);
+    clearUiState(*p);
 
     const QString reason = describeStartFailure(code, message, data);
     appendLog(*p, MAKINE_LOG_ERROR, QStringLiteral("%1 [%2: %3]").arg(reason).arg(code).arg(message));
@@ -367,9 +478,25 @@ void PluginManager::onStartFailed(const QString& id, PluginProcess* proc, int co
             emit pluginError(id, note);
             return;
         }
+        // An update over the shipped copy has no .previous: fall back to the shipped one.
+        if (!p->bundledDir.isEmpty() && !p->runsBundled()) {
+            QString removeError;
+            if (plugininstaller::remove(AppPaths::pluginsDir(), id, &removeError)) {
+                reloadOne(id);
+                emit pluginsChanged();
+                if (Installed* q = find(id)) {
+                    appendLog(*q, MAKINE_LOG_WARN,
+                              tr("Yeni sürüm başlatılamadı (%1); Makine ile gelen sürüme dönüldü.").arg(reason));
+                    startPlugin(*q);
+                }
+                return;
+            }
+        }
     }
     setState(*p, QStringLiteral("error"), reason);
-    emit pluginError(id, reason);
+    // A bundled plugin the player never installed shows its error on its own
+    // screen and in Eklentiler, not as a toast on every start.
+    if (p->bundledDir.isEmpty()) emit pluginError(id, reason);
 }
 
 void PluginManager::onFinished(const QString& id, PluginProcess* proc, bool requested)
@@ -379,6 +506,7 @@ void PluginManager::onFinished(const QString& id, PluginProcess* proc, bool requ
     p->process = nullptr;
     proc->deleteLater();
     hideOverlayOf(id);
+    clearUiState(*p);
     for (auto it = m_requests.begin(); it != m_requests.end();) {
         if (it->pluginId != id) {
             ++it;
@@ -408,7 +536,7 @@ void PluginManager::onFinished(const QString& id, PluginProcess* proc, bool requ
     if (p->crashTimes.size() >= kMaxCrashes) {
         const QString reason = tr("Eklenti 5 dakika içinde %1 kez çöktü ve durduruldu.").arg(p->crashTimes.size());
         setState(*p, QStringLiteral("crashed"), reason);
-        emit pluginError(id, reason);
+        if (p->bundledDir.isEmpty()) emit pluginError(id, reason);
         return;
     }
     setState(*p, QStringLiteral("starting"), tr("Eklenti çöktü; yeniden başlatılıyor."));
@@ -449,6 +577,8 @@ QVariantMap PluginManager::toVariant(const Installed& p) const
         {"hasSettings", false},
         {"updateAvailable", false},
         {"availableVersion", QString()},
+        {"bundled", p.runsBundled()},   // the shipped copy runs: disable only, no uninstall
+        {"screen", QVariantMap()},
     };
     if (!p.manifest) return map;
 
@@ -466,6 +596,8 @@ QVariantMap PluginManager::toVariant(const Installed& p) const
         actions.append(QVariantMap{{"id", a.id}, {"label", a.label}, {"description", a.description}});
     map["actions"] = actions;
     map["hasSettings"] = !m.settings.isEmpty();
+    if (!m.screenTitle.isEmpty())
+        map["screen"] = QVariantMap{{"title", m.screenTitle}, {"icon", m.screenIcon}};
     if (const auto* e = m_registry->find(p.id);
         e && pluginmanifest::compareVersions(e->version, m.version) > 0) {
         map["updateAvailable"] = true;
@@ -495,6 +627,41 @@ QVariantMap PluginManager::plugin(const QString& id) const
 {
     const Installed* p = find(id);
     return p ? toVariant(*p) : QVariantMap{};
+}
+
+QVariantList PluginManager::screens() const
+{
+    QVariantList list;
+    for (const auto& [id, p] : m_plugins)
+        if (p.enabled && p.manifest && !p.manifest->screenTitle.isEmpty())
+            list.append(QVariantMap{{"id", id}, {"title", p.manifest->screenTitle}, {"icon", p.manifest->screenIcon}});
+    return list;
+}
+
+QVariantMap PluginManager::pluginState(const QString& id) const
+{
+    const Installed* p = find(id);
+    return p ? p->uiState.toVariantMap() : QVariantMap{};
+}
+
+void PluginManager::invoke(const QString& id, const QString& method, const QVariantMap& params)
+{
+    Installed* p = find(id);
+    if (!p || !p->process || !p->process->isReady()) {
+        emit invokeFinished(id, method, false, tr("Eklenti çalışmıyor."));
+        return;
+    }
+    p->process->invoke(method, QJsonObject::fromVariantMap(params),
+                       [this, id, method](const QJsonValue& result, const QJsonObject& error) {
+        if (!error.isEmpty()) emit invokeFinished(id, method, false, error.value(u"message").toString());
+        else emit invokeFinished(id, method, true, result.toVariant());
+    }, kInvokeTimeoutMs);
+}
+
+bool PluginManager::openUrl(const QString& url)
+{
+    const QUrl u(url);
+    return pluginmanifest::isAllowedOpenUrl(u) && QDesktopServices::openUrl(u);
 }
 
 QVariantList PluginManager::catalog() const
@@ -744,6 +911,10 @@ void PluginManager::uninstall(const QString& id, bool removeData)
 {
     Installed* p = find(id);
     if (!p) return;
+    if (p->runsBundled()) {
+        emit pluginError(id, tr("Makine ile gelen eklenti kaldırılamaz; kapatabilirsiniz."));
+        return;
+    }
     stopThen(*p, [this, id, removeData] {
         QString error;
         if (!plugininstaller::remove(AppPaths::pluginsDir(), id, &error)) {
@@ -761,6 +932,15 @@ void PluginManager::uninstall(const QString& id, bool removeData)
             const QString log = AppPaths::logsDir() + QStringLiteral("/plugins/") + id + QStringLiteral(".log");
             QFile::remove(log);
             QFile::remove(log + QStringLiteral(".1"));
+        }
+        // An update of a bundled plugin: the shipped copy takes over again.
+        if (Installed* q = find(id); q && !q->bundledDir.isEmpty()) {
+            reloadOne(id);
+            appendLog(*q, MAKINE_LOG_INFO, tr("Makine ile gelen sürüme dönüldü."));
+            if (q->enabled) startPlugin(*q);
+            emit pluginsChanged();
+            emit catalogChanged();
+            return;
         }
         m_plugins.erase(id);
         saveEnabled();
@@ -953,6 +1133,18 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
         }
         return reply(true);
     }
+    if (method == QLatin1String("ui.openUrl")) {
+        const QUrl url(params.value(u"url").toString());
+        if (!pluginmanifest::isAllowedOpenUrl(url))
+            return fail(MAKINE_E_DENIED, QStringLiteral("only https://makineceviri.org/ and https://discord.com/ links open"));
+        QDesktopServices::openUrl(url);
+        return reply(true);
+    }
+    if (method == QLatin1String("ui.state")) {
+        p.uiState = params;
+        emit pluginStateChanged(p.id);
+        return reply(true);
+    }
     if (method == QLatin1String("games.running")) {
         if (!m_processScanner || !m_processScanner->gameRunning()) return reply(QJsonValue::Null);
         return reply(QJsonObject{{"gameId", m_processScanner->runningGameId()},
@@ -995,8 +1187,11 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
         for (const auto& r : std::as_const(m_requests))
             if (r.kind == QLatin1String("region"))
                 return fail(MAKINE_E_BUSY, QStringLiteral("a region pick is already open"));
+        const QJsonObject w = params.value(u"within").toObject();
+        const QRect within(w.value(u"x").toInt(), w.value(u"y").toInt(),
+                           w.value(u"width").toInt(), w.value(u"height").toInt());
         const int requestId = m_nextRequestId++;
-        m_requests.insert(requestId, {QStringLiteral("region"), p.id, callId, {}});
+        m_requests.insert(requestId, {QStringLiteral("region"), p.id, callId, {}, within.isValid() ? within : QRect()});
         emit regionRequested(requestId, p.id, m.name);
         return;
     }
@@ -1010,6 +1205,14 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
                                                params.value(u"width").toInt(), params.value(u"height").toInt()));
         m_overlay.text = params.value(u"text").toString().left(4000);
         m_overlay.sourceText = params.value(u"sourceText").toString().left(4000);
+        m_overlay.lines.clear();
+        for (const auto& l : params.value(u"lines").toArray()) {
+            if (m_overlay.lines.size() >= 8) break;
+            const QJsonObject line = l.toObject();
+            m_overlay.lines.append(QVariantMap{{"text", line.value(u"text").toString().left(1000)},
+                                               {"sourceText", line.value(u"sourceText").toString().left(1000)}});
+        }
+        m_overlay.style = sanitizeOverlayStyle(params.value(u"style").toObject());
         m_overlay.visible = true;
         emit overlayChanged();
         return reply(true);
@@ -1044,9 +1247,14 @@ void PluginManager::answerRegion(int requestId, int x, int y, int width, int hei
     if (!p || !p->process || req.kind != QLatin1String("region")) return;
     if (width <= 0 || height <= 0)
         return p->process->respondError(req.callId, MAKINE_E_DENIED, QStringLiteral("the user cancelled"));
-    m_overlay.region = QRect(x, y, width, height);
+    QRect physical = toPhysical(QRect(x, y, width, height));
+    // overlay.pickRegion.within: a selection outside it falls back to all of it.
+    if (req.within.isValid()) {
+        const QRect clamped = physical.intersected(req.within);
+        physical = clamped.isEmpty() ? req.within : clamped;
+    }
+    m_overlay.region = toLogical(physical);
     emit overlayChanged();
-    const QRect physical = toPhysical(m_overlay.region);
     p->process->respond(req.callId, QJsonObject{{"x", physical.x()}, {"y", physical.y()},
                                                 {"width", physical.width()}, {"height", physical.height()}});
 }

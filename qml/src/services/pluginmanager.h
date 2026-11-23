@@ -32,17 +32,20 @@ class QNetworkAccessManager;
 /**
  * Plugin system v2 (docs/adr/0009-plugin-system-v2.md), as QML sees it.
  *
- * Installed plugins come from AppPaths::pluginsDir(); the official catalogue from
- * the signed CDN registry. Each enabled plugin runs in its own
+ * Installed plugins come from AppPaths::pluginsDir() and from the read-only
+ * <launcher>/plugins folder of plugins that ship with Makine (bundled: verified,
+ * capabilities granted, enabled on first run, never uninstalled; a newer user copy
+ * wins). The official catalogue comes from the signed CDN registry. Each enabled plugin runs in its own
  * makine-plugin-host.exe (PluginProcess). Plugins never run before the user has
  * granted every capability their manifest declares.
  *
  * `plugins` entries: id, name, version, description, publisher, homepage, license,
  *   verified, enabled, state, statusText, lastError, capabilities [{id,label,reason}],
  *   missingCapabilities [{id,label,reason}], actions [{id,label,description}],
- *   hasSettings, updateAvailable, availableVersion.
+ *   hasSettings, updateAvailable, availableVersion, bundled, screen {title, icon}.
  *   state: disabled | starting | running | error | crashed | needs-consent |
- *          incompatible | invalid
+ *          incompatible | invalid | remote-off (launcher.json switched it off;
+ *          lastError holds the message)
  * `catalog` entries: id, name, version, description, publisher, homepage, size,
  *   capabilities [{id,label,reason}], installed, installedVersion, updateAvailable,
  *   compatible, incompatibleReason.
@@ -64,6 +67,12 @@ class PluginManager : public QObject {
     Q_PROPERTY(QRect overlayRegion READ overlayRegion NOTIFY overlayChanged)
     Q_PROPERTY(QString overlayText READ overlayText NOTIFY overlayChanged)
     Q_PROPERTY(QString overlaySourceText READ overlaySourceText NOTIFY overlayChanged)
+    // overlay.show `lines` [{text, sourceText}] and `style` (docs/plugins/README.md)
+    Q_PROPERTY(QVariantList overlayLines READ overlayLines NOTIFY overlayChanged)
+    Q_PROPERTY(QVariantMap overlayStyle READ overlayStyle NOTIFY overlayChanged)
+
+    /// Enabled plugins with a screen of their own (contributes.screen): {id, title, icon}
+    Q_PROPERTY(QVariantList screens READ screens NOTIFY pluginsChanged)
 
 public:
     explicit PluginManager(QObject* parent = nullptr);
@@ -72,8 +81,14 @@ public:
     void setGameService(makine::GameService* service);
     void setProcessScanner(makine::ProcessScanner* scanner);
 
-    /// Reads installed plugins, starts the enabled ones and fetches the registry.
-    void start();
+    /// Reads installed and bundled plugins. Disk only, no process, no network.
+    void load();
+    /// Starts the enabled plugins and fetches the registry. Called once the
+    /// main window is up, never on the startup path.
+    void startEnabled();
+    /// The plugins launcher.json switches off (id → message). Persisted, so a
+    /// later start without the file keeps the last known switches.
+    void setRemoteSwitches(const QVariantMap& off);
     /// Asks every plugin to shut down and waits briefly. Call on aboutToQuit.
     void shutdownAll();
 
@@ -90,6 +105,9 @@ public:
     QRect overlayRegion() const { return m_overlay.region; }
     QString overlayText() const { return m_overlay.text; }
     QString overlaySourceText() const { return m_overlay.sourceText; }
+    QVariantList overlayLines() const { return m_overlay.lines; }
+    QVariantMap overlayStyle() const { return m_overlay.style; }
+    QVariantList screens() const;
 
     Q_INVOKABLE QVariantMap plugin(const QString& id) const;
     Q_INVOKABLE void refreshCatalog();
@@ -111,6 +129,13 @@ public:
     Q_INVOKABLE QStringList logLines(const QString& id) const;
     /// Sidebar entries for enabled plugins that have settings or actions.
     Q_INVOKABLE QVariantList settingsCategories() const;
+
+    /// The latest ui.state a plugin sent for its screen; empty while it is not running.
+    Q_INVOKABLE QVariantMap pluginState(const QString& id) const;
+    /// Calls the plugin's invoke(method, params); the answer comes as invokeFinished.
+    Q_INVOKABLE void invoke(const QString& id, const QString& method, const QVariantMap& params = {});
+    /// Opens a link a plugin screen shows, under the same allow-list as ui.openUrl.
+    Q_INVOKABLE bool openUrl(const QString& url);
 
     Q_INVOKABLE void answerAttach(int requestId, bool allow, bool remember);
     /// Qt logical global coordinates; the plugin receives physical pixels. width <= 0 means the user cancelled.
@@ -134,6 +159,9 @@ signals:
     void pluginError(const QString& id, const QString& message);
     void pluginInstalled(const QString& id);
     void actionFinished(const QString& id, const QString& actionId, bool ok, const QString& message);
+    /// ok: `result` is the plugin's answer; otherwise the error message.
+    void invokeFinished(const QString& id, const QString& method, bool ok, const QVariant& result);
+    void pluginStateChanged(const QString& id);
     /// ui.notify from a plugin. kind: info | success | warning | error
     void notify(const QString& id, const QString& pluginName, const QString& title,
                 const QString& message, const QString& kind);
@@ -147,6 +175,7 @@ private:
     struct Installed {
         QString id;
         QString dir;
+        QString bundledDir;   // <launcher>/plugins/<id> when Makine ships this plugin
         std::optional<PluginManifest> manifest;   // empty: folder with a broken manifest
         bool enabled = false;
         bool verified = false;      // installed from the signed registry
@@ -161,6 +190,9 @@ private:
         QJsonObject values;         // settings.json "values"
         QJsonObject secrets;        // settings.json "secrets": base64 DPAPI blobs
         QStringList log;
+        QJsonObject uiState;        // ui.state, for the plugin's screen
+
+        bool runsBundled() const { return !bundledDir.isEmpty() && dir == bundledDir; }
     };
 
     struct UserRequest {
@@ -168,12 +200,15 @@ private:
         QString pluginId;
         QJsonValue callId;
         QString gameId;   // attach
+        QRect within;     // region: physical pixels the pick is clamped to, if set
     };
 
     Installed* find(const QString& id);
     const Installed* find(const QString& id) const;
+    QList<plugininstaller::ResolvedFolder> scanAll() const;
     void reloadOne(const QString& id);
-    void loadFolder(const plugininstaller::InstalledFolder& folder);
+    void loadFolder(const plugininstaller::ResolvedFolder& resolved);
+    void clearUiState(Installed& p);
     QVariantMap toVariant(const Installed& p) const;
 
     void startPlugin(Installed& p);
@@ -216,6 +251,8 @@ private:
     double m_busyProgress = 0.0;
     QString m_runningGameId;
     bool m_shuttingDown = false;
+    bool m_started = false;      // startEnabled() ran
+    QVariantMap m_remoteOff;     // id → message (launcher.json)
 
     struct {
         QString owner;
@@ -223,5 +260,7 @@ private:
         QRect region;
         QString text;
         QString sourceText;
+        QVariantList lines;
+        QVariantMap style;
     } m_overlay;
 };

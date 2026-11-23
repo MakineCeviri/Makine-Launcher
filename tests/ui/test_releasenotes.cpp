@@ -142,3 +142,33 @@ TEST(ReleaseNotes, BuiltInNotesStartWithThisVersion)
     }
 }
 #endif
+
+TEST(ReleaseNotes, PluginOffSwitch)
+{
+    using makine::releasenotes::pluginsSwitchedOff;
+    const QVariantMap off = pluginsSwitchedOff(R"({
+        "latest": "0.2.6-beta",
+        "plugins": {
+            "org.makineceviri.live": {"enabled": false, "message": "Bakımdayız, birazdan döneriz."},
+            "org.example.on": {"enabled": true, "message": "ignored"},
+            "org.example.quiet": {"enabled": false},
+            "org.example.odd": {"enabled": "false"}
+        }
+    })");
+    EXPECT_EQ(off.size(), 2);
+    EXPECT_EQ(off.value("org.makineceviri.live").toString(), "Bakımdayız, birazdan döneriz.");
+    EXPECT_TRUE(off.contains("org.example.quiet"));
+    EXPECT_TRUE(off.value("org.example.quiet").toString().isEmpty());
+    EXPECT_FALSE(off.contains("org.example.on"));
+    EXPECT_FALSE(off.contains("org.example.odd"));   // only a JSON false switches off
+
+    EXPECT_TRUE(pluginsSwitchedOff(R"({"latest": "0.2.6-beta"})").isEmpty());   // absent: all on
+    EXPECT_TRUE(pluginsSwitchedOff(R"({"plugins": []})").isEmpty());
+    EXPECT_TRUE(pluginsSwitchedOff("not json").isEmpty());
+
+    // Older launchers read the same file: the extra key changes nothing for them.
+    QString error;
+    const auto m = makine::releasenotes::parse(R"({"latest": "0.2.6-beta", "plugins": {"x.y": {"enabled": false}}})", &error);
+    EXPECT_TRUE(error.isEmpty());
+    EXPECT_EQ(m.latest, "0.2.6-beta");
+}

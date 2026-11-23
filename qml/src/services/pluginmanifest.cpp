@@ -9,6 +9,7 @@
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSet>
+#include <QUrl>
 
 #include <optional>
 
@@ -271,6 +272,14 @@ std::optional<PluginManifest> PluginManifest::parse(const QByteArray& json, QStr
         if (!m.events.contains(e.toString())) m.events.append(e.toString());
     }
 
+    if (contributes.contains(u"screen")) {
+        const QJsonObject screen = contributes.value(u"screen").toObject();
+        m.screenTitle = screen.value(u"title").toString().trimmed().left(40);
+        m.screenIcon = screen.value(u"icon").toString().left(40);
+        if (m.screenTitle.isEmpty())
+            return reject(error, QStringLiteral("contributes.screen needs a title"));
+    }
+
     return m;
 }
 
@@ -293,4 +302,13 @@ QJsonObject PluginManifest::setting(const QString& key) const
     for (const auto& s : settings)
         if (s.value(u"key").toString() == key) return s;
     return {};
+}
+
+bool pluginmanifest::isAllowedOpenUrl(const QUrl& url)
+{
+    if (!url.isValid() || url.scheme() != QLatin1String("https") || !url.userInfo().isEmpty()
+        || url.port() != -1)
+        return false;
+    const QString host = url.host();
+    return host == QLatin1String("makineceviri.org") || host == QLatin1String("discord.com");
 }

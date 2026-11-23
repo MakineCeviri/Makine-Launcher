@@ -17,6 +17,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -144,4 +145,70 @@ TEST(PluginInstaller, FolderNameMustMatchManifestId)
     ASSERT_EQ(found.size(), 1);
     EXPECT_FALSE(found[0].manifest);
     EXPECT_FALSE(found[0].error.isEmpty());
+}
+
+namespace {
+
+plugininstaller::InstalledFolder folder(const QString& dir, const QString& id, const QString& version)
+{
+    PluginManifest m;
+    m.id = id;
+    m.version = version;
+    return {dir, m, {}};
+}
+
+plugininstaller::InstalledFolder broken(const QString& dir)
+{
+    return {dir, std::nullopt, QStringLiteral("manifest.json is missing")};
+}
+
+} // namespace
+
+TEST(PluginInstaller, BundledCopyRunsUnlessTheUserHasANewerOne)
+{
+    const QString id = "org.makineceviri.live";
+    const auto shipped = folder("app/plugins/" + id, id, "1.0.0");
+
+    // Only shipped: it runs, and it is marked as shipped.
+    auto r = plugininstaller::resolve({}, {shipped});
+    ASSERT_EQ(r.size(), 1);
+    EXPECT_EQ(r[0].id, id);
+    EXPECT_EQ(r[0].folder.dir, shipped.dir);
+    EXPECT_EQ(r[0].bundledDir, shipped.dir);
+
+    // A registry update in the user folder wins...
+    r = plugininstaller::resolve({folder("user/" + id, id, "1.1.0")}, {shipped});
+    ASSERT_EQ(r.size(), 1);
+    EXPECT_EQ(r[0].folder.dir, "user/" + id);
+    EXPECT_EQ(r[0].bundledDir, shipped.dir);   // ...and uninstalling it falls back here
+
+    // ...but not once the launcher ships the same or a newer version.
+    r = plugininstaller::resolve({folder("user/" + id, id, "1.0.0")}, {shipped});
+    EXPECT_EQ(r[0].folder.dir, shipped.dir);
+    r = plugininstaller::resolve({folder("user/" + id, id, "1.0.0-beta")}, {shipped});
+    EXPECT_EQ(r[0].folder.dir, shipped.dir);
+
+    // A broken user copy never shadows a working shipped one.
+    r = plugininstaller::resolve({broken("user/" + id)}, {shipped});
+    ASSERT_EQ(r.size(), 1);
+    EXPECT_EQ(r[0].folder.dir, shipped.dir);
+    EXPECT_TRUE(r[0].folder.manifest.has_value());
+
+    // A broken shipped copy loses to any valid user copy.
+    r = plugininstaller::resolve({folder("user/" + id, id, "0.9.0")}, {broken("app/plugins/" + id)});
+    ASSERT_EQ(r.size(), 1);
+    EXPECT_EQ(r[0].folder.dir, "user/" + id);
+}
+
+TEST(PluginInstaller, UserPluginsWithoutABundledCopyStayAsTheyAre)
+{
+    const auto r = plugininstaller::resolve(
+        {folder("user/org.example.a", "org.example.a", "1.0.0"), broken("user/org.example.b")},
+        {folder("app/plugins/org.makineceviri.live", "org.makineceviri.live", "1.0.0")});
+    ASSERT_EQ(r.size(), 3);
+    for (const auto& f : r) {
+        if (f.id == "org.makineceviri.live") continue;
+        EXPECT_TRUE(f.bundledDir.isEmpty()) << f.id.toStdString();   // these can be uninstalled
+    }
+    EXPECT_EQ(r[2].id, "org.example.b");   // a broken folder keeps its folder name as id
 }

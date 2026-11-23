@@ -209,6 +209,7 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     const bool store = runningInsideMsixPackage();
     m_available = store ? manifest.store : manifest.latest;
     applyNotes(manifest);
+    emit pluginSwitchesRead(releasenotes::pluginsSwitchedOff(data));
 
     // An installer EXE to swap in (url + checksum) is used where there is
     // one; otherwise the action opens the Store or the release page.

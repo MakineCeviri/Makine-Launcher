@@ -125,6 +125,8 @@ signals:
     void displayChanged();   // statusText, indicatorVisible, busy
     void notesChanged();
     void notesSeenChanged();
+    /// launcher.json was read: the plugins it switches off (id → message)
+    void pluginSwitchesRead(const QVariantMap& off);
 
 private:
     void setState(State s);

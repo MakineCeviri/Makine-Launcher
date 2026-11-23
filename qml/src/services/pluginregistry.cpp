@@ -183,7 +183,11 @@ void PluginRegistry::finish()
     emit loadingChanged();
     QString error;
     if (!m_fetchError.isEmpty()) {
-        error = m_fetchError;
+        // Missing or unreachable is not the player's problem: the catalogue just
+        // stays as it was (bundled plugins need none). Only a bad index is shown.
+        qCInfo(lcPlugin) << "Plugin registry not reached:" << m_fetchError;
+        emit failed(QString());
+        return;
     } else if (!pluginregistry::verifySignature(m_index, m_signature, pluginregistry::publicKey())) {
         error = QStringLiteral("registry signature does not verify");
         qCWarning(lcPlugin) << "Plugin registry rejected: bad signature";

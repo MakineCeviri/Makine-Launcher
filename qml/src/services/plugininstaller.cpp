@@ -9,6 +9,7 @@
 #include <QThread>
 #include <QUuid>
 
+#include <algorithm>
 #include <optional>
 
 #ifndef MAKINE_UI_ONLY
@@ -167,4 +168,27 @@ QList<InstalledFolder> scan(const QString& pluginsRoot)
     return found;
 }
 
+QList<ResolvedFolder> resolve(const QList<InstalledFolder>& user, const QList<InstalledFolder>& bundled)
+{
+    const auto idOf = [](const InstalledFolder& f) {
+        return f.manifest ? f.manifest->id : QFileInfo(f.dir).fileName();
+    };
+    QList<ResolvedFolder> out;
+    for (const auto& b : bundled)
+        out.append({idOf(b), b, b.dir});
+    for (const auto& u : user) {
+        const QString id = idOf(u);
+        auto it = std::find_if(out.begin(), out.end(), [&id](const ResolvedFolder& r) { return r.id == id; });
+        if (it == out.end()) {
+            out.append({id, u, {}});
+            continue;
+        }
+        const auto& shipped = it->folder.manifest;
+        if (u.manifest && (!shipped || pluginmanifest::compareVersions(u.manifest->version, shipped->version) > 0))
+            it->folder = u;
+    }
+    return out;
+}
+
 } // namespace plugininstaller
+

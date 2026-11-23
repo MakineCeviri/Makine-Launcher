@@ -713,6 +713,9 @@ private:
 
 namespace {
 constexpr int kStartupSettleMs = 5000;
+// Plugin hosts start this long after the first frame (or after a minimized
+// start), so a bundled plugin never competes with the window coming up.
+constexpr int kPluginStartDelayMs = 2000;
 }
 
 // Resolve log file path using organized directory layout
@@ -1229,17 +1232,15 @@ static void createServices(
     auto* communityService = new CommunityService(&app);
     engine.rootContext()->setContextProperty("CommunityService", communityService);
 
-    // ===== Phase 6b: Plugin system (dev builds only until v2 ships, ADR-0009) =====
-#ifdef MAKINE_DEV_TOOLS
+    // ===== Phase 6b: Plugin system (ADR-0009) =====
+    // Manifests only here: no process, no network. The hosts start after the
+    // first frame (setupRootWindow) or, minimized, once the event loop runs.
     auto* pluginManager = new PluginManager(&app);
     pluginManager->setGameService(gameService);
     pluginManager->setProcessScanner(processScanner);
-    pluginManager->start();
+    pluginManager->load();
     engine.rootContext()->setContextProperty("PluginManager", pluginManager);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, pluginManager, &PluginManager::shutdownAll);
-#else
-    engine.rootContext()->setContextProperty("PluginManager", nullptr);
-#endif
 
     // ===== Phase 7: Update service + system tray =====
     makine::CrashReporter::addBreadcrumb("startup", "Phase 7: Update service + system tray");
@@ -1251,6 +1252,9 @@ static void createServices(
     // Singleton instance: exposes BOTH the instance AND Q_ENUM(State) values to QML.
     // (setContextProperty only exposes the instance — enum constants resolve to undefined)
     qmlRegisterSingletonInstance("MakineLauncher", 1, 0, "UpdateService", updateService);
+    // launcher.json's plugin off-switch rides on the update check
+    QObject::connect(updateService, &UpdateService::pluginSwitchesRead,
+                     pluginManager, &PluginManager::setRemoteSwitches);
 
     // Startup update check — once, async, unless we just updated
     if (!isPostUpdate)
@@ -1541,9 +1545,12 @@ static void setupRootWindow(
     // synchronous model resets. Instead, we let QML start with empty data
     // (loading state), close splash on the first rendered frame, then
     // populate data progressively via the event loop.
+    auto* pluginManager = qobject_cast<PluginManager*>(
+        engine.rootContext()->contextProperty("PluginManager").value<QObject*>());
+
     QMetaObject::Connection firstFrameConn;
     firstFrameConn = QObject::connect(window, &QQuickWindow::frameSwapped, &app,
-        [firstFrameConn, &splash, &startupTimer, gameService]() mutable {
+        [firstFrameConn, &splash, &startupTimer, gameService, pluginManager]() mutable {
             // Guard: render thread may queue multiple frameSwapped before
             // the first callback runs (threaded loop pipelining).
             static bool done = false;
@@ -1559,6 +1566,8 @@ static void setupRootWindow(
             // Dispatch game library loading — results arrive on subsequent
             // event loop iterations, populating QML progressively.
             gameService->initialize();
+            if (pluginManager)
+                QTimer::singleShot(kPluginStartDelayMs, pluginManager, &PluginManager::startEnabled);
 
         }, Qt::QueuedConnection);
 
@@ -2040,6 +2049,9 @@ int main(int argc, char *argv[])
         splash.close();
 #endif
         gameService->initialize();
+        if (auto* plugins = qobject_cast<PluginManager*>(
+                engine.rootContext()->contextProperty("PluginManager").value<QObject*>()))
+            QTimer::singleShot(kPluginStartDelayMs, plugins, &PluginManager::startEnabled);
         logToFile(QStringLiteral("Started minimized: splash closed, library loading"));
     }
 

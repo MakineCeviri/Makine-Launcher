@@ -11,6 +11,8 @@
 
 #include <optional>
 
+class QUrl;
+
 struct PluginCapability {
     QString id;
     QString reason;   // shown to the user when asking for consent
@@ -43,6 +45,10 @@ struct PluginManifest {
     QList<QJsonObject> settings;   // key, type, label, description?, default?, options?, min?, max?
     QList<PluginAction> actions;
     QStringList events;
+    // contributes.screen: a sidebar entry and a launcher page of its own.
+    // Empty title = none. icon names an Icons token; the launcher may ignore it.
+    QString screenTitle;
+    QString screenIcon;
 
     static std::optional<PluginManifest> parse(const QByteArray& json, QString* error = nullptr);
 
@@ -71,5 +77,9 @@ bool isSupportedAbi(int abi);
 
 /// Whether `value` is acceptable for `setting` (type, options, range).
 bool isValidSettingValue(const QJsonObject& setting, const QJsonValue& value);
+
+/// ui.openUrl: https only, host exactly makineceviri.org or discord.com, no
+/// user info, no port. Anything else is E_DENIED.
+bool isAllowedOpenUrl(const QUrl& url);
 
 } // namespace pluginmanifest

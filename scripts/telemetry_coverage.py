@@ -52,9 +52,11 @@ TELEMETRY_CALLS = ("reportFailure", "reportOperationFailure")
 # Signals intentionally outside telemetry, with the reason. Anything not listed
 # here and not wired is reported as a gap.
 EXEMPT = {
-    "pluginError": "plugins are compiled out of releases (MAKINE_DEV_TOOLS); "
-                   "split host-side install failures (download, checksum, "
-                   "extract) from plugin faults before that gate is lifted",
+    "pluginError": "a plugin's faults are its own, not the launcher's (they go "
+                   "to its log under logs/plugins); the bundled plugin's start "
+                   "failures are not even toasted. Host-side install failures "
+                   "(download, checksum, extract) still want their own reason "
+                   "before they are reported",
     "startFailed": "PluginProcess internal; PluginManager turns it into "
                    "pluginError, exempt for the same reason",
     "detailsFetchError": "Steam store metadata is cosmetic — a failure degrades "

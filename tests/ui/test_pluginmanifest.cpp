@@ -9,6 +9,7 @@
 
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QUrl>
 
 #include <optional>
 
@@ -174,4 +175,44 @@ TEST(PluginManifest, VersionOrder)
     EXPECT_GT(compareVersions("1.10.0", "1.9.9"), 0);
     EXPECT_EQ(compareVersions("1.0.0", "1.0.0"), 0);
     EXPECT_EQ(compareVersions("1.0", "1.0.0"), 0);
+}
+
+TEST(PluginManifest, ContributesScreen)
+{
+    QJsonObject o = validManifest();
+    QJsonObject contributes = o.value("contributes").toObject();
+    EXPECT_TRUE(parse(o)->screenTitle.isEmpty());   // no screen: no sidebar entry
+
+    contributes.insert("screen", QJsonObject{{"title", " Makine Live "}, {"icon", "languages"}});
+    o.insert("contributes", contributes);
+    const auto m = parse(o);
+    ASSERT_TRUE(m.has_value());
+    EXPECT_EQ(m->screenTitle, "Makine Live");
+    EXPECT_EQ(m->screenIcon, "languages");
+
+    contributes.insert("screen", QJsonObject{{"icon", "languages"}});
+    o.insert("contributes", contributes);
+    QString error;
+    EXPECT_FALSE(parse(o, &error).has_value());
+    EXPECT_FALSE(error.isEmpty());
+}
+
+TEST(PluginManifest, OpenUrlAllowList)
+{
+    using pluginmanifest::isAllowedOpenUrl;
+    EXPECT_TRUE(isAllowedOpenUrl(QUrl("https://makineceviri.org/live/giris?kod=AB12")));
+    EXPECT_TRUE(isAllowedOpenUrl(QUrl("https://makineceviri.org")));
+    EXPECT_TRUE(isAllowedOpenUrl(QUrl("https://discord.com/invite/makine")));
+    EXPECT_TRUE(isAllowedOpenUrl(QUrl("https://MAKINECEVIRI.ORG/")));   // hosts compare lowercased
+
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("http://makineceviri.org/")));
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("https://makineceviri.org@evil.com/")));
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("https://user:pw@makineceviri.org/")));
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("https://makineceviri.org.evil.com/")));
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("https://evilmakineceviri.org/")));
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("https://cdn.makineceviri.org/")));   // exact host only
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("https://makineceviri.org:8443/")));
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("file:///C:/Windows/System32/cmd.exe")));
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("javascript:alert(1)")));
+    EXPECT_FALSE(isAllowedOpenUrl(QUrl("")));
 }
