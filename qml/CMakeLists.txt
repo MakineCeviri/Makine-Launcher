@@ -453,9 +453,13 @@ else()
     endif()
 endif()
 if(_live_problem STREQUAL "")
-    add_custom_command(TARGET MakineLauncher POST_BUILD
+    # Every build, not only when the launcher relinks: a rebuilt Live package must
+    # reach the staged copy the packaging scripts take. No wipe first: a running
+    # dev launcher keeps the plugin's DLLs open, and only changed files are copied.
+    add_custom_target(makine_live_plugin ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
             "${MAKINE_LIVE_PLUGIN_DIR}" "$<TARGET_FILE_DIR:MakineLauncher>/plugins/${_live_id}"
+        COMMENT "Staging Makine Live"
         VERBATIM)
     message(STATUS "Live:     bundled (${MAKINE_LIVE_PLUGIN_DIR})")
 elseif(MAKINE_RELEASE_VERIFIED)
