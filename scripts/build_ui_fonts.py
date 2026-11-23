@@ -67,7 +67,7 @@ message-square-text messages-square minimize-2 minus monitor monitor-check
 monitor-down moon mouse-pointer-click move-right package package-check palette
 panel-left party-popper pause picture-in-picture-2 pin play plus power puzzle
 refresh-cw rocket rotate-ccw rotate-cw scan scan-search scroll-text search send server
-settings shield shield-alert shield-check sliders-horizontal sparkle sparkles square
+settings shield shield-alert shield-check sliders-horizontal smartphone sparkle sparkles square
 square-stop star sun swatch-book tag terminal trash-2 triangle-alert trophy type
 undo-2 user users wand-sparkles wifi-off wrench x zap
 """.split()
@@ -97,6 +97,7 @@ FILLED = {
     "list-checks": "list-checks", "list-ordered": "list-numbers", "lock": "lock",
     "mail": "envelope", "medal": "medal", "message-circle": "chat-circle",
     "message-square-text": "chat-text", "messages-square": "chats", "monitor": "monitor",
+    "smartphone": "device-mobile",
     "moon": "moon", "mouse-pointer-click": "cursor-click", "package": "package",
     "palette": "palette", "party-popper": "confetti", "pin": "push-pin", "play": "play",
     "power": "power", "puzzle": "puzzle-piece", "refresh-cw": "arrows-clockwise",

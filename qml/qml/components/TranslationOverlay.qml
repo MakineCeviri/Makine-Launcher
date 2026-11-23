@@ -12,13 +12,20 @@ pragma ComponentBehavior: Bound
  * Two shapes: one translated text under the picked region (the plain `text`
  * call), or a subtitle of several `lines` drawn by SubtitleBlock with the
  * plugin's `overlayStyle` (docs/plugins/README.md). Placement keys live here:
- * widthPct (the band's widest, of the region or screen), marginPx, position
- * region (centred on the picked subtitle region, over the original line) ·
- * bottom · top (of the screen under the region).
+ * widthPct (the band's usual widest, of the screen; default 62), marginPx,
+ * position region (centred on the picked subtitle region, right over the
+ * original line; the default once a region is known) · bottom · top. Text is
+ * 28 px at 1080p and scales with the screen.
+ *
+ * `shown` (not `visible`) is what the owner drives: appearing is 160 ms of
+ * opacity and a 6 px rise, disappearing 200 ms; instant with animations off.
+ * The window keeps one width while it is up, so a new line only moves the band
+ * inside it (no native resize per line).
  *
  * Click-through, never takes focus, and kept out of screen capture
  * (PluginManager.keepOutOfCapture: WDA_EXCLUDEFROMCAPTURE) so a plugin that
- * reads the screen never reads its own subtitles.
+ * reads the screen never reads its own subtitles; style `showOnStream` lets
+ * capture (OBS, a Discord stream) see it again.
  */
 Window {
     id: overlayWindow
@@ -27,10 +34,13 @@ Window {
     color: "transparent"
     visible: false
 
+    // Driven by the owner (PluginManager.overlayVisible); plain-text callers set it too
+    property bool shown: false
+
     property string translatedText: ""
     property string ocrText: ""
     property rect sourceRegion: Qt.rect(0, 0, 0, 0)
-    // [{text, sourceText}] — when set, the subtitle shape is drawn instead
+    // [{text, sourceText, kind}] — when set, the subtitle shape is drawn instead
     property var lines: []
     property var overlayStyle: ({})
 
@@ -43,13 +53,15 @@ Window {
     property color bgColor: "#CC1a1a1a"
 
     readonly property bool _subtitle: lines && lines.length > 0
+    readonly property bool _animate: Dimensions.animFast > 0
 
     function _style(key, fallback) {
         const s = overlayStyle || {}
         return s[key] !== undefined && s[key] !== null ? s[key] : fallback
     }
-    readonly property real _widthPct: _style("widthPct", 80)
+    readonly property real _widthPct: _style("widthPct", 62)
     readonly property int _marginPx: _style("marginPx", 24)
+    readonly property bool _showOnStream: _style("showOnStream", false)
     readonly property bool _hasRegion: sourceRegion.width > 0 && sourceRegion.height > 0
     readonly property string _position: _style("position", _hasRegion ? "region" : "bottom")
 
@@ -73,9 +85,18 @@ Window {
     readonly property real _maxBand: _inRegion
         ? Math.max(sourceRegion.width, Math.min(560, _screenRect.width * 0.5))
         : _screenRect.width * _widthPct / 100
+    // A long line widens its band up to this instead of shrinking or adding rows
+    readonly property real _stretch: Math.max(_maxBand, _screenRect.width * 0.9)
 
-    width: _subtitle ? subtitle.implicitWidth : Math.max(200, textItem.implicitWidth + 28)
-    height: _subtitle ? subtitle.implicitHeight : textItem.implicitHeight + 20
+    // Room for the tallest subtitle the style allows, so the window rarely resizes
+    readonly property real _roomHeight: {
+        const rows = subtitle.maxLines * 2
+        const lineH = subtitle.sizePx * 1.3 * (subtitle.showSource ? 1.6 : 1)
+        return Math.max(subtitle.implicitHeight, rows * lineH + 2 * subtitle._padY + 2 * subtitle.gutter)
+    }
+
+    width: _subtitle ? Math.round(_stretch) : Math.max(200, textItem.implicitWidth + 28)
+    height: _subtitle ? Math.round(_roomHeight) : textItem.implicitHeight + 20
 
     x: _subtitle
        ? Math.round((_inRegion ? sourceRegion.x + sourceRegion.width / 2 : _screenRect.x + _screenRect.width / 2) - width / 2)
@@ -85,18 +106,44 @@ Window {
        : _position === "top" ? _screenRect.y + _marginPx - subtitle.gutter
        : _screenRect.y + _screenRect.height - height - _marginPx + subtitle.gutter
 
-    // Out of screen capture once it has a native window; a short fade on each appearance
-    onVisibleChanged: {
-        if (!visible) return
-        if (typeof PluginManager !== "undefined" && PluginManager) PluginManager.keepOutOfCapture(overlayWindow)
-        content.opacity = 0
-        fadeIn.restart()
+    // ── Appear / disappear ──
+    onShownChanged: {
+        if (shown) {
+            hideAnim.stop()
+            if (!visible) {
+                content.opacity = 0
+                rise.y = 6
+                visible = true
+                showAnim.restart()
+            }
+        } else if (visible) {
+            showAnim.stop()
+            hideAnim.restart()
+        }
+    }
+    // Out of screen capture once it has a native window (and again if the style changes)
+    function _applyCapture() {
+        if (visible && typeof PluginManager !== "undefined" && PluginManager)
+            PluginManager.keepOutOfCapture(overlayWindow, !_showOnStream)
+    }
+    onVisibleChanged: _applyCapture()
+    on_ShowOnStreamChanged: _applyCapture()
+
+    ParallelAnimation {
+        id: showAnim
+        NumberAnimation { target: content; property: "opacity"; to: 1; duration: overlayWindow._animate ? 160 : 0; easing.type: Easing.OutCubic }
+        NumberAnimation { target: rise; property: "y"; to: 0; duration: overlayWindow._animate ? 160 : 0; easing.type: Easing.OutCubic }
+    }
+    SequentialAnimation {
+        id: hideAnim
+        NumberAnimation { target: content; property: "opacity"; to: 0; duration: overlayWindow._animate ? 200 : 0; easing.type: Easing.OutCubic }
+        ScriptAction { script: overlayWindow.visible = false }
     }
 
     Item {
         id: content
         anchors.fill: parent
-        NumberAnimation on opacity { id: fadeIn; running: false; to: 1; duration: 160; easing.type: Easing.OutCubic }
+        transform: Translate { id: rise }
 
         // ── Single text under the region ──
         Rectangle {
@@ -118,25 +165,32 @@ Window {
             }
         }
 
-        // ── Subtitle ──
+        // ── Subtitle: centred across, anchored to the side it grows away from ──
         SubtitleBlock {
             id: subtitle
             visible: overlayWindow._subtitle
+            x: Math.round((parent.width - width) / 2)
+            y: overlayWindow._inRegion ? Math.round((parent.height - height) / 2)
+             : overlayWindow._position === "top" ? 0
+             : parent.height - height
             lines: overlayWindow.lines
             style: overlayWindow.overlayStyle
             maxWidth: overlayWindow._maxBand
+            stretchWidth: overlayWindow._stretch
+            textScale: overlayWindow._screenRect.height > 0 ? overlayWindow._screenRect.height / 1080 : 1
+            animate: overlayWindow._animate
         }
     }
 
     Timer {
         id: hideTimer
         interval: 15000
-        onTriggered: overlayWindow.visible = false
+        onTriggered: overlayWindow.shown = false
     }
 
     onTranslatedTextChanged: {
         if (translatedText.length > 0) {
-            visible = true
+            shown = true
             if (overlayWindow.autoHide) hideTimer.restart()
         }
     }

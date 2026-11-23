@@ -34,6 +34,8 @@ Window {
     function show() {
         selecting = false
         selectionRect = Qt.rect(0, 0, 0, 0)
+        // A plugin may still be reading the screen: its own picker must not be read
+        if (typeof PluginManager !== "undefined" && PluginManager) PluginManager.keepOutOfCapture(regionWindow)
         visible = true
         raise()
         requestActivate()

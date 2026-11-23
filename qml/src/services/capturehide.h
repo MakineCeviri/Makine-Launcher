@@ -18,22 +18,30 @@
 
 namespace capturehide {
 
-/// true when the window is (now) excluded. Idempotent; false off Windows and before
-/// Windows 10 2004, where the flag does not exist (lastError holds GetLastError()).
-inline bool exclude(std::uintptr_t nativeWindow, unsigned long* lastError = nullptr)
+/// Excludes the window from capture (`excluded`) or lets capture see it again ("yayında
+/// göster"). true when the window is now in that state. Idempotent; before Windows 10
+/// 2004 the flag does not exist: false, and the window stays capturable (WDA_NONE).
+inline bool setExcluded(std::uintptr_t nativeWindow, bool excluded, unsigned long* lastError = nullptr)
 {
 #ifdef _WIN32
     const auto hwnd = reinterpret_cast<HWND>(nativeWindow);
+    const DWORD wanted = excluded ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE;
     DWORD current = 0;
-    if (GetWindowDisplayAffinity(hwnd, &current) && current == WDA_EXCLUDEFROMCAPTURE) return true;
-    if (SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)) return true;
+    if (GetWindowDisplayAffinity(hwnd, &current) && current == wanted) return true;
+    if (SetWindowDisplayAffinity(hwnd, wanted)) return true;
     if (lastError) *lastError = GetLastError();
     return false;
 #else
     (void)nativeWindow;
+    (void)excluded;
     (void)lastError;
     return false;
 #endif
+}
+
+inline bool exclude(std::uintptr_t nativeWindow, unsigned long* lastError = nullptr)
+{
+    return setExcluded(nativeWindow, true, lastError);
 }
 
 } // namespace capturehide

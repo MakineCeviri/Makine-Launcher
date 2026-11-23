@@ -212,24 +212,31 @@ plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is on
 | `overlay.show` | optional `style` object (below), optional `lines: [{text, sourceText?}]` instead of `text` for a multi-line subtitle | `overlay` |
 
 The subtitle is drawn by `components/SubtitleBlock.qml` (the overlay and the Live
-page's preview share it). One direction, readability first: an ink band
-(`#0f1012`) hugging the text, Segoe UI Variable Display Semibold, black outline,
-soft shadow. Presets: `band` (default: band 0.78, white, 1 px outline) ·
-`contrast` (band 0.9, subtitle yellow `#f2c230`, 2 px) · `classic` (no band,
-2 px outline + shadow) · `minimal` (no band, 2 px outline). Below band 0.5 the
-outline is never under 2 px (thicker outlines are eight offset copies, Qt's own
-is 1 px). Defaults: `sizePx` 28, `maxLines` 2, `widthPct` 80, `position`
-`region` when a region is known (centred on it, over the original line). The
-overlay window is click-through, never takes focus, and is excluded from screen
-capture (`WDA_EXCLUDEFROMCAPTURE`, `PluginManager::keepOutOfCapture`): a plugin
-reading the screen does not read its own subtitles, and neither do OBS,
-Discord streams or screenshots.
+page share it). One direction, readability first (Fable, 2026-11-24): an ink band
+(`#0f1012`) hugging the text, Inter Display SemiBold, black outline, soft shadow.
+Presets: `band` (default: band 0.9, white, 1 px outline) · `contrast` (band 0.9,
+subtitle yellow `#f2c230`, 2 px) · `classic` (no band, 2 px outline + shadow) ·
+`minimal` (no band, 2 px outline). Below band 0.5 the outline is never under
+2 px (thicker outlines are eight offset copies; Qt's own is 1 px). Defaults:
+`sizePx` 28 at 1080p, scaled with the screen's height; `maxLines` 2 (a longer
+line widens its band up to 90 % of the screen, text never shrinks); `widthPct`
+62; `position` `region` once a region is known (centred on it, over the original
+line). A line whose `kind` (per line, or the call's own `kind`) is set and is not
+`verified` carries a thin yellow strip: a machine translation awaiting approval.
+Motion: 160 ms fade and 6 px rise in, 200 ms out, 120 ms crossfade and band
+resize between lines; none with animations off. The overlay window is
+click-through, never takes focus, and is excluded from screen capture
+(`WDA_EXCLUDEFROMCAPTURE`, `PluginManager::keepOutOfCapture`, also the region
+picker): a plugin reading the screen does not read its own subtitles, and
+neither do OBS, Discord streams or screenshots, unless `showOnStream` is true
+(Windows before 10 2004: no exclusion). `game.started` and `games.running` carry
+optional `pid` and `exe` of the running game.
 
 `overlay.show.style` (every key optional; the launcher falls back to its defaults):
 `preset` (`classic` · `contrast` · `band` · `minimal`), `font`, `sizePx`, `maxLines`,
 `textColor`, `bandColor`, `bandOpacity` (0–1), `outlinePx`, `shadow` (bool),
 `widthPct` (of the region or screen), `marginPx`, `position` (`bottom` · `top` ·
-`region`), `showSource` (bool).
+`region`), `showSource` (bool), `showOnStream` (bool).
 
 **Launcher → plugin.** QML calls `PluginManager.invoke(id, method, params)` →
 `invoke(method, paramsJson)` in the plugin; the answer arrives as the

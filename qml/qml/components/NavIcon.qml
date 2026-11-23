@@ -52,6 +52,7 @@ Item {
                        : icon.name === "settings" ? settings
                        : icon.name === "users" ? users
                        : icon.name === "heart" ? heart
+                       : icon.name === "message" ? message
                        : null
     }
 
@@ -168,6 +169,16 @@ Item {
     }
 
     // A quick shake that settles: -a, +a·0.75, -a·0.4, 0
+    // A stroke written in from its start (px): gone at once, then drawn out
+    component Write: SequentialAnimation {
+        id: write
+        property Item part: null
+        property int delay: 0
+        NumberAnimation { target: write.part; property: "sx"; to: 0; duration: 0 }
+        PauseAnimation { duration: write.delay }
+        NumberAnimation { target: write.part; property: "sx"; to: 1; duration: 200; easing.type: Easing.OutCubic }
+    }
+
     component Wiggle: SequentialAnimation {
         id: wiggle
         property Item part: null
@@ -340,6 +351,28 @@ Item {
                 py: 13
                 d: "M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"
             }
+        }
+    }
+
+    // Makine Live (messageSquareText): the bubble pops once, then its lines write
+    // themselves in from the left, one after another
+    Component {
+        id: message
+        Item {
+            property Animation motion: ParallelAnimation {
+                Pop { part: bubble; to: 0.86 }
+                Write { part: line1; delay: 150 }
+                Write { part: line2; delay: 280 }
+                Write { part: line3; delay: 410 }
+            }
+            Part {
+                id: bubble
+                py: 12
+                d: "M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"
+            }
+            Part { id: line1; px: 7; py: 7; d: "M7 7h8" }
+            Part { id: line2; px: 7; py: 11; d: "M7 11h10" }
+            Part { id: line3; px: 7; py: 15; d: "M7 15h6" }
         }
     }
 }

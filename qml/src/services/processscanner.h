@@ -56,6 +56,9 @@ public:
     bool gameRunning() const { return m_gameRunning; }
     QString runningGameId() const { return m_runningGameId; }
     QString runningGameName() const { return m_runningGameName; }
+    /// The running game's process (0 when none) and executable name, for plugins
+    quint32 runningPid() const { return m_runningPid; }
+    QString runningExeName() const { return m_runningExeName; }
     bool hasAntiCheat() const { return m_hasAntiCheat; }
     QString antiCheatSummary() const { return m_antiCheatSummary; }
     QVariantList heavyProcesses() const { return m_heavyProcesses; }
@@ -133,6 +136,7 @@ private:
     bool m_gameRunning{false};
     QString m_runningGameId;
     QString m_runningGameName;
+    quint32 m_runningPid = 0;
     bool m_hasAntiCheat{false};
     QString m_antiCheatSummary;
 

@@ -173,7 +173,8 @@ Card {
         }
         SidebarItem {
             visible: sidebar._liveScreen !== null
-            glyph: (sidebar._liveScreen && Icons[sidebar._liveScreen.icon]) || Icons.languages
+            glyph: Icons.messageSquareText
+            iconName: "message"
             text: sidebar._liveScreen ? sidebar._liveScreen.title : ""
             selected: sidebar.currentIndex === 7
             onClicked: sidebar.navigate(7)

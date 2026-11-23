@@ -264,6 +264,7 @@ void ProcessScanner::detectRunningGames(const QList<ProcessInfo>& processes)
         foundGame = true;
         foundGameId = appId;
         m_runningExeName = lowerExe;
+        m_runningPid = static_cast<quint32>(proc.pid);
 
         // Get display name from catalog
         if (m_packageManager) {
@@ -290,6 +291,7 @@ void ProcessScanner::detectRunningGames(const QList<ProcessInfo>& processes)
 
         m_gameRunning = foundGame;
         m_runningGameId = foundGameId;
+        if (!foundGame) m_runningPid = 0;
         m_runningGameName = foundGameName;
 
         emit gameRunningChanged();

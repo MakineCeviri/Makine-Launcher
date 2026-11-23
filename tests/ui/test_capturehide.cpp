@@ -22,6 +22,13 @@ TEST(CaptureHide, OverlayStyledWindowIsExcludedFromCapture)
     EXPECT_EQ(affinity, static_cast<DWORD>(WDA_EXCLUDEFROMCAPTURE));
     // A second call is a no-op that still reports success
     EXPECT_TRUE(capturehide::exclude(reinterpret_cast<std::uintptr_t>(hwnd)));
+    // "Yayında göster": capture sees it again, and the swap back still works
+    EXPECT_TRUE(capturehide::setExcluded(reinterpret_cast<std::uintptr_t>(hwnd), false));
+    ASSERT_TRUE(GetWindowDisplayAffinity(hwnd, &affinity));
+    EXPECT_EQ(affinity, static_cast<DWORD>(WDA_NONE));
+    EXPECT_TRUE(capturehide::setExcluded(reinterpret_cast<std::uintptr_t>(hwnd), true));
+    ASSERT_TRUE(GetWindowDisplayAffinity(hwnd, &affinity));
+    EXPECT_EQ(affinity, static_cast<DWORD>(WDA_EXCLUDEFROMCAPTURE));
     DestroyWindow(hwnd);
 }
 #endif

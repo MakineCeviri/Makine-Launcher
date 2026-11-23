@@ -140,9 +140,10 @@ public:
     Q_INVOKABLE void invoke(const QString& id, const QString& method, const QVariantMap& params = {});
     /// Opens a link a plugin screen shows, under the same allow-list as ui.openUrl.
     Q_INVOKABLE bool openUrl(const QString& url);
-    /// Keeps a window (the plugin overlay) out of screen capture, so a plugin reading the
-    /// screen never reads its own subtitles. Idempotent; a no-op off Windows or before 2004.
-    Q_INVOKABLE void keepOutOfCapture(QObject* window);
+    /// Keeps a window (the plugin overlay, the region picker) out of screen capture, so a
+    /// plugin reading the screen never reads its own subtitles; `excluded` false lets
+    /// capture see it ("yayında göster"). Idempotent; a no-op off Windows or before 2004.
+    Q_INVOKABLE void keepOutOfCapture(QObject* window, bool excluded = true);
 
     Q_INVOKABLE void answerAttach(int requestId, bool allow, bool remember);
     /// Qt logical global coordinates; the plugin receives physical pixels. width <= 0 means the user cancelled.
@@ -233,6 +234,7 @@ private:
     void onFinished(const QString& id, PluginProcess* proc, bool requested);
     void onCall(const QString& id, const QJsonValue& callId, const QString& method, const QJsonValue& params);
     void broadcast(const QString& event, const QJsonObject& payload);
+    QJsonObject runningGameJson() const;
 
     /// A call (callId set) or a fire-and-forget emit (callId undefined) from a plugin.
     void handleRequest(Installed& p, const QJsonValue& callId, const QString& method,

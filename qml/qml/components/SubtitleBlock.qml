@@ -8,22 +8,24 @@ pragma ComponentBehavior: Bound
 /**
  * SubtitleBlock — one translated subtitle as the player sees it over the game.
  *
- * Shared by the in-game overlay (TranslationOverlay) and the preview on the
- * Makine Live page, so what the page shows is what the game gets.
+ * Shared by the in-game overlay (TranslationOverlay) and the Makine Live page
+ * ("Şu an" and the appearance preview), so the page shows what the game gets.
  *
- * One direction, readability first ("ink band", Makine Live's own look,
- * spec/design_tokens.json): an ink band hugging the text, Segoe UI Variable
- * Display Semibold, a black outline and a soft shadow. Text never sits bare
- * on the game: once the band is lighter than 0.5, the outline is at least
- * 2 px and the shadow stays on. Qt's own outline is 1 px, so a thicker one
- * is drawn as eight offset copies behind the line (cheap: static glyphs).
+ * One direction, readability first (Fable, 2026-11-24): an ink band hugging the
+ * text, Inter Display SemiBold, a black outline and a soft shadow. Text never
+ * sits bare on the game: below band 0.5 the outline is at least 2 px (Qt's own
+ * outline is 1 px; thicker is eight offset copies behind the line). A machine
+ * translation not yet approved carries a thin yellow strip at the band's left;
+ * an approved line none. Text never shrinks: a line that would need more than
+ * `maxLines` rows widens its band (up to `stretchWidth`) instead.
  *
- * `maxLines` caps both the entries shown and how many rows one long line may
- * wrap to before it shrinks (Live sends one entry per subtitle).
+ * Motion (`animate`): the band's size follows in 120 ms; a new line crossfades
+ * over the old one in 120 ms. Appearing and disappearing are the window's.
  *
  * `style` keys (all optional; docs/plugins/README.md overlay.show.style):
  * preset band · contrast · classic · minimal, font, sizePx, maxLines,
  * textColor, bandColor, bandOpacity, outlinePx, shadow, showSource.
+ * `lines`: [{text, sourceText?, kind?}]; kind "verified" = approved.
  *
  * Self-contained on purpose (no launcher module import): a preview harness can
  * load it on its own.
@@ -31,11 +33,15 @@ pragma ComponentBehavior: Bound
 Item {
     id: block
 
-    // [{text, sourceText}]; the last `maxLines` are shown
     property var lines: []
     property var style: ({})
-    // The widest the band may get (the overlay passes widthPct of its base)
+    // The band's usual widest (the overlay passes widthPct of its base) …
     property real maxWidth: 900
+    // … and the widest it may grow to keep a long line within maxLines
+    property real stretchWidth: maxWidth
+    // Text size multiplier (the overlay scales 28 px @1080p to the screen)
+    property real textScale: 1
+    property bool animate: true
 
     // Makine Live's signature: classic subtitle yellow, only ever on subtitles
     readonly property color signatureYellow: "#f2c230"
@@ -43,13 +49,13 @@ Item {
     // ── Style, resolved: the style's own key, then its preset, then "band" ──
     readonly property var _presets: ({
         // Ink band, white text: reads over any scene; the default (GTA VI console)
-        band:     { bandOpacity: 0.78, outlinePx: 1, shadow: true, textColor: "#FFFFFF" },
+        band:     { bandOpacity: 0.9, outlinePx: 1, shadow: true, textColor: "#FFFFFF" },
         // Darker band, yellow text, heavier outline: bright, busy scenes
-        contrast: { bandOpacity: 0.9,  outlinePx: 2, shadow: true, textColor: "#f2c230" },
+        contrast: { bandOpacity: 0.9, outlinePx: 2, shadow: true, textColor: "#f2c230" },
         // No band: film subtitle, outline and shadow carry it
-        classic:  { bandOpacity: 0.0,  outlinePx: 2, shadow: true, textColor: "#FFFFFF" },
+        classic:  { bandOpacity: 0.0, outlinePx: 2, shadow: true, textColor: "#FFFFFF" },
         // No band, outline only
-        minimal:  { bandOpacity: 0.0,  outlinePx: 2, shadow: false, textColor: "#FFFFFF" }
+        minimal:  { bandOpacity: 0.0, outlinePx: 2, shadow: false, textColor: "#FFFFFF" }
     })
     function _pick(key, fallback) {
         const s = block.style || {}
@@ -57,31 +63,68 @@ Item {
         const preset = _presets[s.preset] || _presets.band
         return preset[key] !== undefined ? preset[key] : fallback
     }
-    readonly property int sizePx: Math.round(_pick("sizePx", 28))
+    readonly property int sizePx: Math.round(_pick("sizePx", 28) * textScale)
     readonly property int maxLines: Math.max(1, Math.round(_pick("maxLines", 2)))
     readonly property color textColor: _pick("textColor", "#FFFFFF")
     readonly property color bandColor: _pick("bandColor", "#0f1012")
-    readonly property real bandOpacity: _pick("bandOpacity", 0.78)
+    readonly property real bandOpacity: _pick("bandOpacity", 0.9)
     readonly property bool _bare: bandOpacity < 0.5
     readonly property real outlinePx: Math.max(_pick("outlinePx", 1), _bare ? 2 : 0)
     readonly property bool shadow: _pick("shadow", true)
     readonly property bool showSource: _pick("showSource", false)
-    // Windows 11 has the Variable face; Windows 10 gets plain Segoe UI
-    readonly property string _segoe: Qt.fontFamilies().indexOf("Segoe UI Variable Display") >= 0
-                                     ? "Segoe UI Variable Display" : "Segoe UI"
-    readonly property string fontFamily: _pick("font", "") !== "" ? _pick("font", "") : _segoe
+    readonly property string fontFamily: _pick("font", "") !== "" ? _pick("font", "") : "Inter Display"
 
     readonly property var shownLines: (lines && lines.length > 0)
                                       ? lines.slice(Math.max(0, lines.length - maxLines)) : []
+    // The newest line decides the strip: a machine translation awaiting approval
+    readonly property bool _pending: {
+        const l = shownLines.length > 0 ? shownLines[shownLines.length - 1] : null
+        return !!l && !!l.kind && l.kind !== "verified"
+    }
 
-    // Band padding scales a little with the text so a big subtitle keeps its air
+    // One wrap width for every entry: the usual widest, or wider when a line would
+    // otherwise need more than maxLines rows (0.92: a wrapped row is never full)
+    FontMetrics {
+        id: metrics
+        font.family: block.fontFamily
+        font.pixelSize: block.sizePx
+        font.weight: Font.DemiBold
+    }
+    readonly property real _usualInner: Math.max(120, maxWidth - 2 * _padX - 2 * gutter)
+    readonly property real _widestInner: Math.max(_usualInner, stretchWidth - 2 * _padX - 2 * gutter)
+    readonly property real _innerMax: {
+        let need = 0
+        for (let i = 0; i < shownLines.length; ++i)
+            need = Math.max(need, metrics.advanceWidth(shownLines[i].text || "") / (maxLines * 0.92))
+        return Math.min(_widestInner, Math.max(_usualInner, need))
+    }
+
+    // Band padding scales with the text so a big subtitle keeps its air
     readonly property real _padX: Math.round(22 * Math.max(1, sizePx / 28))
     readonly property real _padY: Math.round(12 * Math.max(1, sizePx / 28))
-    // Room around the band for its shadow and the outline (the overlay window is this size)
+    // Room around the band for its shadow and the outline
     readonly property real gutter: 14
+    readonly property int _anim: animate ? 120 : 0
 
     implicitWidth: band.width + 2 * gutter
     implicitHeight: band.height + 2 * gutter
+
+    // The previous lines, fading out under the new ones (crossfade)
+    property var _ghostLines: []
+    property var _lastLines: []
+    onShownLinesChanged: {
+        if (_anim > 0 && _lastLines.length > 0 && JSON.stringify(_lastLines) !== JSON.stringify(shownLines)) {
+            _ghostLines = _lastLines
+            crossfade.restart()
+        }
+        _lastLines = shownLines
+    }
+    ParallelAnimation {
+        id: crossfade
+        NumberAnimation { target: current; property: "opacity"; from: 0; to: 1; duration: block._anim; easing.type: Easing.OutCubic }
+        NumberAnimation { target: ghost; property: "opacity"; from: 1; to: 0; duration: block._anim; easing.type: Easing.OutCubic }
+        onFinished: block._ghostLines = []
+    }
 
     // Soft shadow under the band (Live: blur 18, 0.35, a little below)
     RectangularShadow {
@@ -98,19 +141,37 @@ Item {
         id: band
         x: block.gutter
         y: block.gutter
-        width: Math.max(column.width + 2 * block._padX, block.bandOpacity > 0 ? Math.min(320, block.maxWidth) : 0)
-        height: column.height + 2 * block._padY
+        width: Math.max(current.width + 2 * block._padX, block.bandOpacity > 0 ? Math.min(320, block.maxWidth) : 0)
+        height: current.height + 2 * block._padY
         radius: 10
         color: Qt.rgba(block.bandColor.r, block.bandColor.g, block.bandColor.b, block.bandOpacity)
+        Behavior on width { NumberAnimation { duration: block._anim; easing.type: Easing.OutCubic } }
+        Behavior on height { NumberAnimation { duration: block._anim; easing.type: Easing.OutCubic } }
+
+        // Awaiting approval: a thin yellow strip at the left (Live's status strip)
+        Rectangle {
+            visible: block._pending && block.bandOpacity > 0
+            x: Math.round(block._padX / 2) - 1
+            y: block._padY
+            width: 3
+            height: parent.height - 2 * block._padY
+            radius: 1.5
+            color: block.signatureYellow
+        }
     }
 
-    Column {
-        id: column
+    Lines { id: ghost; model: block._ghostLines; opacity: 0 }
+    Lines { id: current; model: block.shownLines }
+
+    // A stack of subtitle entries, centred on the band
+    component Lines: Column {
+        id: stack
+        property var model: []
         anchors.centerIn: band
         spacing: Math.round(block.sizePx * 0.12)
 
         Repeater {
-            model: block.shownLines
+            model: stack.model
 
             Column {
                 id: entry
@@ -118,30 +179,12 @@ Item {
                 anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
                 spacing: 2
 
-                readonly property real _innerMax: Math.max(120, block.maxWidth - 2 * block._padX - 2 * block.gutter)
-
-                // A long line shrinks (to 74 % at most) to stay within maxLines, as Live's
-                // own renderer does (overlay_render.py fit_text); past that it wraps on
-                TextMetrics {
-                    id: measure
-                    font.family: block.fontFamily
-                    font.pixelSize: block.sizePx
-                    font.weight: Font.DemiBold
-                    text: entry.modelData.text || ""
-                }
-                readonly property real _fit: {
-                    const steps = [1.0, 0.9, 0.82, 0.74]
-                    // 0.92: a wrapped line never fills its width to the last pixel
-                    const room = block.maxLines * entry._innerMax * 0.92
-                    for (let i = 0; i < steps.length; ++i)
-                        if (measure.advanceWidth * steps[i] <= room) return steps[i]
-                    return steps[steps.length - 1]
-                }
+                readonly property real _innerMax: block._innerMax
 
                 SubtitleLine {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: entry.modelData.text || ""
-                    pixelSize: Math.round(block.sizePx * entry._fit)
+                    pixelSize: block.sizePx
                     weight: Font.DemiBold
                     color: block.textColor
                     innerMax: entry._innerMax
@@ -210,9 +253,15 @@ Item {
                 color: "#000000"
             }
         }
+        // The unwrapped width: a wrapped Text's own implicitWidth follows its width
+        TextMetrics {
+            id: natural
+            font: face.font
+            text: lineRoot.text
+        }
         Text {
             id: face
-            width: Math.min(implicitWidth, lineRoot.innerMax)
+            width: Math.min(Math.ceil(natural.advanceWidth) + 2, lineRoot.innerMax)
             text: lineRoot.text
             font.family: block.fontFamily
             font.pixelSize: lineRoot.pixelSize

@@ -1186,11 +1186,11 @@ ApplicationWindow {
         overlayStyle: PluginManager ? PluginManager.overlayStyle : ({})
     }
 
-    // A Binding rather than `visible:` — the overlay window assigns visible itself
-    // when new text arrives, which would drop a plain binding.
+    // A Binding rather than `shown:` — the overlay assigns shown itself when new
+    // text arrives, which would drop a plain binding. `shown` fades in and out.
     Binding {
         target: translationOverlay
-        property: "visible"
+        property: "shown"
         value: PluginManager ? PluginManager.overlayVisible : false
     }
 

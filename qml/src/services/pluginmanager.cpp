@@ -154,6 +154,7 @@ QVariantMap sanitizeOverlayStyle(const QJsonObject& in)
     number("widthPct", 10, 100);
     number("marginPx", 0, 400);
     flag("showSource");
+    flag("showOnStream");
     return out;
 }
 
@@ -240,6 +241,16 @@ void PluginManager::setGameService(GameService* service)
     });
 }
 
+// game.started payload and games.running result: pid/exe are optional extras (Live reads
+// the PC region only while that process's window is in front)
+QJsonObject PluginManager::runningGameJson() const
+{
+    QJsonObject game{{"gameId", m_processScanner->runningGameId()}, {"name", m_processScanner->runningGameName()}};
+    if (const quint32 pid = m_processScanner->runningPid()) game.insert(QStringLiteral("pid"), qint64(pid));
+    if (const QString exe = m_processScanner->runningExeName(); !exe.isEmpty()) game.insert(QStringLiteral("exe"), exe);
+    return game;
+}
+
 void PluginManager::setProcessScanner(ProcessScanner* scanner)
 {
     m_processScanner = scanner;
@@ -251,8 +262,7 @@ void PluginManager::setProcessScanner(ProcessScanner* scanner)
             broadcast(QStringLiteral("game.stopped"), {{"gameId", m_runningGameId}});
         m_runningGameId = now;
         if (!now.isEmpty())
-            broadcast(QStringLiteral("game.started"),
-                      {{"gameId", now}, {"name", m_processScanner->runningGameName()}});
+            broadcast(QStringLiteral("game.started"), runningGameJson());
     };
     connect(scanner, &ProcessScanner::runningGameChanged, this, onChange);
     connect(scanner, &ProcessScanner::gameRunningChanged, this, onChange);
@@ -704,16 +714,17 @@ void PluginManager::invoke(const QString& id, const QString& method, const QVari
     }, [this, id, method](const QString& why) { emit invokeFinished(id, method, false, why); });
 }
 
-void PluginManager::keepOutOfCapture(QObject* window)
+void PluginManager::keepOutOfCapture(QObject* window, bool excluded)
 {
     auto* w = qobject_cast<QWindow*>(window);
     if (!w) return;
     unsigned long error = 0;
-    // winId() creates the native window if it is not there yet
-    if (capturehide::exclude(static_cast<std::uintptr_t>(w->winId()), &error))
-        qCDebug(lcPlugin) << "overlay excluded from screen capture";
+    // winId() creates the native window if it is not there yet. Before Windows 10 2004
+    // this fails and the window simply stays capturable (WDA_NONE).
+    if (capturehide::setExcluded(static_cast<std::uintptr_t>(w->winId()), excluded, &error))
+        qCDebug(lcPlugin) << "window" << (excluded ? "excluded from" : "shown to") << "screen capture";
     else
-        qCWarning(lcPlugin) << "overlay could not be excluded from screen capture, error" << error;
+        qCDebug(lcPlugin) << "capture affinity not set, error" << error;
 }
 
 bool PluginManager::openUrl(const QString& url)
@@ -1210,8 +1221,7 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
     }
     if (method == QLatin1String("games.running")) {
         if (!m_processScanner || !m_processScanner->gameRunning()) return reply(QJsonValue::Null);
-        return reply(QJsonObject{{"gameId", m_processScanner->runningGameId()},
-                                 {"name", m_processScanner->runningGameName()}});
+        return reply(runningGameJson());
     }
     if (method == QLatin1String("games.list")) {
         if (!needs("game-files-read")) return;
@@ -1269,11 +1279,15 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
         m_overlay.text = params.value(u"text").toString().left(4000);
         m_overlay.sourceText = params.value(u"sourceText").toString().left(4000);
         m_overlay.lines.clear();
+        // kind ("verified" = approved) per line, or the call's own for every line
+        const QString callKind = params.value(u"kind").toString().left(32);
         for (const auto& l : params.value(u"lines").toArray()) {
             if (m_overlay.lines.size() >= 8) break;
             const QJsonObject line = l.toObject();
             m_overlay.lines.append(QVariantMap{{"text", line.value(u"text").toString().left(1000)},
-                                               {"sourceText", line.value(u"sourceText").toString().left(1000)}});
+                                               {"sourceText", line.value(u"sourceText").toString().left(1000)},
+                                               {"kind", line.contains(u"kind") ? line.value(u"kind").toString().left(32)
+                                                                               : callKind}});
         }
         m_overlay.style = sanitizeOverlayStyle(params.value(u"style").toObject());
         m_overlay.visible = true;
