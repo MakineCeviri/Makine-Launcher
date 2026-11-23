@@ -108,13 +108,14 @@ Copy-Item $elevateSrc (Join-Path $stage "makine-elevate.exe") -Force
 Write-Host "Staged elevated helper: makine-elevate.exe"
 
 # --- plugin host -------------------------------------------------------
-# Each enabled plugin runs in its own copy (docs/plugins/README.md). Optional
-# until plugins leave MAKINE_DEV_TOOLS: staged whenever the build made it.
+# Each enabled plugin runs in its own copy (docs/plugins/README.md); Makine
+# Live ships in the package, so without the host it never starts.
 $pluginHostSrc = Join-Path (Split-Path (Resolve-Path $ExePath) -Parent) "makine-plugin-host.exe"
-if (Test-Path $pluginHostSrc) {
-  Copy-Item $pluginHostSrc (Join-Path $stage "makine-plugin-host.exe") -Force
-  Write-Host "Staged plugin host: makine-plugin-host.exe"
+if (-not (Test-Path $pluginHostSrc)) {
+  throw "makine-plugin-host.exe not found next to $ExePath - build the 'makine-plugin-host' target first."
 }
+Copy-Item $pluginHostSrc (Join-Path $stage "makine-plugin-host.exe") -Force
+Write-Host "Staged plugin host: makine-plugin-host.exe"
 
 # --- runtime dependencies (dynamic builds only) ------------------------
 if ($QtBinDir) {
@@ -144,6 +145,19 @@ if ($QtBinDir) {
   $n = (Get-ChildItem $stage -Recurse -File).Count
   Write-Host "Staged $n file(s) after windeployqt"
 }
+
+# --- bundled plugins ---------------------------------------------------
+# <launcher>/plugins/<id>/ is read-only inside the package, which is what a
+# bundled plugin expects (docs/plugins/README.md). Staged by the build from
+# MAKINE_LIVE_PLUGIN_DIR; copied after the stamping so the plugin's DLLs ship
+# exactly as its build made them.
+$livePlugin = Join-Path (Split-Path (Resolve-Path $ExePath) -Parent) "plugins/org.makineceviri.live"
+if (-not (Test-Path (Join-Path $livePlugin "manifest.json"))) {
+  throw "Makine Live is not staged ($livePlugin) - build its package and reconfigure (MAKINE_LIVE_PLUGIN_DIR)"
+}
+New-Item -ItemType Directory -Force (Join-Path $stage "plugins") | Out-Null
+Copy-Item $livePlugin (Join-Path $stage "plugins") -Recurse -Force
+Write-Host "Staged bundled plugin: org.makineceviri.live"
 
 # --- locate makeappx ---------------------------------------------------
 $makeappx = (Get-Command makeappx -EA SilentlyContinue).Source

@@ -70,11 +70,10 @@ if (Test-Path $elevate) {
 }
 
 # Plugin host - each enabled plugin runs in its own copy (docs/plugins/README.md).
-# Optional until plugins leave MAKINE_DEV_TOOLS: staged whenever the build made it.
+# Makine Live ships with the launcher, so without the host it never starts.
 $pluginHost = Join-Path $srcDir "makine-plugin-host.exe"
-if (Test-Path $pluginHost) {
-  Copy-Item $pluginHost (Join-Path $stage "makine-plugin-host.exe") -Force
-}
+if (-not (Test-Path $pluginHost)) { throw "makine-plugin-host.exe not found next to $ExePath" }
+Copy-Item $pluginHost (Join-Path $stage "makine-plugin-host.exe") -Force
 
 # Project DLLs first, so windeployqt sees the full dependency set.
 $dlls = Get-ChildItem $srcDir -Filter *.dll -EA SilentlyContinue
@@ -102,6 +101,16 @@ if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
 # trade is a release decision, not a default.
 & python (Join-Path $repo "scripts/stamp_debug_ids.py") $stage
 if ($LASTEXITCODE -ne 0) { throw "stamp_debug_ids.py failed ($LASTEXITCODE)" }
+
+# Bundled plugins (<launcher>/plugins/<id>/, docs/plugins/README.md), staged by the
+# build from MAKINE_LIVE_PLUGIN_DIR. Copied after the stamping on purpose: the
+# plugin's own DLLs ship exactly as its build made them.
+$livePlugin = Join-Path $srcDir "plugins/org.makineceviri.live"
+if (-not (Test-Path (Join-Path $livePlugin "manifest.json"))) {
+  throw "Makine Live is not staged ($livePlugin) - build its package and reconfigure (MAKINE_LIVE_PLUGIN_DIR)"
+}
+New-Item -ItemType Directory -Force (Join-Path $stage "plugins") | Out-Null
+Copy-Item $livePlugin (Join-Path $stage "plugins") -Recurse -Force
 
 if ($Sign) {
   $toSign = @("Makine-Launcher.exe", "makine-elevate.exe", "makine-plugin-host.exe") |

@@ -225,6 +225,7 @@ qt_add_qml_module(MakineLauncher
         qml/screens/HelpScreen.qml
         qml/screens/WhatsNewScreen.qml
         qml/screens/CommunityScreen.qml
+        qml/screens/live/MakineLiveScreen.qml
 
         # Screens - Game Detail Sections
         qml/screens/detail/HeroSection.qml
@@ -431,6 +432,37 @@ elseif(MAKINE_RELEASE_VERIFIED)
         "this repo, or set MAKINE_COMPANION_DIR")
 else()
     message(STATUS "Makine:   not here (${MAKINE_COMPANION_DIR}), building without him")
+endif()
+
+# Makine Live ships inside the launcher (docs/plugins/README.md, bundled plugins): its
+# package (manifest.json + bin/ + models/) is staged into <exe dir>/plugins/<id>/, where
+# PluginManager finds it and the packaging scripts pick it up. Like Makine, a release
+# build stops without it; elsewhere the launcher simply comes without Live.
+set(MAKINE_LIVE_PLUGIN_DIR "${CMAKE_SOURCE_DIR}/../Launcher-Plugins/Makine-LauncherPlugin-Live/build/package"
+    CACHE PATH "Makine Live plugin package (the Live repo's build/package)")
+set(_live_id "org.makineceviri.live")
+set(_live_problem "")
+if(NOT EXISTS "${MAKINE_LIVE_PLUGIN_DIR}/manifest.json")
+    set(_live_problem "no manifest.json in ${MAKINE_LIVE_PLUGIN_DIR}")
+else()
+    # The launcher only loads a plugin whose manifest id is its folder name.
+    file(READ "${MAKINE_LIVE_PLUGIN_DIR}/manifest.json" _live_manifest)
+    string(JSON _live_manifest_id ERROR_VARIABLE _live_json_error GET "${_live_manifest}" id)
+    if(NOT _live_manifest_id STREQUAL _live_id)
+        set(_live_problem "manifest id is '${_live_manifest_id}', not ${_live_id}")
+    endif()
+endif()
+if(_live_problem STREQUAL "")
+    add_custom_command(TARGET MakineLauncher POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            "${MAKINE_LIVE_PLUGIN_DIR}" "$<TARGET_FILE_DIR:MakineLauncher>/plugins/${_live_id}"
+        VERBATIM)
+    message(STATUS "Live:     bundled (${MAKINE_LIVE_PLUGIN_DIR})")
+elseif(MAKINE_RELEASE_VERIFIED)
+    message(FATAL_ERROR "A release without Makine Live: ${_live_problem}. Build the "
+        "Makine-LauncherPlugin-Live package, or set MAKINE_LIVE_PLUGIN_DIR")
+else()
+    message(STATUS "Live:     not bundled (${_live_problem})")
 endif()
 
 # Static Qt: import QML plugins at link time (no-op for shared builds)
