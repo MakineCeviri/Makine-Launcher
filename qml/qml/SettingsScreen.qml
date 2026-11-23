@@ -59,11 +59,11 @@ Item {
     // and replaced only when the entries differ (see _refreshPluginCategories).
     property var _pluginCategories: []
 
-    // The "Eklentiler" page; plugin pages only exist when dev tools are on.
+    // The "Eklentiler" page.
     readonly property int _pluginsPageIndex: 2
 
     function _refreshPluginCategories() {
-        var next = (devToolsEnabled && PluginManager) ? PluginManager.settingsCategories() : []
+        var next = PluginManager ? PluginManager.settingsCategories() : []
         if (JSON.stringify(next) === JSON.stringify(_pluginCategories)) return
 
         var shown = categories[selectedCategory]
@@ -91,11 +91,8 @@ Item {
         function onPluginsChanged() { root._refreshPluginCategories() }
     }
 
-    // Plugin pages go AFTER Hakkında (at the very bottom) — Eklentiler hidden in release
-    property var categories: {
-        var base = devToolsEnabled ? _staticCategories : _staticCategories.filter(function(c) { return c.name !== qsTr("Eklentiler") })
-        return base.concat(_staticCategoriesEnd).concat(_pluginCategories)
-    }
+    // Plugin pages go AFTER Hakkında (at the very bottom)
+    property var categories: _staticCategories.concat(_staticCategoriesEnd).concat(_pluginCategories)
 
     readonly property var _staticSources: [
         "screens/settings/GeneralSettings.qml",
@@ -110,8 +107,7 @@ Item {
     readonly property var _current: categories[selectedCategory] || categories[0]
 
     readonly property var panelSources: {
-        var base = devToolsEnabled ? _staticSources : _staticSources.filter(function(s) { return s.indexOf("Plugins") === -1 })
-        var sources = base.concat(_staticSourcesEnd)
+        var sources = _staticSources.concat(_staticSourcesEnd)
         for (var i = 0; i < _pluginCategories.length; i++)
             sources.push("screens/settings/PluginSettingsPage.qml")
         return sources

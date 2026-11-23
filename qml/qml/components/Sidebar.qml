@@ -15,7 +15,8 @@ pragma ComponentBehavior: Bound
  * launcher is busy with (an update, a scan) at the foot.
  *
  * Indexes match Main.qml: 0 Ana Sayfa · 1 Kütüphanem · 2 Ayarlar ·
- * 3 Tüm Oyunlar · 4 Nasıl çalışır? · 5 Yenilikler · 6 Topluluk
+ * 3 Tüm Oyunlar · 4 Nasıl çalışır? · 5 Yenilikler · 6 Topluluk ·
+ * 7 Makine Live (only while its plugin is enabled: PluginManager.screens)
  */
 Card {
     id: sidebar
@@ -45,6 +46,14 @@ Card {
         for (const g of GameService.library)
             if (g.status === "ready" || g.status === "update") ++n
         return n
+    }
+
+    // Makine Live's page, there while its plugin is enabled (contributes.screen)
+    readonly property var _liveScreen: {
+        const list = PluginManager ? PluginManager.screens : []
+        for (const s of list)
+            if (s.id === "org.makineceviri.live") return s
+        return null
     }
 
     // The top strip is the window's title bar: it drags the window.
@@ -161,6 +170,13 @@ Card {
             count: sidebar._pending
             selected: sidebar.currentIndex === 1
             onClicked: sidebar.navigate(1)
+        }
+        SidebarItem {
+            visible: sidebar._liveScreen !== null
+            glyph: (sidebar._liveScreen && Icons[sidebar._liveScreen.icon]) || Icons.languages
+            text: sidebar._liveScreen ? sidebar._liveScreen.title : ""
+            selected: sidebar.currentIndex === 7
+            onClicked: sidebar.navigate(7)
         }
 
         SidebarHeading { text: qsTr("Yardım") }

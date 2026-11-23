@@ -97,7 +97,7 @@ ApplicationWindow {
     // walked back and forward by the mouse's side buttons, Alt+← / Alt+→,
     // Esc and the game page's back button, the way a browser walks pages.
     readonly property var _pageTitles: [qsTr("Ana Sayfa"), qsTr("Kütüphanem"), qsTr("Ayarlar"), qsTr("Tüm Oyunlar"),
-                                        qsTr("Nasıl çalışır?"), qsTr("Yenilikler"), qsTr("Topluluk")]
+                                        qsTr("Nasıl çalışır?"), qsTr("Yenilikler"), qsTr("Topluluk"), "Makine Live"]
     property var _backStack: []
     property var _forwardStack: []
     property var _shownGame: null
@@ -175,7 +175,7 @@ ApplicationWindow {
         if (contentStackContainer.currentIndex === 2 || window.currentNavIndex !== index)
             window._remember()
         window.currentNavIndex = index
-        GameService.noteScreen(["home", "library", "settings", "all-games", "help", "whats-new", "community"][index] || "?")
+        GameService.noteScreen(["home", "library", "settings", "all-games", "help", "whats-new", "community", "live"][index] || "?")
         if (index === 2) {
             contentStackContainer.navigateTo(1)
             return
@@ -186,6 +186,7 @@ ApplicationWindow {
         else if (index === 4) homeView.showHelpPage()
         else if (index === 5) homeView.showWhatsNewPage()
         else if (index === 6) homeView.showCommunityPage()
+        else if (index === 7) homeView.showLivePage()
         else homeView.showHomePage()
     }
     property int previousNavIndex: 0  // Remember nav index before game detail
@@ -1085,7 +1086,7 @@ ApplicationWindow {
         }
     }
 
-    // ===== PLUGIN REQUESTS (dev builds only: PluginManager is null otherwise) =====
+    // ===== PLUGIN REQUESTS =====
     // A plugin asks, the user answers through these; the request id ties the two.
     property int _regionRequestId: 0
     property int _attachRequestId: 0
@@ -1181,6 +1182,8 @@ ApplicationWindow {
         sourceRegion: PluginManager ? PluginManager.overlayRegion : Qt.rect(0, 0, 0, 0)
         translatedText: PluginManager ? PluginManager.overlayText : ""
         ocrText: PluginManager ? PluginManager.overlaySourceText : ""
+        lines: PluginManager ? PluginManager.overlayLines : []
+        overlayStyle: PluginManager ? PluginManager.overlayStyle : ({})
     }
 
     // A Binding rather than `visible:` — the overlay window assigns visible itself

@@ -40,7 +40,7 @@ Item {
 
     // Update check handled by UpdateService in main.cpp startup.
 
-    // Current sub-page index: 0=Home, 1=Library, 2=Tüm Oyunlar, 3=Nasıl çalışır?, 4=Yenilikler, 5=Topluluk
+    // Current sub-page index: 0=Home, 1=Library, 2=Tüm Oyunlar, 3=Nasıl çalışır?, 4=Yenilikler, 5=Topluluk, 6=Makine Live
     property int currentPage: 0
 
     function showHomePage() { currentPage = 0 }
@@ -71,6 +71,7 @@ Item {
         currentPage = 5
         if (communityLoader.item) communityLoader.item.scrollToTop()
     }
+    function showLivePage() { currentPage = 6 }
 
     // Sub-pages share the same slot, switched by visibility
     // Async-loaded: defers the home page's heavier parts (featured art,
@@ -184,5 +185,17 @@ Item {
                 contentMargin: root.contentMargin
             }
         }
+    }
+
+    // Makine Live (a bundled plugin's screen); the page itself says when the
+    // plugin is off or switched off remotely.
+    Loader {
+        id: liveLoader
+        anchors.fill: parent
+        active: root.currentPage === 6 || liveLoader.status === Loader.Ready
+        visible: root.currentPage === 6
+        asynchronous: true
+        source: "screens/live/MakineLiveScreen.qml"
+        onLoaded: item.contentMargin = Qt.binding(() => root.contentMargin)
     }
 }

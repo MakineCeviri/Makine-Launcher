@@ -139,6 +139,7 @@ ColumnLayout {
         case "crashed": return qsTr("Beklenmedik şekilde durdu")
         case "needs-consent": return qsTr("İzin bekliyor")
         case "incompatible": return qsTr("Uyumsuz")
+        case "remote-off": return qsTr("Geçici olarak kapalı")
         case "invalid": return qsTr("Geçersiz")
         default: return s
         }
@@ -1165,10 +1166,10 @@ ColumnLayout {
         }
     }
 
-    // ── Uninstall ──
+    // ── Uninstall ── (a plugin that ships with Makine is only switched off)
     SettingsCard {
         Layout.fillWidth: true
-        visible: pluginPage._exists
+        visible: pluginPage._exists && pluginPage.info.bundled !== true
 
         Item {
             Layout.fillWidth: true
