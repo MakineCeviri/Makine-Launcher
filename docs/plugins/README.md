@@ -224,6 +224,17 @@ own (`contributes.screen: {"title": "Makine Live", "icon": "<Icons token>"}` in
 its manifest) gets a sidebar entry; the screen renders the latest `ui.state`
 through `PluginManager.pluginState(id)` and `pluginStateChanged(id)`.
 
+Launcher side, as built (2026-11): `invoke` from a screen has the actions' 120 s
+timeout (a call may wait for the user); the screen opens a link the plugin put in
+its state (`login.url`) through `PluginManager.openUrl`, under the same allow-list
+as `ui.openUrl` (exact host, https, no port or user info); the state is cleared
+when the plugin stops. `overlay.pickRegion.within` is in physical pixels like
+every rectangle; a selection outside it answers the whole rectangle. The off-switch
+is persisted: a launcher.json that was read and has no entry (or not
+`"enabled": false`) for an id turns it back on, a file that could not be read keeps
+the last known switch. The sidebar entry stays while a plugin is switched off
+remotely (its page shows the message) and goes when the user disables it.
+
 ## Status codes
 
 `MAKINE_OK` 0 · `E_FAILED` 1 · `E_INVALID_ARGUMENT` 2 · `E_NOT_FOUND` 3 ·
