@@ -4,7 +4,9 @@
 import QtCore
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Layouts
+import QtQuick.Shapes
 import QtQuick.Window
 import MakineLauncher 1.0
 import "../../components"
@@ -57,6 +59,12 @@ Item {
     readonly property string _loginState: _login.state || (_login.user ? "signedIn" : "signedOut")
     readonly property bool _signedIn: _loginState === "signedIn" || (_loginState === "offline" && !!_login.user)
     readonly property bool _consoleMode: _state.mode === "console"
+    // The GTA VI look (docs/design.md "GTA VI görünümü"): console mode is GTA VI's.
+    // The sunset surface is a dark one, so the light theme keeps the stock hero.
+    readonly property bool _gta6: _consoleMode && Theme.darkMode
+    // Official art comes from our CDN at run time (never bundled); false = palette only
+    readonly property bool _gta6ArtOn: true
+    readonly property string _gta6ArtUrl: "https://cdn.makineceviri.org/site/gta6/art/vice_city_postcard_landscape-960.webp"
     readonly property var _region: _state.region ? _state.region[_consoleMode ? "console" : "pc"] || null : null
     readonly property bool _hasRegion: !!_region && _region.width > 0 && _region.height > 0
     readonly property var _selected: _state.selectedSource || null
@@ -284,7 +292,7 @@ Item {
         Layout.fillWidth: true
         Layout.preferredWidth: 1
         spacing: 8
-        IconTile { glyph: stop.glyph; size: 36; tint: stop.ok ? Theme.success : Theme.primary }
+        IconTile { glyph: stop.glyph; size: 36; tint: stop.ok ? Theme.success : live._gta6 ? Theme.gta6Orange : Theme.primary }
         Text {
             Layout.fillWidth: true
             text: stop.title
@@ -314,6 +322,23 @@ Item {
         }
     }
 
+    // A 16:9 sunset for the subtitle previews in console mode: our own gradient, no
+    // game imagery. Bright sky, a burning horizon and dark ground right where the
+    // subtitle sits: the hardest thing GTA VI puts behind a line.
+    component SunsetScene: Rectangle {
+        anchors.fill: parent
+        radius: Dimensions.radiusLG
+        visible: live._consoleMode
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.gta6Sky }
+            GradientStop { position: 0.42; color: Theme.gta6Sun[2] }
+            GradientStop { position: 0.62; color: Theme.gta6Sun[1] }
+            GradientStop { position: 0.76; color: Theme.gta6Sun[0] }
+            GradientStop { position: 0.77; color: Theme.gta6Ink }
+            GradientStop { position: 1.0; color: Theme.gta6Ink }
+        }
+    }
+
     // The link between two stops: turns accent once the two are connected
     component Link: Item {
         id: link
@@ -326,7 +351,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            tint: link.connected ? Theme.primary : Theme.separator
+            tint: link.connected ? (live._gta6 ? Theme.gta6Pink : Theme.primary) : Theme.separator
             Behavior on tint { ColorAnimation { duration: Dimensions.animMedium } }
         }
     }
@@ -450,9 +475,114 @@ Item {
                 Layout.leftMargin: Dimensions.pageMargin
                 Layout.rightMargin: Dimensions.pageMargin
                 visible: live._running
-                glow: true
+                glow: !live._gta6
                 radius: Dimensions.radiusHero
                 implicitHeight: heroCol.implicitHeight + 52
+
+                // GTA VI look: a plum night, a low sun in the corner, the official art
+                // fading in from the right when the CDN answers. Still: it only fades
+                // in and out with the mode.
+                Item {
+                    id: sunset
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    opacity: live._gta6 ? 1 : 0
+                    visible: opacity > 0
+                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+
+                    readonly property real corner: Dimensions.radiusHero - 1
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: sunset.corner
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: Theme.gta6Plum }
+                            GradientStop { position: 1.0; color: Theme.gta6Ink }
+                        }
+                    }
+
+                    Image {
+                        id: sunsetArt
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        width: Math.round(parent.width * 0.52)
+                        source: live._gta6 && live._gta6ArtOn ? live._gta6ArtUrl : ""
+                        sourceSize.width: 960
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        // Offline or removed from the CDN: the night and the sun stand alone
+                        opacity: status === Image.Ready ? 0.6 : 0
+                        Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+                        layer.enabled: status === Image.Ready
+                        layer.effect: MultiEffect {
+                            maskEnabled: true
+                            // The mask's alpha as it is (the default cuts at any alpha above 0)
+                            maskThresholdMin: 0.5
+                            maskSpreadAtMin: 1.0
+                            maskSource: sunsetArtMask
+                        }
+                    }
+                    // Rounds the art's right corners and dissolves its left edge
+                    Rectangle {
+                        id: sunsetArtMask
+                        anchors.fill: sunsetArt
+                        visible: false
+                        layer.enabled: true
+                        radius: sunset.corner
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: "transparent" }
+                            GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.55) }
+                            GradientStop { position: 1.0; color: "white" }
+                        }
+                    }
+
+                    // The low sun, top right (where Card's accent glow sits otherwise)
+                    Shape {
+                        anchors.fill: parent
+                        ShapePath {
+                            strokeWidth: -1
+                            fillGradient: RadialGradient {
+                                centerX: sunset.width * 0.92; centerY: 0
+                                centerRadius: Math.max(sunset.width, sunset.height) * 0.55
+                                focalX: centerX; focalY: centerY
+                                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.gta6Orange, 0.26) }
+                                GradientStop { position: 0.4; color: Theme.withAlpha(Theme.gta6Pink, 0.10) }
+                                GradientStop { position: 1.0; color: "transparent" }
+                            }
+                            PathRectangle { width: sunset.width; height: sunset.height; radius: sunset.corner }
+                        }
+                    }
+
+                    // The chain and its buttons stand on the night, not on the art
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: sunset.corner
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "transparent" }
+                            GradientStop { position: 0.3; color: "transparent" }
+                            GradientStop { position: 0.64; color: Theme.withAlpha(Theme.gta6Ink, 0.92) }
+                            GradientStop { position: 1.0; color: Theme.gta6Ink }
+                        }
+                    }
+
+                    // The top edge catches the sun instead of white light
+                    Rectangle {
+                        x: sunset.corner * 0.7
+                        y: -1
+                        width: parent.width - sunset.corner * 1.4
+                        height: 1
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: "transparent" }
+                            GradientStop { position: 0.25; color: Theme.gta6Sun[0] }
+                            GradientStop { position: 0.5; color: Theme.gta6Sun[1] }
+                            GradientStop { position: 0.75; color: Theme.gta6Sun[2] }
+                            GradientStop { position: 1.0; color: "transparent" }
+                        }
+                    }
+                }
 
                 ColumnLayout {
                     id: heroCol
@@ -468,7 +598,19 @@ Item {
                         spacing: 16
                         ColumnLayout {
                             Layout.fillWidth: true
+                            // The copy keeps clear of the art on the right
+                            Layout.rightMargin: live._gta6 && live._gta6ArtOn ? Math.round(heroCol.width * 0.44) : 0
                             spacing: 6
+                            Text {
+                                visible: live._gta6
+                                text: qsTr("GTA VI · PS5 / XBOX")
+                                textFormat: Text.PlainText
+                                font.family: Dimensions.fontDisplay
+                                font.pixelSize: Dimensions.caption1
+                                font.weight: Font.Bold
+                                font.letterSpacing: 1.4
+                                color: Theme.gta6Orange
+                            }
                             Text {
                                 Layout.fillWidth: true
                                 text: live._consoleMode ? qsTr("GTA VI'yı konsolda Türkçe oyna")
@@ -611,6 +753,7 @@ Item {
                             GradientStop { position: 0.5; color: Theme.textMuted }
                             GradientStop { position: 1.0; color: Theme.bgPrimary }
                         }
+                        SunsetScene {}
 
                         SubtitleBlock {
                             id: nowSubtitle
@@ -1241,7 +1384,10 @@ Item {
             spacing: 14
 
             // Resolved values, the same fallbacks SubtitleBlock uses
-            readonly property string preset: live._style.preset || "band"
+            // "GTA VI" is the band preset with the plum band: no new preset name, so
+            // every renderer (overlay, Makine TV, phone, OBS) already understands it
+            readonly property bool gta6: String(live._style.bandColor || "").toLowerCase() === String(Theme.gta6Band).toLowerCase()
+            readonly property string preset: gta6 ? "gta6" : (live._style.preset || "band")
             readonly property int sizePx: live._style.sizePx || 28
             readonly property int maxLines: live._style.maxLines || 2
             readonly property real bandOpacity: preview.bandOpacity
@@ -1284,6 +1430,7 @@ Item {
                         GradientStop { position: 0.5; color: Theme.textMuted }
                         GradientStop { position: 1.0; color: Theme.bgPrimary }
                     }
+                    SunsetScene {}
 
                     SubtitleBlock {
                         id: preview
@@ -1310,18 +1457,23 @@ Item {
                 ListRow {
                     icon: Icons.palette
                     title: qsTr("Biçim")
-                    subtitle: look.preset === "contrast" ? qsTr("Koyu bant, sarı yazı: parlak, kalabalık sahneler için.")
+                    subtitle: look.preset === "gta6" ? qsTr("Erik moru bant, beyaz yazı: GTA VI'nın gün batımında da okunur; TV'de ve telefonda da aynı.")
+                            : look.preset === "contrast" ? qsTr("Koyu bant, sarı yazı: parlak, kalabalık sahneler için.")
                             : look.preset === "classic" ? qsTr("Bant yok; kalın kontur ve gölge, film altyazısı gibi.")
                             : look.preset === "minimal" ? qsTr("Bant yok, yalnız kontur; en az yer kaplar.")
                             : qsTr("Yazının arkasında koyu bant; her sahnede okunur.")
                     SegmentedControl {
                         small: true
-                        model: [{ value: "band", text: qsTr("Bant") }, { value: "contrast", text: qsTr("Kontrast") },
-                                { value: "classic", text: qsTr("Film") }, { value: "minimal", text: qsTr("Sade") }]
+                        readonly property var _stock: [{ value: "band", text: qsTr("Bant") }, { value: "contrast", text: qsTr("Kontrast") },
+                                                       { value: "classic", text: qsTr("Film") }, { value: "minimal", text: qsTr("Sade") }]
+                        model: live._consoleMode || look.gta6 ? [{ value: "gta6", text: "GTA VI" }].concat(_stock) : _stock
                         currentValue: look.preset
                         // A preset brings its own band, colour and outline back
-                        onActivated: (value) => live._setStyle({ preset: value, bandOpacity: null, textColor: null,
-                                                                  outlinePx: null, shadow: null })
+                        onActivated: (value) => live._setStyle(
+                            value === "gta6" ? { preset: "band", bandColor: String(Theme.gta6Band), bandOpacity: 0.92,
+                                                 textColor: null, outlinePx: null, shadow: null }
+                                             : { preset: value, bandColor: null, bandOpacity: null, textColor: null,
+                                                 outlinePx: null, shadow: null })
                     }
                 }
                 ListRow {

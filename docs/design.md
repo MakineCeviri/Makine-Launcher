@@ -152,6 +152,37 @@ Kısa ve sakin: 150–300 ms, `Easing.OutCubic`; açılan pencere küçük bir y
 (`OutBack`, 1.2). Sürekli dönen/atan animasyon yok (yalnız `Spinner`, o da görünürken).
 `SettingsManager.enableAnimations` kapalıyken `Dimensions.anim*` sıfırdır.
 
+## GTA VI görünümü (yalnız Makine Live, konsol modu)
+
+Sitenin `/live/` sayfasındaki gün batımının launcher'daki karşılığı. Bir tema çatalı değil,
+ince bir katman: `Theme.gta6*` tokenları, yalnız `MakineLiveScreen.qml` kullanır.
+
+- **Ne zaman:** `mode === "console"` (konsol havuzu GTA VI'nın) ve koyu görünüm (`live._gta6`).
+  Açık görünümde kahraman kabı olağan hâlinde kalır; önizleme sahnesi ve "GTA VI" altyazı biçimi
+  iki görünümde de vardır.
+- **Nerede:** kahraman kabı (erik moru gece `gta6Plum` → `gta6Ink`, sağ üstte alçak güneş
+  `gta6Orange`/`gta6Pink`, üst kenarda `gta6Sun` çizgisi, "GTA VI · PS5 / XBOX" üst yazısı, zincirin
+  bağları pembe, bekleyen durak turuncu); "Şu an" ve Görünüm önizlemesindeki sahne (`SunsetScene`:
+  gökyüzü → ufuk → koyu zemin, altyazının en zor okunduğu yer); Biçim'de "GTA VI" seçeneği.
+- **Nerede değil:** kenar çubuğu, sayfa başlığı ve Başlat düğmesi (vurgu rengi kullanıcınındır),
+  kurulum bölümleri, bilgisayar modu, launcher'ın başka hiçbir sayfası. Oyunun üstündeki altyazıda
+  süs yok.
+- **Renkler:** `gta6Ink` #0A0613 · `gta6Plum` #1A0B2E · `gta6Sky` #2B1650 · `gta6Orange` #FFB454 ·
+  `gta6Pink` #FF4FA3 · `gta6Sun` #FFC46B → #FF6AA6 → #9A6BFF · `gta6Band` #150A22. Gün batımı
+  geçişi yalnız çizgi, kenar ve sahnede; yazı geçişle boyanmaz (beyaz yazı turuncuda okunmaz).
+  Turuncu yalnız koyu zeminde yazı olur.
+- **Yazı:** Inter Display. Rockstar'ın yazısı (GTAArtDeco, Pricedown) launcher'a girmez: ne
+  depoya, ne pakete, ne de çalışırken CDN'den.
+- **Resmî çizim:** kahramanın sağında, çalışırken CDN'den (`site/gta6/art/…-960.webp`, oyun
+  kapakları gibi), %60 opak, sola doğru eriyerek. Depoda ve pakette yoktur; çevrimdışıyken ya da
+  dosya CDN'den kaldırılınca gece ve güneş tek başına kalır. `_gta6ArtOn: false` yalnız paletle
+  bırakır. VI logosu ve GTA biçimli "Makine Çeviri" yazısı launcher'da kullanılmaz.
+- **Altyazı "GTA VI":** yeni bir ön ayar adı değil; `preset: "band"` + `bandColor: #150A22` +
+  `bandOpacity: 0.92`, beyaz Inter. Böylece overlay, Makine TV, telefon ve OBS sayfaları değişmeden
+  aynı bandı çizer. Onay bekleyen satırın sarı çizgisi durur.
+- **Hareket:** kat moda girince 400 ms'de belirir, çıkınca solar; çizim geldiğinde aynı sürede
+  belirir. Dönen, atan, kayan hiçbir şey yok (oyun çalışırken sayfa ucuz kalır).
+
 ## Tuzaklar
 
 - Topluluğa launcher'dan yazmak sitenin üye girişine dayanır (`CommunityService`). E-posta,

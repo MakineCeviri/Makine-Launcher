@@ -204,6 +204,22 @@ QtObject {
     ]
 
     // =========================================================================
+    // GTA VI LOOK — Makine Live's console mode only (docs/design.md "GTA VI görünümü")
+    // =========================================================================
+
+    // A sunset over a plum night, the palette of makineceviri.org/live. Always
+    // dark and never tinted by the accent: it is a picture, not a surface tone.
+    readonly property color gta6Ink: "#0A0613"
+    readonly property color gta6Plum: "#1A0B2E"
+    readonly property color gta6Sky: "#2B1650"
+    readonly property color gta6Orange: "#FFB454"
+    readonly property color gta6Pink: "#FF4FA3"
+    /// The sun: amber → pink → violet. Lines, edges and scenes only, never text
+    readonly property var gta6Sun: ["#FFC46B", "#FF6AA6", "#9A6BFF"]
+    /// The subtitle band of the "GTA VI" look (style.bandColor; TV, phone and OBS get the same)
+    readonly property color gta6Band: "#150A22"
+
+    // =========================================================================
     // SPECIAL
     // =========================================================================
 
