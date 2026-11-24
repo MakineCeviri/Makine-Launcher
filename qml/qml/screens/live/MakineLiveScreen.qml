@@ -1119,6 +1119,21 @@ Item {
                         : live._consoleMode ? qsTr("Konsolda bölge görüntünün içinde seçilir; görüntü penceresi açık olmalı.")
                         : qsTr("Bölgeyi altyazının çıktığı satırlara sıkı çiz: ne kadar dar, o kadar hızlı ve doğru.")
 
+                // Lines were read clipped, so this session's region grew: keep it?
+                ListRow {
+                    readonly property var grow: live._state.regionGrow || ({})
+                    visible: (grow.left || 0) > 0 || (grow.right || 0) > 0 || (grow.top || 0) > 0 || (grow.bottom || 0) > 0
+                    icon: Icons.maximize2
+                    iconTint: Theme.warning
+                    title: qsTr("Satırlar kesik okunduğu için bölge genişletildi")
+                    subtitle: qsTr("Bu oturumda geçerli; her seferinde böyle kalsın istiyorsan kalıcı yap.")
+                    AppButton {
+                        style: "tinted"
+                        text: qsTr("Kalıcı yap")
+                        busy: live._busyMethod === "region.keepGrown"
+                        onClicked: live._call("region.keepGrown")
+                    }
+                }
                 ListRow {
                     icon: live._hasRegion ? Icons.circleCheck : Icons.scan
                     iconTint: live._hasRegion ? Theme.success : Theme.primary

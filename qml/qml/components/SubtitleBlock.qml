@@ -25,7 +25,8 @@ pragma ComponentBehavior: Bound
  * `style` keys (all optional; docs/plugins/README.md overlay.show.style):
  * preset band · contrast · classic · minimal, font, sizePx, maxLines,
  * textColor, bandColor, bandOpacity, outlinePx, shadow, showSource.
- * `lines`: [{text, sourceText?, kind?}]; kind "verified" = approved.
+ * `lines`: [{text, sourceText?, kind?, label?}]; kind "verified" = approved; label is the
+ * speaker (one entry per speaker), shown untranslated and quiet above the line.
  *
  * Self-contained on purpose (no launcher module import): a preview harness can
  * load it on its own.
@@ -181,6 +182,17 @@ Item {
 
                 readonly property real _innerMax: block._innerMax
 
+                // The speaker (one entry per speaker): untranslated, small and quiet, above the line
+                SubtitleLine {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: (entry.modelData.label || "") !== ""
+                    text: entry.modelData.label || ""
+                    pixelSize: Math.round(block.sizePx * 0.62)
+                    weight: Font.Medium
+                    color: "#c9c8c2"
+                    innerMax: entry._innerMax
+                    outline: Math.min(block.outlinePx, 1)
+                }
                 SubtitleLine {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: entry.modelData.text || ""

@@ -1331,6 +1331,7 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
             if (m_overlay.lines.size() >= 8) break;
             const QJsonObject line = l.toObject();
             m_overlay.lines.append(QVariantMap{{"text", line.value(u"text").toString().left(1000)},
+                                               {"label", line.value(u"label").toString().left(64)},
                                                {"sourceText", line.value(u"sourceText").toString().left(1000)},
                                                {"kind", line.contains(u"kind") ? line.value(u"kind").toString().left(32)
                                                                                : callKind}});
