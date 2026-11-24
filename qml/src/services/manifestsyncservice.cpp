@@ -507,7 +507,7 @@ void ManifestSyncService::fallbackToLegacySync()
 
         if (status == 304) {
             setOffline(false);
-            fetchGameBuilds(true);
+            fetchGameBuilds(false);
             QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
             return;
         }
@@ -544,8 +544,9 @@ void ManifestSyncService::finishSync(bool catalogChanged)
     m_syncTimeoutTimer.stop();
     emit syncStatusChanged();
     setOffline(false);
-    // With the catalogue, the builds its patches are compared with
-    fetchGameBuilds(true);
+    // With a new catalogue, the builds its patches are compared with; a
+    // catalogue that did not move leaves them to the 6-hour rule.
+    fetchGameBuilds(catalogChanged);
     if (catalogChanged)
         QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
     TelemetryService::record(QStringLiteral("sync"), QStringLiteral("ok"), {},
