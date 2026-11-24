@@ -154,39 +154,41 @@ Kısa ve sakin: 150–300 ms, `Easing.OutCubic`; açılan pencere küçük bir y
 
 ## GTA VI görünümü (yalnız Makine Live, konsol modu)
 
-Sitenin `/live/` sayfasındaki gün batımının launcher'daki karşılığı. Bir tema çatalı değil,
-ince bir katman: `Theme.gta6*` tokenları, yalnız `MakineLiveScreen.qml` kullanır.
+Sitenin `/live/` sayfasındaki gün batımının launcher'daki karşılığı; ölçülü. Sayfanın düzeni,
+kapları ve yazısı aynıdır: yalnız ışığı değişir. Tema çatalı değil, ince bir katman:
+`Theme.gta6*` tokenları, yalnız `MakineLiveScreen.qml` kullanır.
 
 - **Ne zaman:** `mode === "console"` (konsol havuzu GTA VI'nın) ve koyu görünüm (`live._gta6`).
-  Açık görünümde sayfa olağan hâlinde kalır (kahraman da önizleme de); yalnız "GTA VI" altyazı
-  biçimi konsol modunda iki görünümde de seçilebilir.
-- **Nerede:** kahraman kabı (erik moru gece `gta6Plum` → `gta6Ink`, sağ üstte alçak güneş
-  `gta6Orange`/`gta6Pink`, üst kenarda `gta6Sun` çizgisi, "GTA VI · PS5 / XBOX" üst yazısı, zincirin
-  bağları pembe, bekleyen durak turuncu); "Şu an" ve Görünüm önizlemesindeki sahne (`SunsetScene`:
-  gökyüzü → ufuk → koyu zemin, altyazının en zor okunduğu yer); Biçim'de "GTA VI" seçeneği.
+  Açık görünümde sayfa olağan hâlinde kalır (arka plan, kahraman ve önizleme sahnesi dahil); yalnız
+  "GTA VI" altyazı biçimi konsol modunda iki görünümde de seçilebilir.
+- **Arka plan (`backdrop`):** başlığın ve kahraman kabının arkasında, sayfayla birlikte kayar.
+  Sağ üstte alçak bir güneş (bizim: `gta6Orange` %14 → `gta6Pink` %6 → saydam); arkasında, varsa,
+  bir görsel `gta6BackdropOpacity` ile (0,16; gözle ayarlanır, 0,12–0,20 arası). İkisi de
+  `EdgeFade` ile sayfaya erir (üst 40 px, alt %60). Görsel ön planda resim olarak kullanılmaz,
+  üstündeki yazının kontrastı sayfanınkiyle aynı kalır. Görsel çalışırken CDN'den gelir
+  (`_gta6ArtUrl`), depoda ve pakette yoktur; çevrimdışıyken ya da CDN'den kaldırılınca güneş tek
+  başına kalır ve sayfa eksiksizdir. Görseli sürüm çıkmadan `assets/launcher.json` açar/kapatır:
+  `"live": {"gta6Art": true|false}`; anahtar yoksa ya da dosya okunamadıysa launcher'ın kendi
+  varsayılanı geçer (`_gta6ArtDefault`, şimdilik `false` — 2560×1080 manzara `site/gta6/launcher/`
+  altına konunca `true` gönderilir). Görsel önbelleğe alınmaz (`ImageCache` yalnız appId çözer).
+- **Kahraman kabı:** olağan `Card`; köşe ışığı pembe (`glowColor: gta6Pink`), üst kenarı `gta6Sun`
+  çizgisi, başlığın üstünde "GTA VI · PS5 / XBOX" (11 px, kalın, aralıklı, `gta6Orange`), zincirin
+  bağları pembe, bekleyen durak turuncu.
+- **Önizleme sahnesi (`SunsetScene`):** "Şu an" ve Görünüm'de gökyüzü → ufuk → koyu zemin;
+  altyazının en zor okunduğu yer, bizim geçişimiz.
 - **Nerede değil:** kenar çubuğu, sayfa başlığı ve Başlat düğmesi (vurgu rengi kullanıcınındır),
   kurulum bölümleri, bilgisayar modu, launcher'ın başka hiçbir sayfası. Oyunun üstündeki altyazıda
   süs yok.
-- **Renkler:** `gta6Ink` #0A0613 · `gta6Plum` #1A0B2E · `gta6Sky` #2B1650 · `gta6Orange` #FFB454 ·
-  `gta6Pink` #FF4FA3 · `gta6Sun` #FFC46B → #FF6AA6 → #9A6BFF · `gta6Band` #150A22. Gün batımı
-  geçişi yalnız çizgi, kenar ve sahnede; yazı geçişle boyanmaz (beyaz yazı turuncuda okunmaz).
-  Turuncu yalnız koyu zeminde yazı olur.
-- **Yazı:** Inter Display. Rockstar'ın yazısı (GTAArtDeco, Pricedown) launcher'a girmez: ne
-  depoya, ne pakete, ne de çalışırken CDN'den.
-- **Resmî çizim:** kahramanın sağında, çalışırken CDN'den (`site/gta6/art/…-960.webp`, oyun
-  kapakları gibi), %60 opak, sola doğru eriyerek. Depoda ve pakette yoktur; çevrimdışıyken ya da
-  dosya CDN'den kaldırılınca gece ve güneş tek başına kalır, yazı da sağa yayılır. Şimdilik kapalı:
-  `_gta6ArtOn: false` (`MakineLiveScreen.qml`, tek satır) — Rockstar çizimini Store uygulamasında
-  kullanmaya Sezer karar verince açılır. Açılmadan önce: çizim oyun kapakları gibi diske önbelleğe
-  alınmalı (`ImageCache` şimdilik yalnız appId ile çözer; QML `Image` URL'yi önbelleksiz indirir). VI logosu ve GTA biçimli "Makine Çeviri" yazısı launcher'da kullanılmaz.
-- **Arka plan görseli (yalnız token, henüz çizilmiyor):** Sezer bir görsel seçerse sayfanın
-  arkasına `Theme.gta6BackdropOpacity` (0.15) ile konacak ve kenarlarda `EdgeFade`/`TopDissolve`
-  ile eriyecek; yazı onun üstünde kontrastını korur.
+- **Renkler:** `gta6Ink` #0A0613 · `gta6Sky` #2B1650 · `gta6Orange` #FFB454 · `gta6Pink` #FF4FA3 ·
+  `gta6Sun` #FFC46B → #FF6AA6 → #9A6BFF · `gta6Band` #150A22. Gün batımı geçişi yalnız çizgi, kenar
+  ve sahnede; yazı geçişle boyanmaz. Turuncu yalnız koyu zeminde yazı olur.
+- **Yazı:** Inter Display. Rockstar'ın yazısı (GTAArtDeco, Pricedown), VI logosu ve GTA biçimli
+  "Makine Çeviri" yazısı launcher'a girmez: ne depoya, ne pakete, ne de çalışırken CDN'den.
 - **Altyazı "GTA VI":** yeni bir ön ayar adı değil; `preset: "band"` + `bandColor: #150A22` +
   `bandOpacity: 0.92`, beyaz Inter. Böylece overlay, Makine TV, telefon ve OBS sayfaları değişmeden
   aynı bandı çizer. Onay bekleyen satırın sarı çizgisi durur.
-- **Hareket:** kat moda girince 400 ms'de belirir, çıkınca solar; çizim geldiğinde aynı sürede
-  belirir. Dönen, atan, kayan hiçbir şey yok (oyun çalışırken sayfa ucuz kalır).
+- **Hareket:** arka plan moda girince 400 ms'de belirir, çıkınca solar; görsel geldiğinde aynı
+  sürede belirir. Dönen, atan, kayan hiçbir şey yok (oyun çalışırken sayfa ucuz kalır).
 
 ## Tuzaklar
 

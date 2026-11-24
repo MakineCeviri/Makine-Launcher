@@ -20,6 +20,7 @@
  *                     "changes": [ { "type": "new|improved|fixed", "text" } ] } ],
  *     "roadmap":  [ { "status": "doing|next|later", "title", "text" } ],
  *     "plugins":  { "<id>": { "enabled": false, "message": "…" } }   // off-switch, CDN copy only
+ *     "live":     { "gta6Art": true }   // Makine Live's GTA VI backdrop picture, CDN copy only
  *   }
  *
  * Header-only, no QObject: tests/ui/test_releasenotes.cpp.
@@ -145,6 +146,15 @@ inline QVariantMap pluginsSwitchedOff(const QByteArray& json)
             off.insert(it.key(), p.value(QStringLiteral("message")).toString().left(500));
     }
     return off;
+}
+
+/// launcher.json's switch for the GTA VI backdrop picture on Makine Live:
+/// 1 = on, 0 = off, -1 = not said (the launcher keeps its built-in default).
+inline int liveGta6Art(const QByteArray& json)
+{
+    const QJsonValue v = QJsonDocument::fromJson(json).object()
+                             .value(QStringLiteral("live")).toObject().value(QStringLiteral("gta6Art"));
+    return v.isBool() ? (v.toBool() ? 1 : 0) : -1;
 }
 
 /// `fresh` over `bundled`, one entry per version, newest first.

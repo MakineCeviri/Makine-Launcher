@@ -60,11 +60,14 @@ Item {
     readonly property bool _signedIn: _loginState === "signedIn" || (_loginState === "offline" && !!_login.user)
     readonly property bool _consoleMode: _state.mode === "console"
     // The GTA VI look (docs/design.md "GTA VI görünümü"): console mode is GTA VI's.
-    // The sunset surface is a dark one, so the light theme keeps the stock hero.
+    // Its light is made for the dark page, so the light theme keeps the stock page.
     readonly property bool _gta6: _consoleMode && Theme.darkMode
-    // Official art comes from our CDN at run time (never bundled); false = palette only.
-    // Off until Sezer decides on Rockstar's art in the Store app: flip this one line.
-    readonly property bool _gta6ArtOn: false
+    // The backdrop picture comes from our CDN at run time (never bundled); false = palette only.
+    // Off by default until the 2560×1080 landscape is on the CDN (site/gta6/launcher/).
+    // launcher.json `live.gta6Art` switches it without a release; not said (or not
+    // read yet, offline) = this built-in default.
+    readonly property bool _gta6ArtDefault: false
+    readonly property bool _gta6ArtOn: UpdateService.liveGta6Art < 0 ? _gta6ArtDefault : UpdateService.liveGta6Art === 1
     readonly property string _gta6ArtUrl: "https://cdn.makineceviri.org/site/gta6/art/vice_city_postcard_landscape-960.webp"
     readonly property var _region: _state.region ? _state.region[_consoleMode ? "console" : "pc"] || null : null
     readonly property bool _hasRegion: !!_region && _region.width > 0 && _region.height > 0
@@ -368,6 +371,46 @@ Item {
             anchors.top: flick.top; anchors.right: flick.right; anchors.bottom: flick.bottom
         }
 
+        // GTA VI look: a quiet backdrop behind the header and the hero, scrolling with
+        // them. A low sun in the corner (ours); behind it, when the CDN answers, a
+        // picture at Theme.gta6BackdropOpacity. Both dissolve into the page (EdgeFade),
+        // so the text above keeps the page's own contrast.
+        Item {
+            id: backdrop
+            width: flick.width
+            height: Math.min(480, Math.round(flick.width * 0.5))
+            opacity: live._gta6 ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+
+            Image {
+                anchors.fill: parent
+                source: live._gta6 && live._gta6ArtOn ? live._gta6ArtUrl : ""
+                sourceSize.width: 1920
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                // Offline or removed from the CDN: the sun stands alone
+                opacity: status === Image.Ready ? Theme.gta6BackdropOpacity : 0
+                Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
+            }
+            Shape {
+                anchors.fill: parent
+                ShapePath {
+                    strokeWidth: -1
+                    fillGradient: RadialGradient {
+                        centerX: backdrop.width * 0.86; centerY: 0
+                        centerRadius: backdrop.width * 0.55
+                        focalX: centerX; focalY: centerY
+                        GradientStop { position: 0.0; color: Theme.withAlpha(Theme.gta6Orange, 0.14) }
+                        GradientStop { position: 0.45; color: Theme.withAlpha(Theme.gta6Pink, 0.06) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                    PathRectangle { width: backdrop.width; height: backdrop.height }
+                }
+            }
+        }
+        EdgeFade { target: backdrop; topFade: 40; bottomFade: Math.round(backdrop.height * 0.6) }
+
         ColumnLayout {
             id: page
             width: flick.width
@@ -476,112 +519,24 @@ Item {
                 Layout.leftMargin: Dimensions.pageMargin
                 Layout.rightMargin: Dimensions.pageMargin
                 visible: live._running
-                glow: !live._gta6
+                glow: true
+                glowColor: live._gta6 ? Theme.gta6Pink : Theme.accentBase
                 radius: Dimensions.radiusHero
                 implicitHeight: heroCol.implicitHeight + 52
 
-                // GTA VI look: a plum night, a low sun in the corner, the official art
-                // fading in from the right when the CDN answers. Still: it only fades
-                // in and out with the mode.
-                Item {
-                    id: sunset
-                    anchors.fill: parent
-                    anchors.margins: 1
-                    opacity: live._gta6 ? 1 : 0
-                    visible: opacity > 0
-                    Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-
-                    readonly property real corner: Dimensions.radiusHero - 1
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: sunset.corner
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: Theme.gta6Plum }
-                            GradientStop { position: 1.0; color: Theme.gta6Ink }
-                        }
-                    }
-
-                    Image {
-                        id: sunsetArt
-                        anchors.top: parent.top
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        width: Math.round(parent.width * 0.52)
-                        source: live._gta6 && live._gta6ArtOn ? live._gta6ArtUrl : ""
-                        sourceSize.width: 960
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        // Offline or removed from the CDN: the night and the sun stand alone
-                        opacity: status === Image.Ready ? 0.6 : 0
-                        Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
-                        layer.enabled: status === Image.Ready
-                        layer.effect: MultiEffect {
-                            maskEnabled: true
-                            // The mask's alpha as it is (the default cuts at any alpha above 0)
-                            maskThresholdMin: 0.5
-                            maskSpreadAtMin: 1.0
-                            maskSource: sunsetArtMask
-                        }
-                    }
-                    // Rounds the art's right corners and dissolves its left edge
-                    Rectangle {
-                        id: sunsetArtMask
-                        anchors.fill: sunsetArt
-                        visible: false
-                        layer.enabled: true
-                        radius: sunset.corner
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: "transparent" }
-                            GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.55) }
-                            GradientStop { position: 1.0; color: "white" }
-                        }
-                    }
-
-                    // The low sun, top right (where Card's accent glow sits otherwise)
-                    Shape {
-                        anchors.fill: parent
-                        ShapePath {
-                            strokeWidth: -1
-                            fillGradient: RadialGradient {
-                                centerX: sunset.width * 0.92; centerY: 0
-                                centerRadius: Math.max(sunset.width, sunset.height) * 0.55
-                                focalX: centerX; focalY: centerY
-                                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.gta6Orange, 0.26) }
-                                GradientStop { position: 0.4; color: Theme.withAlpha(Theme.gta6Pink, 0.10) }
-                                GradientStop { position: 1.0; color: "transparent" }
-                            }
-                            PathRectangle { width: sunset.width; height: sunset.height; radius: sunset.corner }
-                        }
-                    }
-
-                    // The chain and its buttons stand on the night, not on the art
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: sunset.corner
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: "transparent" }
-                            GradientStop { position: 0.3; color: "transparent" }
-                            GradientStop { position: 0.64; color: Theme.withAlpha(Theme.gta6Ink, 0.92) }
-                            GradientStop { position: 1.0; color: Theme.gta6Ink }
-                        }
-                    }
-
-                    // The top edge catches the sun instead of white light
-                    Rectangle {
-                        x: sunset.corner * 0.7
-                        y: -1
-                        width: parent.width - sunset.corner * 1.4
-                        height: 1
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: "transparent" }
-                            GradientStop { position: 0.25; color: Theme.gta6Sun[0] }
-                            GradientStop { position: 0.5; color: Theme.gta6Sun[1] }
-                            GradientStop { position: 0.75; color: Theme.gta6Sun[2] }
-                            GradientStop { position: 1.0; color: "transparent" }
-                        }
+                // GTA VI look: the top edge catches the sun instead of white light
+                Rectangle {
+                    visible: live._gta6
+                    x: Dimensions.radiusHero * 0.7
+                    width: parent.width - Dimensions.radiusHero * 1.4
+                    height: 1
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.25; color: Theme.gta6Sun[0] }
+                        GradientStop { position: 0.5; color: Theme.gta6Sun[1] }
+                        GradientStop { position: 0.75; color: Theme.gta6Sun[2] }
+                        GradientStop { position: 1.0; color: "transparent" }
                     }
                 }
 
@@ -599,8 +554,6 @@ Item {
                         spacing: 16
                         ColumnLayout {
                             Layout.fillWidth: true
-                            // The copy keeps clear of the art on the right
-                            Layout.rightMargin: live._gta6 && sunsetArt.status === Image.Ready ? Math.round(heroCol.width * 0.44) : 0
                             spacing: 6
                             Text {
                                 visible: live._gta6

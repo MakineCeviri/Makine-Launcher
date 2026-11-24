@@ -166,6 +166,13 @@ TEST(ReleaseNotes, PluginOffSwitch)
     EXPECT_TRUE(pluginsSwitchedOff(R"({"plugins": []})").isEmpty());
     EXPECT_TRUE(pluginsSwitchedOff("not json").isEmpty());
 
+    using makine::releasenotes::liveGta6Art;
+    EXPECT_EQ(liveGta6Art(R"({"live": {"gta6Art": true}})"), 1);
+    EXPECT_EQ(liveGta6Art(R"({"live": {"gta6Art": false}})"), 0);
+    EXPECT_EQ(liveGta6Art(R"({"latest": "0.3.0-beta"})"), -1);       // not said: built-in default
+    EXPECT_EQ(liveGta6Art(R"({"live": {"gta6Art": "yes"}})"), -1);
+    EXPECT_EQ(liveGta6Art("not json"), -1);
+
     // Older launchers read the same file: the extra key changes nothing for them.
     QString error;
     const auto m = makine::releasenotes::parse(R"({"latest": "0.2.6-beta", "plugins": {"x.y": {"enabled": false}}})", &error);

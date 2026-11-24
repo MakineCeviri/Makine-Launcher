@@ -210,7 +210,6 @@ QtObject {
     // A sunset over a plum night, the palette of makineceviri.org/live. Always
     // dark and never tinted by the accent: it is a picture, not a surface tone.
     readonly property color gta6Ink: "#0A0613"
-    readonly property color gta6Plum: "#1A0B2E"
     readonly property color gta6Sky: "#2B1650"
     readonly property color gta6Orange: "#FFB454"
     readonly property color gta6Pink: "#FF4FA3"
@@ -220,7 +219,7 @@ QtObject {
     readonly property color gta6Band: "#150A22"
     /// An optional background image behind the Live page (Sezer's pick); it fades out
     /// at the edges with EdgeFade/TopDissolve so the copy keeps its contrast
-    readonly property real gta6BackdropOpacity: 0.15
+    readonly property real gta6BackdropOpacity: 0.16
 
     // =========================================================================
     // SPECIAL

@@ -105,6 +105,7 @@ curl -s https://cdn.makineceviri.org/assets/launcher.json | head -4             
   "plugins": { "org.makineceviri.live": { "enabled": false, "message": "Makine Live kısa bir bakımda; birazdan yeniden açılacak." } }
   ```
   Kayıt olmayan ya da `"enabled": false` olmayan bir id yeniden açılır; okunamayan dosya son bilinen durumu korur (`docs/plugins/README.md`).
+- **Makine Live'ın GTA VI arka plan görseli (0.3.0+).** `assets/launcher.json`'daki isteğe bağlı `"live": {"gta6Art": true}` görseli açar, `false` kapatır; sürüm gerekmez, `just launcher-json` bloğu korur. Anahtar yoksa ya da dosya okunamadıysa launcher'ın kendi varsayılanı geçer (şimdilik kapalı; `MakineLiveScreen.qml` `_gta6ArtDefault`). Görsel `cdn.makineceviri.org/site/gta6/…` altında durur, depoya ve pakete girmez (`docs/design.md` "GTA VI görünümü").
 - **İki güncelleme dosyası.** 0.2.3+ `assets/launcher.json`'ı okur (`releasenotes.h`; `just launcher-json`). 0.2.2 ve öncesi `assets/update.json`'ı okur; o dosya `0.1.0-pre-alpha` kaydıyla bilerek eski bırakıldı. Yeni bir sürüm yazılırsa `url`'süz kayıt o launcher'larda Ayarlar'da "Denetlenemedi" gösterir. 0.1.6'dan beri eski sürümlü kayıt "güncel" sayılır.
 - **Dev kanalı gövdeden `SHA256:` satırını okur.** `MAKINE_DEV_TOOLS` yapıları `releases/latest` çağırıp gövdedeki `SHA256: <hash>` satırını ve `.exe` uzantılı varlığı arar; ZIP-only bir sürümde sessizce boşta kalır (çökmez).
 - **Statik Qt kiti kurulu değil** — tek dosya EXE üretilemiyor. Yayın paketi Qt DLL'lerini taşıyan ZIP'tir (~50 MB).

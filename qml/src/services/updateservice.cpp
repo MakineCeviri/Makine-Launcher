@@ -210,6 +210,10 @@ void UpdateService::onCheckFinished(QNetworkReply* reply)
     m_available = store ? manifest.store : manifest.latest;
     applyNotes(manifest);
     emit pluginSwitchesRead(releasenotes::pluginsSwitchedOff(data));
+    if (const int art = releasenotes::liveGta6Art(data); art != m_liveGta6Art) {
+        m_liveGta6Art = art;
+        emit remoteFlagsChanged();
+    }
 
     // An installer EXE to swap in (url + checksum) is used where there is
     // one; otherwise the action opens the Store or the release page.

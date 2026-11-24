@@ -29,6 +29,7 @@ Rectangle {
     // "topRight" | "topLeft" | "bottomLeft" | "bottomRight"
     property string glowCorner: "topRight"
     property real glowStrength: 0.18
+    property color glowColor: Theme.accentBase
     property bool reveal: true
 
     transform: Translate { id: rise }
@@ -81,8 +82,8 @@ Rectangle {
                 centerX: glowShape._gx; centerY: glowShape._gy
                 centerRadius: Math.max(card.width, card.height) * 0.6
                 focalX: glowShape._gx; focalY: glowShape._gy
-                GradientStop { position: 0.0; color: Theme.withAlpha(Theme.accentBase, card.glowStrength) }
-                GradientStop { position: 0.35; color: Theme.withAlpha(Theme.accentBase, card.glowStrength * 0.4) }
+                GradientStop { position: 0.0; color: Theme.withAlpha(card.glowColor, card.glowStrength) }
+                GradientStop { position: 0.35; color: Theme.withAlpha(card.glowColor, card.glowStrength * 0.4) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
             PathRectangle {

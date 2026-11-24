@@ -53,12 +53,14 @@ def main() -> int:
         return 1
 
     manifest = {"latest": args.latest, "store": args.store, "page": PAGE, **notes}
-    # The plugin off-switch ("plugins": {"<id>": {"enabled": false, "message": ...}}) is set
-    # by hand in the published copy; regenerating must not switch a plugin back on.
+    # The plugin off-switch ("plugins": {"<id>": {"enabled": false, "message": ...}}) and the
+    # Live switches ("live": {"gta6Art": ...}) are set by hand in the published copy;
+    # regenerating must not flip them.
     if args.out.exists():
         previous = json.loads(args.out.read_text(encoding="utf-8"))
-        if "plugins" in previous:
-            manifest["plugins"] = previous["plugins"]
+        for key in ("plugins", "live"):
+            if key in previous:
+                manifest[key] = previous[key]
     args.out.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
                         newline="\n")
     print(f"{args.out}: latest {args.latest}, store {args.store}, {len(notes['releases'])} releases, "

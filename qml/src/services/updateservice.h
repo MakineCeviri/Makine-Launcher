@@ -58,6 +58,8 @@ class UpdateService : public QObject
     Q_PROPERTY(QVariantList releases READ releases NOTIFY notesChanged)
     Q_PROPERTY(QVariantList roadmap READ roadmap NOTIFY notesChanged)
     Q_PROPERTY(bool notesSeen READ notesSeen NOTIFY notesSeenChanged)
+    /// launcher.json `live.gta6Art`: 1 on, 0 off, -1 not said (built-in default)
+    Q_PROPERTY(int liveGta6Art READ liveGta6Art NOTIFY remoteFlagsChanged)
 
 public:
     enum State {
@@ -98,6 +100,7 @@ public:
 
     QVariantList releases() const { return m_releases; }
     QVariantList roadmap() const { return m_roadmap; }
+    int liveGta6Art() const { return m_liveGta6Art; }
     bool notesSeen() const;
 
     // ── QML-invokable actions ──
@@ -125,6 +128,7 @@ signals:
     void displayChanged();   // statusText, indicatorVisible, busy
     void notesChanged();
     void notesSeenChanged();
+    void remoteFlagsChanged();
     /// launcher.json was read: the plugins it switches off (id → message)
     void pluginSwitchesRead(const QVariantMap& off);
 
@@ -162,6 +166,7 @@ private:
     QString m_available;
     QVariantList m_releases;
     QVariantList m_roadmap;
+    int m_liveGta6Art = -1;
     QString m_notesSeenVersion;
     QNetworkReply* m_downloadReply{nullptr};
     std::unique_ptr<QFile> m_downloadFile;
