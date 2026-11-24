@@ -3176,6 +3176,7 @@ LocalPackageManager::StepOutcome LocalPackageManager::executeStep(
             return StepOutcome::SoftError;
         }
         const QString exePath = exeFileName;
+        m_lastProgramOutput = QString::fromUtf8(result.output.right(6000));
 
         if (result.cancelled) return StepOutcome::Cancelled;
         // Name the cause. Four different problems used to leave the same trace:
@@ -3730,6 +3731,7 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
     }
 
     emit installProgress(0.0, tr("Kurulum adımları hazırlanıyor..."));
+    m_lastProgramOutput.clear();
 
     // A program of the package changes the game where no list of ours can
     // see. The folder is noted for it (<game>/.makine) and looked at before
@@ -3816,12 +3818,24 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
         if (const auto old = m_catalog.getInstalledState(pkg.steamAppId.toStdString()))
             for (const auto& f : old->installedFiles)
                 if (f.starts_with(changescan::kMarker)) { earlierWork = true; break; }
-        if (onlyProgram && d.isEmpty() && before.complete && !earlierWork) {
+        // The program found its patch in place already: installed, and on record
+        // with a marker so that uninstall still runs its undo program.
+        const bool alreadyThere = onlyProgram && d.isEmpty() && before.complete && !earlierWork
+            && steprules::toolSaysAlreadyInstalled(m_lastProgramOutput);
+        if (alreadyThere) {
+            qCInfo(lcPackageManager) << "Program of" << pkg.steamAppId
+                                     << "found its patch already installed in" << gamePath;
+            installedFiles << QLatin1String(changescan::kMarker) + QStringLiteral("*");
+        }
+        if (onlyProgram && d.isEmpty() && before.complete && !earlierWork && !alreadyThere) {
             // Exit code 0 and not a file different: a window closed before its
             // "Kur", a tool that found nothing of the game where it looked.
             // Recorded as installed it would be "kuruldu" over an English game.
+            // Its last words go to the log (and the report's breadcrumbs): an
+            // exit 0 left no other trace of why.
             qCWarning(lcPackageManager) << "Program of" << pkg.steamAppId
-                                        << "exited cleanly but changed nothing in" << gamePath;
+                                        << "exited cleanly but changed nothing in" << gamePath
+                                        << "- end:" << m_lastProgramOutput.right(700);
             failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
                         replacedFiles.values(),
                         tr("Yamanın programı çalıştı ama oyunun klasöründe hiçbir dosyayı "
@@ -3869,10 +3883,14 @@ void LocalPackageManager::executeInstallSteps(const PackageInfo& pkg, const QStr
             msg += QStringLiteral("\n") + errorDetails.join(QStringLiteral("\n"));
         // See installWithOptions(): "run as administrator" is not reachable in
         // the Store build, so it must not be offered as the remedy.
-        msg += QStringLiteral("\n\n") + tr("Çözüm: oyunu ve Steam'i kapatın, "
+        // A program that said why it stopped gets the one answer to that.
+        QString remedy;
+        for (const QString& d : std::as_const(errorDetails))
+            if (remedy.isEmpty()) remedy = steprules::toolCauseRemedy(d);
+        msg += QStringLiteral("\n\n") + (!remedy.isEmpty() ? remedy : tr("Çözüm: oyunu ve Steam'i kapatın, "
             "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin. "
             "Windows yönetici izni isterse açılan pencerede 'Evet' deyin. "
-            "Sorun sürerse yamayı kaldırıp yeniden indirin.");
+            "Sorun sürerse yamayı kaldırıp yeniden indirin."));
         failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles + programChanges(),
                     replacedFiles.values(), msg);
     }
@@ -4110,11 +4128,14 @@ void LocalPackageManager::installWithOptions(const PackageInfo& pkg, const QStri
         // shipped build is an MSIX package and Store apps have no such option,
         // so that advice sent 78 Elden Ring users down a dead end. Steps that
         // need elevation now raise a UAC prompt for the tool itself.
-        msg += QStringLiteral("\n\n") + tr("Çözüm: oyunu ve Steam'i kapatın, "
+        QString remedy;
+        for (const QString& d : std::as_const(errorDetails))
+            if (remedy.isEmpty()) remedy = steprules::toolCauseRemedy(d);
+        msg += QStringLiteral("\n\n") + (!remedy.isEmpty() ? remedy : tr("Çözüm: oyunu ve Steam'i kapatın, "
             "antivirüste oyun klasörünü izinli yapın, sonra tekrar deneyin. "
             "Yama bir kurulum aracı çalıştırıyorsa Windows yönetici izni "
             "isteyebilir — açılan pencerede 'Evet' deyin. Sorun sürerse "
-            "yamayı kaldırıp yeniden indirin.");
+            "yamayı kaldırıp yeniden indirin."));
         failInstall(pkg.steamAppId, gamePath, pkg.version, installedFiles,
                     replacedFiles.values(), msg);
     }
@@ -4164,6 +4185,7 @@ LocalPackageManager::UndoResult LocalPackageManager::runUndoPrograms(const QStri
 
     const QStringList launcherFiles{QString::fromLatin1(runstage::kNoteFile)};
     const changescan::Snapshot before = changescan::take(gamePath, launcherFiles);
+    QByteArray lastOutput;
     for (const InstallStep& step : undo) {
         QString refused, name;
         const ProcessResult r = runPackageProgram(step.uninstall, {}, step.uninstallArgs,
@@ -4176,12 +4198,19 @@ LocalPackageManager::UndoResult LocalPackageManager::runUndoPrograms(const QStri
         else if (!r.started) why = QStringLiteral("başlatılamadı");
         else if (r.timedOut) why = QStringLiteral("2 saatte bitmedi");
         else if (r.cancelled) why = QStringLiteral("durduruldu");
-        else if (r.exitCode != 0) why = QStringLiteral("hata kodu %1 verdi").arg(r.exitCode);
+        else if (r.exitCode != 0) {
+            why = QStringLiteral("hata kodu %1 verdi").arg(r.exitCode);
+            const QString cause = steprules::toolOutputCause(QString::fromUtf8(r.output));
+            if (!cause.isEmpty()) why += QStringLiteral(": ") + cause;
+        }
+        lastOutput = r.output;
         if (why.isEmpty()) continue;
         qCWarning(lcPackageManager) << "Uninstall program" << step.uninstall << "for"
                                     << steamAppId << ":" << why;
-        CrashReporter::reportFailure("uninstall", steamAppId,
-            QStringLiteral("uninstall program %1: %2").arg(step.uninstall, why));
+        // "Durdur" is the player's own choice: counted, never an issue.
+        CrashReporter::reportFailure("uninstall", steamAppId, r.cancelled
+            ? QStringLiteral("uninstall program %1 stopped by the user").arg(step.uninstall)
+            : QStringLiteral("uninstall program %1: %2").arg(step.uninstall, why));
         out.ok = false;
         out.stopped = r.cancelled || r.elevationDeclined;
         out.message = tr("Yamayı kaldıran program (%1) %2; yama kaldırılmadı, oyun dosyalarına "
@@ -4192,6 +4221,9 @@ LocalPackageManager::UndoResult LocalPackageManager::runUndoPrograms(const QStri
     }
     const changescan::Diff d = changescan::compare(before, changescan::take(gamePath, launcherFiles));
     out.changedNothing = out.ran && d.isEmpty() && before.complete;
+    if (out.changedNothing)   // exit 0 leaves no other trace of what the program said
+        qCWarning(lcPackageManager) << "Uninstall program of" << steamAppId
+                                    << "changed nothing - end:" << QString::fromUtf8(lastOutput.right(700));
     emit processOutput(tr("\nProgram oyunda %1 dosyayı geri yazdı, %2 dosya sildi, %3 dosya ekledi.\n")
                            .arg(d.modified.size()).arg(d.removed.size()).arg(d.created.size()));
     return out;

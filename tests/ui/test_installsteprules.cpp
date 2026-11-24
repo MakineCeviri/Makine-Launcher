@@ -615,3 +615,52 @@ TEST(StepRules, APatchProgramsOutputNamesTheCauseItsExitCodeHides)
     EXPECT_TRUE(toolOutputCause(QStringLiteral(
         "Kurulum yapilamadi; yukaridaki mesaja bakin.\r\n  - \"yazilamiyor\" diyorsa KUR.bat'a sag tiklayin")).isEmpty());
 }
+
+// The real ends of failed KUR.bat runs (Sentry 2026-11-23). The cause is the tool's last
+// word before the script's own help, not the first match anywhere in the output.
+TEST(StepRules, AProgramsLastWordIsItsCause)
+{
+    const QString help = QStringLiteral(
+        "\r\nKurulum yapilamadi; yukaridaki mesaja bakin.\r\n"
+        "  - \"access denied\" yaziyorsa KUR.bat'a sag tiklayip \"Yonetici olarak calistir\" deyin.\r\n");
+    // AC Valhalla: archives of another version listed, rebuilt anyway, one could not be written
+    const QString locked = toolOutputCause(QStringLiteral(
+        "  dlc_35/DataPC_35_dlc.forge: FARKLI SURUM (kayit tablosu farkli)\r\n"
+        "Oyunun surumu yamanin hazirlandigi surumden farkli: yama yeniden kuruluyor.\r\n"
+        "C:/Games/ACV/DataPC.forge yazilamiyor. Oyun aciksa kapatin.\r\n") + help);
+    EXPECT_TRUE(locked.contains(QStringLiteral("dosyalarına yazamadı"))) << locked.toStdString();
+    EXPECT_FALSE(toolCauseRemedy(QStringLiteral("araç hata kodu 1 verdi: ") + locked).isEmpty());
+    // …or its index did not match: the patch does not know this version
+    EXPECT_TRUE(toolOutputCause(QStringLiteral(
+        "  DataPC.forge: FARKLI SURUM\r\nPaket UID/indeks uyusmazligi: D:/ACV/DataPC_234_dlc_patch_01.forge\r\n") + help)
+        .contains(QStringLiteral("sürümünü tanımadı")));
+    // Watch Dogs: no folder given, none found
+    EXPECT_EQ(toolOutputCause(QStringLiteral(
+        "Watch Dogs Translation Tool\r\nOyun bulunamadi. --oyun KLASOR kullanin.\r\nPress any key to continue . . . \r\n")),
+        QStringLiteral("yamanın programı oyunun klasörünü tanımadı"));
+    EXPECT_TRUE(toolOutputCause(QStringLiteral(
+        "Yama bu oyun verisine uymuyor: languages/dlc_solo_english.loc\r\n")).contains(QStringLiteral("sürümünü")));
+    // cmd could not start the tool: an antivirus
+    EXPECT_TRUE(toolOutputCause(QStringLiteral(
+        "Turkce yama kurulumu\r\n\r\nThe system cannot execute the specified program.\r\n") + help)
+        .contains(QStringLiteral("izin vermedi")));
+    // RDR2, Turkish .NET: the archive is open in another program
+    EXPECT_TRUE(toolOutputCause(QStringLiteral(
+        "İşlem, başka bir işlem tarafından kullanıldığından 'E:/RDR2/update_4.rpf' dosyasına erişemiyor.\r\n") + help)
+        .contains(QStringLiteral("dosyalarına yazamadı")));
+    // Elden Ring: another patch's TurkceYama folder
+    EXPECT_TRUE(toolOutputCause(QStringLiteral(
+        "C:/Games/ELDEN RING/Game/TurkceYama klasoru bu yamaya ait degil; dokunulmadi.\r\n") + help)
+        .contains(QStringLiteral("başka bir yamadan kalma")));
+    // A step detail with no named cause keeps the generic advice
+    EXPECT_TRUE(toolCauseRemedy(QStringLiteral("Adım 1: run KUR.bat — araç hata kodu 1 verdi")).isEmpty());
+}
+
+TEST(StepRules, AProgramThatFoundItsPatchInPlaceInstalledIt)
+{
+    EXPECT_TRUE(toolSaysAlreadyInstalled(QStringLiteral(
+        "Yama dosyalari zaten kurulu ve guncel: C:/Games/ELDEN RING/Game/TurkceYama\r\nKurulum tamam.")));
+    EXPECT_TRUE(toolSaysAlreadyInstalled(QStringLiteral("yama zaten kurulu\r\n")));
+    EXPECT_FALSE(toolSaysAlreadyInstalled(QStringLiteral(
+        "Turkce yama kurulu degil (ACV yedegi yok); oyun dosyalari orijinal.")));
+}

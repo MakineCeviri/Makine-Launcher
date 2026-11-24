@@ -417,3 +417,25 @@ TEST(FailureReasons, ASentryTitleSaysWhichStepFailedAndWhy)
               QStringLiteral("backup file list empty; refusing to patch without a backup"));
     EXPECT_EQ(foldFirstStep(QStringLiteral("1 adımda hata oluştu")), QStringLiteral("1 adımda hata oluştu"));
 }
+
+TEST(FailureReasons, EachCauseAPatchProgramNamesHasItsCode)
+{
+    const auto step = [](const QString& cause) {
+        return failureReason(QStringLiteral("1/1 adımda hata oluştu\nAdım 1: run KUR.bat — araç hata kodu 1 verdi: ")
+                             + cause);
+    };
+    EXPECT_EQ(step(QStringLiteral("Windows ya da antivirüs yamanın programının çalışmasına izin vermedi")),
+              QStringLiteral("tool_blocked_by_antivirus"));
+    EXPECT_EQ(step(QStringLiteral("yamanın programı oyunun dosyalarına yazamadı (oyun ya da başlatıcısı açık, ya da yazma izni yok)")),
+              QStringLiteral("tool_write_denied"));
+    EXPECT_EQ(step(QStringLiteral("oyun klasöründe başka bir yamadan kalma bir klasör var, program ona dokunmadı")),
+              QStringLiteral("tool_foreign_files"));
+    EXPECT_EQ(step(QStringLiteral("yamanın programı oyunun klasörünü tanımadı")), QStringLiteral("tool_no_game"));
+    // The undo program's cause rides on its uninstall message
+    EXPECT_EQ(failureReason(QStringLiteral(
+        "uninstall program KALDIR.bat: hata kodu 3 verdi: yamanın programı oyunun klasörünü tanımadı")),
+        QStringLiteral("tool_no_game"));
+    // "Durdur" on it is a cancel, not a failure
+    EXPECT_EQ(failureReason(QStringLiteral("uninstall program KALDIR.bat stopped by the user")),
+              QStringLiteral("cancelled"));
+}

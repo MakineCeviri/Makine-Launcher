@@ -389,6 +389,9 @@ private:
     QMutex m_uninstallMutex;
     // Windows error of the last failed copy, for the failure report (0 = none).
     unsigned long m_lastCopyWinError{0};
+    // What the last "run" step printed: an install that changed nothing reads
+    // it for "already installed", and logs its end (an exit 0 left no trace).
+    QString m_lastProgramOutput;
 };
 
 } // namespace makine

@@ -95,6 +95,14 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         // (steprules::toolOutputCause): before the bare exit code, which they also carry.
         {QStringLiteral("oyunun bu sürümünü tanımadı"),          QStringLiteral("tool_version_mismatch")},
         {QStringLiteral("uygulama denetimi programı engelledi"), QStringLiteral("tool_blocked_by_policy")},
+        // Sentry 2026-11-24, all "tool_exit_code" or a wrong "tool_version_mismatch" until now:
+        // cmd could not start the exe (an antivirus), the game's files were locked or
+        // read-only, a folder of another patch stood in the way, the program was not
+        // told the game's folder (a recipe without "--oyun", Watch Dogs: 50 players).
+        {QStringLiteral("programının çalışmasına izin vermedi"), QStringLiteral("tool_blocked_by_antivirus")},
+        {QStringLiteral("oyunun dosyalarına yazamadı"),          QStringLiteral("tool_write_denied")},
+        {QStringLiteral("başka bir yamadan kalma"),              QStringLiteral("tool_foreign_files")},
+        {QStringLiteral("oyunun klasörünü tanımadı"),            QStringLiteral("tool_no_game")},
         {QStringLiteral("araç hata kodu"),                       QStringLiteral("tool_exit_code")},
         // VPatch outcomes. "nomatch" is the one that means the user's game is a
         // version the patch was not built for — a catalogue problem, not a
@@ -139,7 +147,9 @@ inline const QList<std::pair<QString, QString>>& reasonRules()
         {QStringLiteral("files left on disk"),                   QStringLiteral("uninstall_files_left")},
         {QStringLiteral("no install record"),                    QStringLiteral("uninstall_no_record")},
         {QStringLiteral("uninstallPackage returned false"),      QStringLiteral("uninstall_failed")},     // 17 (0.1.5)
-        // Before uninstall_tool, which their messages also match.
+        // Before uninstall_tool, which their messages also match. "Durdur" pressed on
+        // the undo program is the player's choice, as a cancelled install is.
+        {QStringLiteral("stopped by the user"),                  QStringLiteral("cancelled")},
         {QStringLiteral("uninstall program changed nothing"),    QStringLiteral("uninstall_tool_no_change")},
         {QStringLiteral("uninstall program skipped"),            QStringLiteral("uninstall_tool_skipped")},
         {QStringLiteral("uninstall program"),                    QStringLiteral("uninstall_tool")},

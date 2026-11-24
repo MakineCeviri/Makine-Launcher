@@ -772,6 +772,17 @@ bool CrashReporter::isUserActionable(const QString& message)
         QStringLiteral("iptal"), QStringLiteral("cancel"),
         // the machine's own policy (Device Guard / App Control) stopped a patch's program
         QStringLiteral("uygulama denetimi"),
+        // what a patch's program said (steprules::toolOutputCause): a locked or
+        // read-only game file, a folder another patch left in the way
+        QStringLiteral("oyunun dosyalarına yazamadı"), QStringLiteral("başka bir yamadan kalma"),
+        // the folder lacks what the patch needs: the player picked another
+        // folder, or the game is incomplete (Sentry 2026-11: half of these are
+        // repacks whose exe is gone); the page asks for "Klasörü değiştir"
+        QStringLiteral("lacks required files"),
+        // an undo program that changed nothing, said once and asked again by design
+        QStringLiteral("(first press)"),
+        // no game of the catalogue on this PC (scanners ran, found none)
+        QStringLiteral("Hiçbir tarayıcı oyun bulamadı"),
     };
     // Classify on the failure text only. Install failures append a remedy
     // paragraph — "Çözüm: oyunu ve Steam'i kapatın, … yönetici olarak

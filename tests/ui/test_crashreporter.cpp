@@ -215,3 +215,24 @@ TEST(CrashReporterSink, SelfTestIsCountedAsASystemFailure)
 }
 
 } // namespace
+
+// Sentry 2026-11-24: what the player fixes on their own machine is a warning; a program
+// that was not told the game's folder is a recipe of ours and stays an error.
+TEST(CrashReporterClassify, PatchProgramCausesTakeTheirSide)
+{
+    const QString head = QStringLiteral("1/1 adımda hata oluştu\nAdım 1: run KUR.bat — araç hata kodu 1 verdi: ");
+    const QString tail = QStringLiteral("\n\nÇözüm: oyunu kapatıp tekrar deneyin.");
+    EXPECT_TRUE(CrashReporter::isUserActionable(head + QStringLiteral(
+        "Windows ya da antivirüs yamanın programının çalışmasına izin vermedi") + tail));
+    EXPECT_TRUE(CrashReporter::isUserActionable(head + QStringLiteral(
+        "yamanın programı oyunun dosyalarına yazamadı (oyun ya da başlatıcısı açık, ya da yazma izni yok)") + tail));
+    EXPECT_TRUE(CrashReporter::isUserActionable(head + QStringLiteral(
+        "oyun klasöründe başka bir yamadan kalma bir klasör var, program ona dokunmadı") + tail));
+    EXPECT_FALSE(CrashReporter::isUserActionable(head + QStringLiteral(
+        "yamanın programı oyunun klasörünü tanımadı") + tail));
+    EXPECT_FALSE(CrashReporter::isUserActionable(head + QStringLiteral(
+        "yamanın programı oyunun bu sürümünü tanımadı (oyun güncellenmiş ya da başka bir sürüm)") + tail));
+    EXPECT_TRUE(CrashReporter::isUserActionable(QStringLiteral("game folder lacks required files: game/eldenring.exe")));
+    EXPECT_TRUE(CrashReporter::isUserActionable(
+        QStringLiteral("uninstall program changed nothing in the game (first press)")));
+}

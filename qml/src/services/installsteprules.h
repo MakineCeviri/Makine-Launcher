@@ -73,18 +73,98 @@ inline bool isKnownAction(const QString& action)
 // why: until 0.2.3 a failed KUR.bat was only "araç hata kodu 1 verdi", and Sentry kept the
 // first 500 characters of its output — the banner — never the reason (2026-10-27: a game
 // version the patch was not made for, and Windows' App Control blocking the tool).
+//
+// The cause nearest the end wins. AC Valhalla's tool lists every archive first — some
+// "FARKLI SURUM" — then rebuilds them from its translation anyway and stops on its last
+// line: a file it could not write, or an index it could not match (Sentry 2026-11-23: 74
+// players filed as "another game version", most of them a locked or read-only file).
+// The scripts close with their own help ("Kurulum yapilamadi; yukaridaki mesaja bakin",
+// what to do when "access denied" shows), which names every cause and is cut off first.
+struct ToolCauseRule {
+    QStringList says;   // what the program prints, any of them
+    QString detail;     // the step's detail; failurereasons.h keys on it
+    QString remedy;     // one action for the player, in place of the generic advice
+};
+
+inline const QList<ToolCauseRule>& toolCauseRules()
+{
+    static const QList<ToolCauseRule> kRules = {
+        {{QStringLiteral("FARKLI SURUM"), QStringLiteral("SURUM FARKLI"), QStringLiteral("FARKLI SÜRÜM"),
+          QStringLiteral("bu oyun verisine uymuyor"), QStringLiteral("UID/indeks uyusmazligi")},
+         QStringLiteral("yamanın programı oyunun bu sürümünü tanımadı (oyun güncellenmiş ya da başka bir sürüm)"),
+         QStringLiteral("Çözüm: oyunu mağazasından güncelleyip dosyalarını doğrulayın, sonra tekrar deneyin. "
+                        "Oyununuz zaten güncelse yamanın bu sürüm için yenilenmesi gerekiyor.")},
+        {{QStringLiteral("Device Guard"), QStringLiteral("Application Control"),
+          QStringLiteral("blocked by your organization")},
+         QStringLiteral("Windows'un uygulama denetimi programı engelledi"),
+         QStringLiteral("Çözüm: bu bilgisayarda Windows'un uygulama denetimi (Akıllı Uygulama Denetimi ya da "
+                        "kurumunuzun ilkesi) yamanın programını çalıştırmıyor ve launcher bunu aşamaz. "
+                        "Yardım için Discord'daki destek kanalına yazın.")},
+        // cmd's words when CreateProcess is refused: an antivirus holding or quarantining the exe
+        {{QStringLiteral("cannot execute the specified program"),
+          QStringLiteral("belirtilen programı çalıştıramıyor"), QStringLiteral("contains a virus"),
+          QStringLiteral("virüs içerdiğinden"), QStringLiteral("potentially unwanted software")},
+         QStringLiteral("Windows ya da antivirüs yamanın programının çalışmasına izin vermedi"),
+         QStringLiteral("Çözüm: antivirüsünüz yamanın programını engellemiş ya da karantinaya almış olabilir. "
+                        "Antivirüste %TEMP%\\MakineLauncher klasörüne izin verip tekrar deneyin.")},
+        {{QStringLiteral("yazilamiyor"), QStringLiteral("cannot be written"),
+          QStringLiteral("Access to the path"), QStringLiteral("erişim reddedildi"),
+          QStringLiteral("being used by another process"), QStringLiteral("kullanıldığından"),
+          QStringLiteral("kullanildigindan")},
+         QStringLiteral("yamanın programı oyunun dosyalarına yazamadı (oyun ya da başlatıcısı açık, "
+                        "ya da yazma izni yok)"),
+         QStringLiteral("Çözüm: oyunu ve başlatıcısını (Steam, Ubisoft Connect, Epic, Rockstar) tamamen "
+                        "kapatıp tekrar deneyin.")},
+        // Elden Ring's tool will not overwrite a TurkceYama folder another patch left there
+        {{QStringLiteral("bu yamaya ait degil")},
+         QStringLiteral("oyun klasöründe başka bir yamadan kalma bir klasör var, program ona dokunmadı"),
+         QStringLiteral("Çözüm: programın çıktısında adı geçen klasörü oyun klasöründen silin ya da başka "
+                        "yere taşıyın, sonra tekrar deneyin.")},
+        // The program was not told the folder, or did not take it: a recipe to fix, not the player
+        {{QStringLiteral("Oyun bulunamadi"), QStringLiteral("Oyun klasoru bulunamadi"),
+          QStringLiteral("oyun klasoru degil"), QStringLiteral("Game folder not found")},
+         QStringLiteral("yamanın programı oyunun klasörünü tanımadı"),
+         QStringLiteral("Çözüm: sayfadaki \"Klasörü değiştir\" ile oyunun kendi klasörünü seçip tekrar deneyin.")},
+    };
+    return kRules;
+}
+
 inline QString toolOutputCause(const QString& output)
 {
-    const QString tail = output.right(6000);
-    if (tail.contains(QStringLiteral("FARKLI SURUM"), Qt::CaseInsensitive)
-        || tail.contains(QStringLiteral("SURUM FARKLI"), Qt::CaseInsensitive)
-        || tail.contains(QStringLiteral("FARKLI SÜRÜM"), Qt::CaseInsensitive))
-        return QStringLiteral("yamanın programı oyunun bu sürümünü tanımadı (oyun güncellenmiş ya da başka bir sürüm)");
-    if (tail.contains(QStringLiteral("Device Guard"), Qt::CaseInsensitive)
-        || tail.contains(QStringLiteral("Application Control"), Qt::CaseInsensitive)
-        || tail.contains(QStringLiteral("blocked by your organization"), Qt::CaseInsensitive))
-        return QStringLiteral("Windows'un uygulama denetimi programı engelledi");
+    QString said = output.right(6000);
+    for (const QLatin1String help : {QLatin1String("Kurulum yapilamadi"), QLatin1String("Kaldirilamadi")}) {
+        const qsizetype at = said.lastIndexOf(help, -1, Qt::CaseInsensitive);
+        if (at >= 0) { said.truncate(at); break; }
+    }
+    qsizetype bestAt = -1;
+    QString best;
+    for (const ToolCauseRule& rule : toolCauseRules()) {
+        for (const QString& s : rule.says) {
+            const qsizetype at = said.lastIndexOf(s, -1, Qt::CaseInsensitive);
+            if (at > bestAt) { bestAt = at; best = rule.detail; }
+        }
+    }
+    return best;
+}
+
+// The player's one action for a failed step whose detail names a program's cause; empty
+// when it names none, and the install's generic advice stands.
+inline QString toolCauseRemedy(const QString& stepDetail)
+{
+    for (const ToolCauseRule& rule : toolCauseRules())
+        if (stepDetail.contains(rule.detail)) return rule.remedy;
     return {};
+}
+
+// Exit 0 and nothing changed in the game, because the patch was there already: Elden
+// Ring's tool ("Yama dosyalari zaten kurulu ve guncel") and AC Valhalla's ("yama zaten
+// kurulu") stop there. Read as "not installed", a reinstall over a working patch failed
+// (Sentry 2026-11: 16 players).
+inline bool toolSaysAlreadyInstalled(const QString& output)
+{
+    const QString tail = output.right(3000);
+    return tail.contains(QStringLiteral("zaten kurulu"), Qt::CaseInsensitive)
+        || tail.contains(QStringLiteral("already installed"), Qt::CaseInsensitive);
 }
 
 inline bool isInPlaceAction(const QString& action)
