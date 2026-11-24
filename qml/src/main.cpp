@@ -1816,6 +1816,17 @@ int main(int argc, char *argv[])
                      "telemetry self-test QML error",
                      static_cast<long long>(QDateTime::currentSecsSinceEpoch() % 100000));
         }
+        // MAKINE_SELFTEST_PLUGIN proves the plugin path (host API telemetry.capture):
+        // tags plugin/plugin_version/plugin.reason, fingerprint, redaction. The
+        // reason changes per run because the gate keys it for a day.
+        if (qEnvironmentVariableIsSet("MAKINE_SELFTEST_PLUGIN")) {
+            makine::CrashReporter::reportPlugin(
+                QStringLiteral("org.makineceviri.live"), QStringLiteral("selftest"),
+                QStringLiteral("selftest_%1").arg(QDateTime::currentSecsSinceEpoch() % 100000),
+                QStringLiteral("info"),
+                QStringLiteral("telemetry self-test plugin event: C:\\Users\\selftest_user_name\\x"),
+                QJsonObject{{"mode", "konsol"}, {"game", "gta-vi"}, {"user", "dropped"}});
+        }
         // MAKINE_SELFTEST_HANG proves the hang watchdog: the UI thread blocks
         // past the threshold inside a running event loop.
         if (qEnvironmentVariableIsSet("MAKINE_SELFTEST_HANG")) {
