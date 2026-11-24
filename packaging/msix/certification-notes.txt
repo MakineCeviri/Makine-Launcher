@@ -1,15 +1,15 @@
-Makine Launcher 0.2.5.0 (0.2.5-beta) - Notes for Certification
+Makine Launcher 0.3.0.0 (0.3.0-beta) - Notes for Certification
 --------------------------------------------------------------
 
 WHAT IT IS
 A Win32 desktop utility that installs community-made Turkish translation patches into PC games the user already owns (Steam, Epic Games, GOG, Ubisoft Connect). Not a game. No account, login or purchase is needed. The UI is in Turkish only.
 
-WHAT CHANGED SINCE 0.2.4.0
-- Catalogue games whose patch is still being prepared are listed as "Yakında" (coming soon): a disabled state, nothing is downloaded or opened. Buttons that sent the user to other websites were removed.
-- Games whose executable lives in a subfolder of the install folder are recognised and patched; if the user picks a folder inside the game, the launcher moves up to the game's own folder.
-- Removing a large patch and cleaning up a failed update run in the background; the window no longer freezes.
-- Ctrl+Q quits the app (also with "keep running in the tray" on); quitting while a backup or a patch's installer is running no longer leaves the window frozen.
-- Fixes: removing an older-style Red Dead Redemption 2 patch, and a clearer error when the disk is too full for the backup.
+WHAT CHANGED SINCE 0.2.5.0
+- "Makine Live" (sidebar, under "Kütüphanem"): an optional, built-in live subtitle translator. It reads a game's English subtitle as text (on-device OCR), fetches the Turkish line from our community translation pool on makineceviri.org and shows it as a subtitle over the game, on the user's TV (the "Makine TV" app) or in a browser on their phone. GTA VI is named only to identify the game; Makine Çeviri is not affiliated with Rockstar Games.
+- Screen reading is started by the user: nothing is captured before "Başlat" (Start) is pressed, and a short note on the page says what is read the first time it opens. Only the rectangle the user draws, or the one window the user picks (PS Remote Play, Xbox app or a capture card's preview), is read. Images never leave the PC; only the recognised text line goes to makineceviri.org. Reading stops with "Durdur" (Stop) or when the launcher closes.
+- No injection: Live does not attach to, read the memory of, or modify any game or process. It reads pixels of the chosen screen area/window only.
+- Live runs in a bundled out-of-process helper, makine-plugin-host.exe (in the package, asInvoker), started on first use of the page and stopped on exit. Its subtitle window is click-through, never takes focus and is excluded from screen capture by default (SetWindowDisplayAffinity WDA_EXCLUDEFROMCAPTURE), so Live never reads its own subtitle; "Yayında göster" (Show on stream) lets capture see it.
+- Plugins are no longer limited to developer builds; each runs in its own process.
 
 FIRST RUN (about 1 minute)
 1. Launch "Makine Launcher" from Start. A 3-step welcome opens: "Başlayalım" (Let's start) -> "Devam" (Continue; game libraries are scanned in the background) -> preferences -> "Makine Launcher'ı aç" (Open Makine Launcher). "Atla, ayarları sonra yaparım" skips it.
@@ -20,7 +20,8 @@ QUICK TEST (no game needed)
 2. Click a cover: description (Steam store API), what the install will do, patch notes, credits. If the game is not installed the button reads "Oyun Klasörünü Seç ve Kur" (Pick the game folder and install); nothing is written unless a matching game folder is chosen.
 3. "Yenilikler" (What's new) shows this version's notes and "Güncelsin" (You are up to date).
 4. "Topluluk" (Community) shows the wall; signing in is optional.
-5. "Ayarlar" (Settings) > "Hakkında" (About) shows version 0.2.5.0-beta and links the privacy policy. Settings > Görünüm > Makine: "Nerede dursun" (Where he stays) moves the companion, "Makine'yi göster" (Show Makine) turns him off.
+5. "Makine Live" in the sidebar shows the live-subtitle page: what it reads, where you play (console or this PC) and the steps still missing. Nothing is read until "Başlat" (Start); reading needs a free makineceviri.org sign-in (a code confirmed in the browser).
+6. "Ayarlar" (Settings) > "Hakkında" (About) shows version 0.3.0.0-beta and links the privacy policy. Settings > Görünüm > Makine: "Nerede dursun" (Where he stays) moves the companion, "Makine'yi göster" (Show Makine) turns him off.
 
 OPTIONAL FULL TEST (needs a catalogue game installed through Steam, Epic, GOG or Ubisoft Connect)
 1. The launcher finds the game on its own, or the user adds it with "Oyun ekle" (Add game) or by dropping the game folder on the window.
@@ -35,7 +36,8 @@ NETWORK
 - makineceviri.org: catalogue updates, anonymous usage counts, the community wall and its optional sign-in
 - store.steampowered.com, cdn.akamai.steamstatic.com: game descriptions and images
 - ingest.de.sentry.io: crash reports
-No inbound connections, no listening ports. Offline the app still opens and shows a "no internet connection" banner.
+- makineceviri.org (Makine Live, only while reading): the recognised subtitle text, the game name and anonymous usage counts (can be turned off on the page).
+Inbound: none by default. Only if the user turns on the phone page or the OBS source in Makine Live does the helper listen on TCP 47712 (the OBS source on 127.0.0.1 only); pairing a Makine TV uses UDP 47710 discovery on the local network. Windows may ask the user for firewall permission then; the app adds no firewall rules. Offline the app still opens and shows a "no internet connection" banner.
 
 DATA AND PRIVACY
 Anonymous operation results (e.g. install succeeded or failed, app version) and crash/error reports (stack trace, app and Windows version, the failing step); user names are removed from file paths. No personal files are collected. Only a community sign-in sends an e-mail address (to makineceviri.org, for the code); the chosen display name and posts then show on makineceviri.org. Crash reports can be turned off in Settings > General. Privacy policy: https://makineceviri.org/gizlilik-politikasi/ (linked in Settings > About).
@@ -48,7 +50,7 @@ OTHER BEHAVIOUR
 - Translations are made by the community and are not official; each game page says so.
 
 DISTRIBUTION
-Source code: https://github.com/MakineCeviri/Makine-Launcher (tag v0.2.5-beta). The companion "Makine" is a closed-source component of Makine Çeviri, included under an additional permission (AGPL-3.0 section 7, see the README).
+Source code: https://github.com/MakineCeviri/Makine-Launcher (tag v0.3.0-beta). The companion "Makine" is a closed-source component of Makine Çeviri, included under an additional permission (AGPL-3.0 section 7, see the README).
 
 CONTACT
 Developer: Sezer UZUN (Makine Çeviri) - sezeruzun@makineceviri.org - https://makineceviri.org

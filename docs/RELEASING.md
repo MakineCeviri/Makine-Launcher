@@ -38,7 +38,8 @@
 | `v0.2.2-beta` | 23 Ekim 2026 | GitHub Releases (ZIP) | Arşiv (ZIP + SHA256SUMS.txt korunuyor) |
 | `v0.2.3-beta` | 25 Ekim 2026 | Microsoft Store (MSIX 0.2.3.0) — Store'da yayında (mağaza kataloğunda `Makineeviri.MakineAI_0.2.3.0`, 27 Ekim'de görüldü); GitHub ZIP'i yok | Etiket var (`47253d3`, MSIX'in yapıldığı commit), sürüm sayfası yok |
 | `v0.2.4-beta` | 27 Ekim 2026 | GitHub Releases (ZIP); Microsoft Store (MSIX 0.2.4.0) — Store'da yayında (mağaza kataloğunda `Makineeviri.MakineAI_0.2.4.0`, 30 Ekim'de görüldü) | Arşiv (ZIP + SHA256SUMS.txt korunuyor); Makine-Companion `08f33f5` |
-| `v0.2.5-beta` | 30 Ekim 2026 | GitHub Releases (ZIP) — **güncel**; Store gönderimi sahibinde | Var (ZIP + SHA256SUMS.txt); Makine-Companion `1d8304f` |
+| `v0.2.5-beta` | 30 Ekim 2026 | GitHub Releases (ZIP); Microsoft Store (MSIX 0.2.5.0) — Store'da yayında | Arşiv (ZIP + SHA256SUMS.txt korunuyor); Makine-Companion `1d8304f` |
+| `v0.3.0-beta` | — | Hazırlanıyor (`feat/bundled-live-2026-11-24`): Makine Live gömülü; ZIP ve MSIX Live paketiyle | — |
 
 0.1.2–0.1.4 etiketleri arşiv düzeni için sonradan atıldı; Store paketinin hangi commit'ten üretildiği o sırada kaydedilmemişti. Etiketler, sürüm bump commit'leri ile MSIX sahneleme zamanından geriye götürülerek en yakın duruma yerleştirildi. 0.1.3'te numara önce Store paketine verilmiş, kaynak ağacı [`492f506`](https://github.com/MakineCeviri/Makine-Launcher/commit/492f506825fffc4053b677fcf35bcbba36f3e417) ile sonradan hizalanmıştı — **bu yüzden her Store gönderiminde önce etiket atılmalı.**
 
@@ -99,6 +100,11 @@ curl -s https://cdn.makineceviri.org/assets/launcher.json | head -4             
 ## Bilinen sınırlar
 
 - **İçeriden güncelleme GitHub'ı kullanamaz.** `UpdateService` indirme host'u olarak yalnızca `cdn.makineceviri.org` ve `makineceviri.org` adreslerine izin verir (`qml/src/services/updateservice.cpp`), ve `SelfUpdater` indirilen dosyayı çalıştırılabilir gibi takas eder — ZIP ile çalışmaz. 0.2.3'ten beri launcher yeni sürümü **haber verir**: ZIP'te "İndir" sürüm sayfasını açar (kurulumu oyuncu yapar), Store'da "Store'da güncelle" Store'u açar.
+- **Eklentiyi uzaktan kapatmak (0.3.0+).** `assets/launcher.json` isteğe bağlı bir `plugins` bloğu taşıyabilir; yalnız gerektiğinde yayımlanır, sürümle birlikte değil. Örnek (yayımlanmadı):
+  ```json
+  "plugins": { "org.makineceviri.live": { "enabled": false, "message": "Makine Live kısa bir bakımda; birazdan yeniden açılacak." } }
+  ```
+  Kayıt olmayan ya da `"enabled": false` olmayan bir id yeniden açılır; okunamayan dosya son bilinen durumu korur (`docs/plugins/README.md`).
 - **İki güncelleme dosyası.** 0.2.3+ `assets/launcher.json`'ı okur (`releasenotes.h`; `just launcher-json`). 0.2.2 ve öncesi `assets/update.json`'ı okur; o dosya `0.1.0-pre-alpha` kaydıyla bilerek eski bırakıldı. Yeni bir sürüm yazılırsa `url`'süz kayıt o launcher'larda Ayarlar'da "Denetlenemedi" gösterir. 0.1.6'dan beri eski sürümlü kayıt "güncel" sayılır.
 - **Dev kanalı gövdeden `SHA256:` satırını okur.** `MAKINE_DEV_TOOLS` yapıları `releases/latest` çağırıp gövdedeki `SHA256: <hash>` satırını ve `.exe` uzantılı varlığı arar; ZIP-only bir sürümde sessizce boşta kalır (çökmez).
 - **Statik Qt kiti kurulu değil** — tek dosya EXE üretilemiyor. Yayın paketi Qt DLL'lerini taşıyan ZIP'tir (~50 MB).

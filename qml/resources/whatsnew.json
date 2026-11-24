@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "version": "0.3.0-beta",
+      "date": "2026-11-24",
+      "title": "Makine Live",
+      "summary": "Makine Live artık launcher'ın içinde: oyundaki İngilizce altyazıyı okur, Türkçesini oyunun üstüne yazar. GTA VI'yı PS5 ya da Xbox'ta Türkçe oynamak için Remote Play penceresi, Makine TV ya da telefon yeter.",
+      "changes": [
+        { "type": "new", "text": "Makine Live: kenar çubuğunda, Kütüphanem'in altında. Altyazıyı senin seçtiğin bölgeden ya da konsol görüntüsünün penceresinden okur, Türkçesini ortak çeviri havuzundan getirir. Sen Başlat'a basmadan hiçbir şey okunmaz; görüntü bilgisayarından çıkmaz, sunucuya yalnız okunan metin gider." },
+        { "type": "new", "text": "Konsolda GTA VI: PS5 için PS Remote Play, chiaki ya da Asobi; Xbox için Xbox uygulaması ya da Greenlight; ya da bir yakalama kartı. Sayfa ne bulduğunu ve eksik olanı adım adım söyler." },
+        { "type": "new", "text": "Altyazı istediğin yerde: bu ekranda, TV'de (Makine TV; Android TV, Google TV ve Fire TV'ye buradan kurulur, LG'de adım adım) ya da telefonun tarayıcısında. OBS için ayrı bir altyazı kaynağı da var." },
+        { "type": "new", "text": "Okunur altyazı: koyu bant, kontur ve gölge; boy, satır, renk, bant ve yer önizlemeyle ayarlanır. Altyazı varsayılan olarak yayına ve ekran görüntülerine girmez, \"Yayında göster\" ile açılır." },
+        { "type": "improved", "text": "Eklentiler artık her sürümde. Her eklenti kendi ayrı sürecinde çalışır ve ilk kullanıldığında açılır; launcher'ın açılışı yavaşlamaz, bir eklenti çökse de launcher'a bir şey olmaz." }
+      ]
+    },
+    {
       "version": "0.2.5-beta",
       "date": "2026-10-30",
       "title": "Daha sağlam kurulum",
@@ -107,7 +120,8 @@
     { "status": "next", "title": "Xbox (Game Pass) ve EA app", "text": "Bu iki mağazanın kütüphanelerindeki oyunları da kendiliğinden bulmak." },
     { "status": "next", "title": "Kurmadan önce boş alan", "text": "Yamanın ihtiyaç duyduğu boş alanı kurulumdan önce denetlemek; yer yetmiyorsa oyuna dokunmadan söylemek." },
     { "status": "next", "title": "Oyunu yamayla başlatmak", "text": "Mod yükleyiciyle açılması gereken oyunlarda (Elden Ring gibi) oyunun sayfasından tek tıkla başlatmak." },
-    { "status": "later", "title": "Eklentiler", "text": "Launcher'a topluluğun yazdığı eklentilerle yeni özellikler eklemek. Her eklenti kendi ayrı sürecinde çalışır; biri çökse de launcher'a bir şey olmaz." },
+    { "status": "next", "title": "Makine Live'da daha çok oyun", "text": "GTA VI'dan sonra başka oyunların altyazısını da ortak havuzla Türkçe okumak; topluluğun onayladığı çeviriler her oynayana gider." },
+    { "status": "later", "title": "Topluluk eklentileri", "text": "Topluluğun yazdığı eklentileri imzalı listeden launcher'a eklemek. Her eklenti kendi ayrı sürecinde çalışır; biri çökse de launcher'a bir şey olmaz." },
     { "status": "later", "title": "Ana sayfada yama haberleri", "text": "Yeni çıkan ve güncellenen yamaları, çeviri ekiplerinin kısa notlarıyla birlikte ana sayfada görmek." },
     { "status": "later", "title": "Oyun sürümüne uygun yama", "text": "Birden çok sürümü olan yamalarda oyununun sürümüne uyanı kendiliğinden seçmek." },
     { "status": "later", "title": "Yama istekleri", "text": "Hangi oyunun Türkçe yamasını beklediğini launcher'dan bildirmek ve isteklerin durumunu görmek." },

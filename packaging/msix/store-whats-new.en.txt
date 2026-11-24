@@ -1,7 +1,7 @@
-Version 0.2.5 — Sturdier installs
+Version 0.3.0 — Makine Live
 
-• Games whose patch is still being prepared show as "Coming soon" in My Library and All Games; buttons that sent you to other sites are gone.
-• Games whose exe lives in a subfolder (such as Phantom Blade Zero) are found and installed; if a folder inside the game was picked, the launcher moves up to the game's folder itself.
-• Removing a patch with thousands of files, or cleaning up a failed update, no longer freezes the launcher.
-• Ctrl+Q closes the launcher; a backup or patch program still running at exit no longer freezes the window.
-• Fixed removing an old-style Red Dead Redemption 2 patch, and the backup error on a full disk.
+• Makine Live is built in: it reads a game's English subtitle and writes the Turkish one over the game. Nothing is read before you press Start; images never leave your PC, only the recognised text goes to the server.
+• Play GTA VI on PS5 or Xbox with Turkish subtitles: PS Remote Play, chiaki, Asobi, the Xbox app, Greenlight or a capture card. (GTA VI is named only to identify the game; not affiliated with Rockstar Games.)
+• Subtitles where you want them: on this screen, on your TV (Makine TV) or in your phone's browser; plus a separate source for OBS.
+• Readable subtitles: dark band, outline and shadow; size, lines, colour and position with a live preview.
+• Plugins in every build; each runs in its own process and starts on first use.

@@ -1,7 +1,7 @@
-Sürüm 0.2.5 — Daha sağlam kurulum
+Sürüm 0.3.0 — Makine Live
 
-• Yaması hazırlanan oyunlar Kütüphanem'de ve Tüm Oyunlar'da "Yakında" olarak görünür; başka sitelere yönlendiren düğmeler kalktı.
-• Exe'si alt klasörde duran oyunlar (Phantom Blade Zero gibi) bulunur ve kurulur; oyunun içindeki bir klasör seçildiyse launcher oyunun klasörüne kendisi çıkar.
-• Binlerce dosyalı bir yamayı kaldırmak ya da yarım kalan güncellemeyi temizlemek artık launcher'ı dondurmuyor.
-• Ctrl+Q launcher'ı kapatıyor; kapanırken süren bir yedek ya da program pencereyi dondurmuyor.
-• Red Dead Redemption 2'de eski yamanın kaldırılması ve dolu diskteki yedekleme hatası düzeltildi.
+• Makine Live launcher'ın içinde: oyundaki İngilizce altyazıyı okur, Türkçesini oyunun üstüne altyazı olarak yazar. Sen Başlat'a basmadan hiçbir şey okunmaz; görüntü bilgisayarından çıkmaz, sunucuya yalnız okunan metin gider.
+• GTA VI'yı PS5 ya da Xbox'ta Türkçe altyazıyla oyna: PS Remote Play, chiaki, Asobi, Xbox uygulaması, Greenlight ya da yakalama kartı. (GTA VI adı yalnız oyunu anmak içindir; Rockstar Games ile bağlantısı yoktur.)
+• Altyazı istediğin yerde: bu ekranda, TV'de (Makine TV) ya da telefonun tarayıcısında; OBS için ayrı bir kaynak.
+• Okunur altyazı: koyu bant, kontur ve gölge; boy, satır, renk ve yer önizlemeyle ayarlanır.
+• Eklentiler artık her sürümde; her biri kendi ayrı sürecinde çalışır ve ilk kullanıldığında açılır.
