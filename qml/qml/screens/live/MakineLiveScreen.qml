@@ -190,15 +190,19 @@ Item {
             stream_poor:    { text: qsTr("Görüntü kalitesi düşük; altyazı okunamayabilir. Remote Play'de kaliteyi yükselt."), fixText: "" },
             hdr_washed:     { text: qsTr("Renkler soluk geliyor: konsolda HDR açık. Okuma için HDR'yi kapat."), fixText: "" },
             tv_offline:     { text: qsTr("Makine TV'ye ulaşılamıyor: TV açık ve aynı ağda mı?"), fixText: "" },
-            quota:          { text: qsTr("Bugünkü çeviri hakkın doldu; yarın yeniden açılır."), fixText: "" }
+            quota:          { text: qsTr("Bugünkü çeviri hakkın doldu; yarın yeniden açılır."), fixText: "" },
+            consent_required: { text: qsTr("Konsol modunda okunan her satır GTA VI havuzuna yazılır; başlatmadan önce onayla."),
+                                fixText: qsTr("Onayla") },
+            game_unidentified: { text: qsTr("Çalışan oyun tanınamadı; oyunu launcher'dan başlat ya da Kütüphanem'e ekle."), fixText: "" }
         }
         // {code, text, action}: the plugin's own sentence; action is the method that fixes it
         const r = _state.reason
         if (_running && r && typeof r === "object" && r.code) {
             const known = reasons[r.code] || {}
             return { text: r.text || known.text || r.code,
-                     fixText: r.action ? (known.fixText || qsTr("Düzelt")) : "",
-                     fix: r.action ? "invoke:" + r.action : "" }
+                     fixText: r.action || r.code === "consent_required" ? (known.fixText || qsTr("Düzelt")) : "",
+                     // consent is not a method: it is the one-time GTA VI confirmation
+                     fix: r.code === "consent_required" ? "consent" : r.action ? "invoke:" + r.action : "" }
         }
         if (_running && typeof r === "string" && reasons[r]) return reasons[r]
         if (_error !== "") return { text: _error, fixText: "" }
@@ -208,6 +212,7 @@ Item {
         if (kind === "restart") PluginManager.restart(pluginId)
         else if (kind === "enable") PluginManager.setEnabled(pluginId, true)
         else if (kind === "sources") _call("console.sources")
+        else if (kind === "consent") consoleConfirm.open()
         else if (kind && kind.indexOf("invoke:") === 0) _call(kind.slice(7))
     }
 
