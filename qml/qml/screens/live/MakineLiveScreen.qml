@@ -1778,6 +1778,18 @@ Item {
                     }
                 }
                 ListRow {
+                    icon: Icons.clock
+                    title: qsTr("En kısa gösterim")
+                    subtitle: qsTr("Kısa bir satır da en az bu kadar ekranda kalır; okumaya yetişmiyorsan artır.")
+                    SegmentedControl {
+                        small: true
+                        model: [{ value: "600", text: qsTr("0,6 sn") }, { value: "1200", text: qsTr("1,2 sn") },
+                                { value: "2000", text: qsTr("2 sn") }, { value: "3000", text: qsTr("3 sn") }]
+                        currentValue: String(look.nearest(live._style.minShowMs || 1200, [600, 1200, 2000, 3000]))
+                        onActivated: (value) => live._setStyle({ minShowMs: Number(value) })
+                    }
+                }
+                ListRow {
                     icon: Icons.eye
                     title: qsTr("Örnek göster")
                     subtitle: qsTr("Oyunun üstünde birkaç saniye örnek bir altyazı çıkar; ayarı orada dene.")
@@ -1798,7 +1810,7 @@ Item {
                         onClicked: live._setStyle({ preset: null, font: null, sizePx: null, maxLines: null, textColor: null,
                                                     bandColor: null, bandOpacity: null, outlinePx: null, shadow: null,
                                                     widthPct: null, marginPx: null, position: null, showSource: null,
-                                                    boxX: null, boxY: null })
+                                                    boxX: null, boxY: null, minShowMs: null })
                     }
                 }
             }
