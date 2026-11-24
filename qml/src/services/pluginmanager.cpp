@@ -11,6 +11,7 @@
 #include "networksecurity.h"
 #include "pluginprocess.h"
 #include "pluginregistry.h"
+#include "pluginupdate.h"
 #include "pluginwake.h"
 #include "processscanner.h"
 
@@ -60,7 +61,31 @@ const QString kDeveloperModeKey = QStringLiteral("plugins/developerMode");
 // Bundled plugins already enabled once: from then on the enabled list is the user's choice.
 const QString kBundledSeenKey = QStringLiteral("plugins/bundledSeen");
 const QString kRemoteOffKey = QStringLiteral("plugins/remoteOff");
+// Bundled plugins the user removed: their files are the launcher's (read-only, back with every update), so
+// "Kaldır" hides them instead: not loaded, not listed, never woken; the catalogue offers them again.
+const QString kRemovedBundledKey = QStringLiteral("plugins/removedBundled");
+
+bool removedBundled(const plugininstaller::ResolvedFolder& r)
+{
+    return !r.bundledDir.isEmpty() && r.folder.dir == r.bundledDir
+           && QSettings().value(kRemovedBundledKey).toStringList().contains(r.id);
+}
+
+// A plugin's own data and log (uninstall with "remove data").
+void removePluginData(const QString& id)
+{
+    QDir(AppPaths::pluginDataDir() + u'/' + id).removeRecursively();
+    // The log holds whatever the plugin wrote, so it goes with the data.
+    const QString log = AppPaths::logsDir() + QStringLiteral("/plugins/") + id + QStringLiteral(".log");
+    QFile::remove(log);
+    QFile::remove(log + QStringLiteral(".1"));
+}
 constexpr int kInvokeTimeoutMs = 120000;   // a screen call may wait for the user (region, login)
+// A downloaded auto-update waits for its running host to be idle on two checks in a row.
+constexpr int kPendingCheckMs = 30 * 1000;
+constexpr int kIdleChecksBeforeRestart = 2;
+// The registry is fetched 2 s after the first frame, then again this often.
+constexpr int kRegistryRefreshMs = 6 * 60 * 60 * 1000;
 
 // Read-only under MSIX: nothing is ever written here.
 QString bundledRoot()
@@ -227,7 +252,14 @@ PluginManager::PluginManager(QObject* parent)
     connect(m_registry, &PluginRegistry::updated, this, [this] {
         emit catalogChanged();
         emit pluginsChanged();   // update flags
+        autoUpdate();
     });
+    m_pendingTimer = new QTimer(this);
+    m_pendingTimer->setInterval(kPendingCheckMs);
+    connect(m_pendingTimer, &QTimer::timeout, this, &PluginManager::applyPendingUpdates);
+    m_registryTimer = new QTimer(this);
+    m_registryTimer->setInterval(kRegistryRefreshMs);
+    connect(m_registryTimer, &QTimer::timeout, this, &PluginManager::refreshCatalog);
 }
 
 PluginManager::~PluginManager() = default;
@@ -295,7 +327,7 @@ void PluginManager::load()
     for (const QString& id : QDir(previousRoot).entryList(QDir::Dirs | QDir::NoDotAndDotDot))
         if (!QFileInfo::exists(root + u'/' + id)) plugininstaller::rollback(root, id);
     for (const auto& resolved : scanAll())
-        loadFolder(resolved);
+        if (!removedBundled(resolved)) loadFolder(resolved);
     saveEnabled();   // bundled plugins seen for the first time are enabled now
     for (auto& [id, p] : m_plugins) {
         if (QFileInfo::exists(previousRoot + u'/' + id)) {
@@ -316,6 +348,7 @@ void PluginManager::afterWindowShown()
             && pluginwake::startsHost(pluginwake::Reason::Launch, !p.bundledDir.isEmpty(), p.manifest->events))
             startPlugin(p);
     refreshCatalog();
+    m_registryTimer->start();
 }
 
 void PluginManager::setRemoteSwitches(const QVariantMap& off)
@@ -370,14 +403,12 @@ void PluginManager::loadFolder(const plugininstaller::ResolvedFolder& resolved)
             p.enabled = true;
         }
     }
-    if (p.runsBundled()) {
-        // Shipped with the launcher: reviewed with it, so verified and granted by origin.
-        p.verified = true;
-        p.granted = p.manifest ? p.manifest->capabilityIds() : QStringList{};
-    } else {
-        p.verified = s.value(key("verified", id)).toBool();
-        p.granted = s.value(key("granted", id)).toStringList();
-    }
+    // Shipped with the launcher (reviewed with it) or installed from the signed registry:
+    // verified, and granted by origin whatever its manifest declares now, so a capability
+    // an update adds never stops it. A file install runs with what the user granted.
+    p.verified = p.runsBundled() || s.value(key("verified", id)).toBool();
+    p.granted = pluginupdate::granted(p.verified, p.manifest ? p.manifest->capabilityIds() : QStringList{},
+                                      s.value(key("granted", id)).toStringList());
     loadSettings(p);
     if (!p.manifest)
         setState(p, QStringLiteral("invalid"),
@@ -389,7 +420,7 @@ void PluginManager::loadFolder(const plugininstaller::ResolvedFolder& resolved)
 void PluginManager::reloadOne(const QString& id)
 {
     for (const auto& resolved : scanAll())
-        if (resolved.id == id) loadFolder(resolved);
+        if (resolved.id == id && !removedBundled(resolved)) loadFolder(resolved);
 }
 
 void PluginManager::clearUiState(Installed& p)
@@ -528,6 +559,8 @@ void PluginManager::onStartFailed(const QString& id, PluginProcess* proc, int co
 
     if (p->updatePending) {
         p->updatePending = false;
+        // Never auto-install this version again; a newer one, or a manual update, still can.
+        if (p->manifest) QSettings().setValue(key("failedVersion", id), p->manifest->version);
         if (plugininstaller::rollback(AppPaths::pluginsDir(), id)) {
             reloadOne(id);
             emit pluginsChanged();
@@ -798,6 +831,19 @@ QVariantList PluginManager::catalog() const
             {"incompatibleReason", incompatible},
         });
     }
+    // Removed bundled plugins the registry does not list: offered again from the launcher's own copy
+    const QStringList removed = QSettings().value(kRemovedBundledKey).toStringList();
+    for (const auto& folder : plugininstaller::scan(bundledRoot())) {
+        if (!folder.manifest || !removed.contains(folder.manifest->id) || m_registry->find(folder.manifest->id)) continue;
+        const PluginManifest& m = *folder.manifest;
+        list.append(QVariantMap{
+            {"id", m.id}, {"name", m.name}, {"version", m.version}, {"description", m.description},
+            {"publisher", m.publisher}, {"homepage", m.homepage}, {"size", 0},
+            {"capabilities", capabilityList(m.capabilities)},
+            {"installed", false}, {"installedVersion", QString()}, {"updateAvailable", false},
+            {"compatible", true}, {"incompatibleReason", QString()}, {"bundled", true},
+        });
+    }
     return list;
 }
 
@@ -892,6 +938,24 @@ void PluginManager::grantCapabilities(const QString& id)
 void PluginManager::install(const QString& id)
 {
     if (!m_busyId.isEmpty()) return;
+    // A removed bundled plugin comes back from the launcher's own copy: no download, on as on its first run
+    {
+        QSettings s;
+        QStringList removed = s.value(kRemovedBundledKey).toStringList();
+        if (removed.removeAll(id) > 0) {
+            s.setValue(kRemovedBundledKey, removed);
+            QStringList enabled = s.value(kEnabledKey).toStringList();
+            if (!enabled.contains(id)) enabled.append(id);
+            s.setValue(kEnabledKey, enabled);
+            reloadOne(id);
+            if (find(id)) {
+                emit pluginsChanged();
+                emit catalogChanged();
+                emit pluginInstalled(id);
+                return;
+            }
+        }
+    }
     const PluginRegistryEntry* found = m_registry->find(id);
     if (!found) {
         emit pluginError(id, tr("Eklenti katalogda bulunamadı."));
@@ -904,21 +968,41 @@ void PluginManager::install(const QString& id)
         return;
     }
 
+    // An auto-update already downloaded this version: the user asked, so it goes in now.
+    if (const auto it = m_pendingUpdates.find(id);
+        it != m_pendingUpdates.end() && it->second.staged.manifest.version == entry.version) {
+        const plugininstaller::StagedPlugin staged = it->second.staged;
+        m_pendingUpdates.erase(it);
+        replaceInstalled(staged, true, staged.manifest.capabilityIds());
+        return;
+    }
+    dropPendingUpdate(id);
+
     setBusy(id, 0.0);
+    fetchPackage(entry, true, [this](const plugininstaller::StagedPlugin& staged) {
+        // Verified by the registry signature and the package hash: everything it declares is granted.
+        replaceInstalled(staged, true, staged.manifest.capabilityIds());
+    }, [this, id](const QString& message) {
+        setBusy({}, 0.0);
+        emit pluginError(id, message);
+    });
+}
+
+void PluginManager::fetchPackage(const PluginRegistryEntry& entry, bool showProgress,
+                                 std::function<void(const plugininstaller::StagedPlugin&)> done,
+                                 std::function<void(const QString&)> fail)
+{
     QNetworkRequest req{QUrl(entry.url)};
     req.setRawHeader("User-Agent", cdn::kUserAgent);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
     auto* reply = m_net->get(req);
-    connect(reply, &QNetworkReply::downloadProgress, this, [this, reply, entry](qint64 received, qint64) {
+    connect(reply, &QNetworkReply::downloadProgress, this,
+            [this, reply, entry, showProgress](qint64 received, qint64) {
         if (received > entry.size) reply->abort();
-        else setBusy(entry.id, 0.9 * double(received) / double(entry.size));
+        else if (showProgress) setBusy(entry.id, 0.9 * double(received) / double(entry.size));
     });
-    connect(reply, &QNetworkReply::finished, this, [this, reply, entry] {
+    connect(reply, &QNetworkReply::finished, this, [reply, entry, done = std::move(done), fail = std::move(fail)] {
         reply->deleteLater();
-        const auto fail = [this, &entry](const QString& message) {
-            setBusy({}, 0.0);
-            emit pluginError(entry.id, message);
-        };
         if (reply->error() != QNetworkReply::NoError)
             return fail(tr("İndirilemedi: %1").arg(reply->errorString()));
         const QByteArray data = reply->readAll();
@@ -932,10 +1016,105 @@ void PluginManager::install(const QString& id)
             QDir(staged->dir).removeRecursively();
             return fail(tr("Paket katalogdaki eklentiyle eşleşmiyor; kurulum yapılmadı."));
         }
-        QStringList grant;
-        for (const auto& c : entry.capabilities) grant.append(c.id);
-        replaceInstalled(*staged, true, grant);
+        done(*staged);
     });
+}
+
+// ── Automatic updates (verified plugins only) ───────────────────────────────
+
+void PluginManager::autoUpdate()
+{
+    if (m_shuttingDown) return;
+    const QSettings s;
+    for (const auto& [id, p] : m_plugins) {
+        const PluginRegistryEntry* found = m_registry->find(id);
+        if (!found || !p.manifest) continue;
+        const pluginupdate::Candidate candidate{
+            p.manifest->version, p.verified, found->version,
+            pluginmanifest::isSupportedAbi(found->abi) && launcherAtLeast(found->minLauncher),
+            s.value(key("failedVersion", id)).toString()};
+        if (!pluginupdate::shouldAutoUpdate(candidate)) continue;
+        const QString tag = id + u'@' + found->version;
+        if (m_autoFailed.contains(tag) || m_autoFetching.contains(id) || m_busyId == id) continue;
+        if (const auto it = m_pendingUpdates.find(id);
+            it != m_pendingUpdates.end() && it->second.staged.manifest.version == found->version)
+            continue;
+        dropPendingUpdate(id);   // an older download the registry has moved past
+
+        const PluginRegistryEntry entry = *found;   // the registry may refresh meanwhile
+        m_autoFetching.append(id);
+        qCInfo(lcPlugin) << "auto-update: downloading" << id << entry.version;
+        fetchPackage(entry, false, [this, id](const plugininstaller::StagedPlugin& staged) {
+            m_autoFetching.removeAll(id);
+            if (m_shuttingDown || !find(id)) {   // uninstalled meanwhile
+                QDir(staged.dir).removeRecursively();
+                return;
+            }
+            m_pendingUpdates[id] = PendingUpdate{staged, 0};
+            applyPendingUpdates();
+        }, [this, id, tag](const QString& message) {
+            m_autoFetching.removeAll(id);
+            m_autoFailed.append(tag);
+            qCWarning(lcPlugin) << "auto-update of" << tag << "failed:" << message;
+            if (Installed* q = find(id)) appendLog(*q, MAKINE_LOG_WARN, tr("Otomatik güncelleme yapılamadı: %1").arg(message));
+        });
+    }
+}
+
+void PluginManager::dropPendingUpdate(const QString& id)
+{
+    const auto it = m_pendingUpdates.find(id);
+    if (it == m_pendingUpdates.end()) return;
+    QDir(it->second.staged.dir).removeRecursively();
+    m_pendingUpdates.erase(it);
+    if (m_pendingUpdates.empty()) m_pendingTimer->stop();
+}
+
+void PluginManager::applyPendingUpdates()
+{
+    if (m_shuttingDown) return;
+    for (auto it = m_pendingUpdates.begin(); it != m_pendingUpdates.end();) {
+        const QString id = it->first;
+        const Installed* p = find(id);
+        // Uninstalled, or a manual update already put this version (or a newer one) in place.
+        if (!p || (p->manifest && pluginmanifest::compareVersions(it->second.staged.manifest.version,
+                                                                  p->manifest->version) <= 0)) {
+            QDir(it->second.staged.dir).removeRecursively();
+            it = m_pendingUpdates.erase(it);
+            continue;
+        }
+        // One replace at a time; a manual install in progress goes first.
+        if (!m_busyId.isEmpty()) break;
+
+        bool userWaiting = !p->waiting.isEmpty();
+        for (const auto& r : m_requests)
+            if (r.pluginId == id) userWaiting = true;
+        const pluginupdate::Activity activity{
+            p->process != nullptr,
+            !m_runningGameId.isEmpty(),
+            (m_overlay.visible && m_overlay.owner == id) || (m_prompt.visible && m_prompt.owner == id),
+            userWaiting,
+            p->uiState.value(u"running").toBool() || p->uiState.value(u"busy").toBool(),
+        };
+        if (!pluginupdate::canReplaceNow(activity)) {
+            it->second.idleChecks = 0;
+            ++it;
+            continue;
+        }
+        // A running host must stay idle for a while (two checks) before it is restarted.
+        if (activity.hostRunning && ++it->second.idleChecks < kIdleChecksBeforeRestart) {
+            ++it;
+            continue;
+        }
+        const plugininstaller::StagedPlugin staged = it->second.staged;
+        m_pendingUpdates.erase(it);
+        qCInfo(lcPlugin) << "auto-update: installing" << id << staged.manifest.version
+                         << (activity.hostRunning ? "(idle host restarts)" : "");
+        replaceInstalled(staged, true, staged.manifest.capabilityIds(), true);
+        break;   // replaceInstalled is busy until it is done; the timer picks up the rest
+    }
+    if (m_pendingUpdates.empty()) m_pendingTimer->stop();
+    else if (!m_pendingTimer->isActive()) m_pendingTimer->start();
 }
 
 void PluginManager::installFromFile(const QUrl& file)
@@ -969,21 +1148,32 @@ void PluginManager::installFromFile(const QUrl& file)
 }
 
 void PluginManager::replaceInstalled(const plugininstaller::StagedPlugin& staged, bool verified,
-                                     const QStringList& grant)
+                                     const QStringList& grant, bool automatic)
 {
     const QString id = staged.manifest.id;
+    // A manual install or a file install supersedes a downloaded auto-update.
+    if (const auto it = m_pendingUpdates.find(id);
+        it != m_pendingUpdates.end() && it->second.staged.dir != staged.dir)
+        dropPendingUpdate(id);
     Installed* existing = find(id);
     const bool hadWorkingVersion = existing && existing->manifest;
     const bool enable = existing ? existing->enabled : true;
     const bool wasRunning = existing && existing->process;
     setBusy(id, 0.95);
 
-    auto commit = [this, staged, verified, grant, id, hadWorkingVersion, enable, wasRunning] {
+    auto commit = [this, staged, verified, grant, id, hadWorkingVersion, enable, wasRunning, automatic] {
         QString error;
         if (!plugininstaller::commit(staged, AppPaths::pluginsDir(), &error)) {
             QDir(staged.dir).removeRecursively();
             setBusy({}, 0.0);
-            emit pluginError(id, tr("Kurulamadı: %1").arg(error));
+            if (automatic) {
+                m_autoFailed.append(id + u'@' + staged.manifest.version);
+                qCWarning(lcPlugin) << "auto-update of" << id << "not installed:" << error;
+                if (Installed* p = find(id))
+                    appendLog(*p, MAKINE_LOG_WARN, tr("Otomatik güncelleme kurulamadı: %1").arg(error));
+            } else {
+                emit pluginError(id, tr("Kurulamadı: %1").arg(error));
+            }
             if (Installed* p = find(id); p && p->enabled && wasRunning) startPlugin(*p);
             return;
         }
@@ -1004,8 +1194,19 @@ void PluginManager::replaceInstalled(const plugininstaller::StagedPlugin& staged
         p->updatePending = hadWorkingVersion && enable;
         if (hadWorkingVersion && !enable) plugininstaller::dropPrevious(AppPaths::pluginsDir(), id);
         setBusy({}, 0.0);
-        appendLog(*p, MAKINE_LOG_INFO, tr("Kuruldu: %1").arg(p->manifest->version));
-        emit pluginInstalled(id);
+        appendLog(*p, MAKINE_LOG_INFO, (automatic ? tr("Kendiliğinden güncellendi: %1") : tr("Kuruldu: %1"))
+                                           .arg(p->manifest->version));
+        if (p->runsBundled() && !verified) {
+            // Same or older than the copy Makine ships: that one keeps running (resolve).
+            const QString note = tr("Makine ile gelen %1 sürümü bu dosyadakinden yeni ya da aynı; o çalışıyor.")
+                                     .arg(p->manifest->version);
+            appendLog(*p, MAKINE_LOG_WARN, note);
+            emit pluginError(id, note);
+        } else if (hadWorkingVersion) {
+            emit pluginUpdated(id, p->manifest->version, automatic);
+        } else {
+            emit pluginInstalled(id);
+        }
         // Back up only if it was running; otherwise on first use like any other start.
         if (p->enabled && wasRunning) startPlugin(*p);
         else if (p->enabled) park(*p);
@@ -1022,10 +1223,25 @@ void PluginManager::uninstall(const QString& id, bool removeData)
 {
     Installed* p = find(id);
     if (!p) return;
-    if (p->runsBundled()) {
-        emit pluginError(id, tr("Makine ile gelen eklenti kaldırılamaz; kapatabilirsiniz."));
+    if (p->runsBundled()) {   // the shipped copy: hidden, not deleted (see kRemovedBundledKey)
+        dropPendingUpdate(id);
+        stopThen(*p, [this, id, removeData] {
+            QSettings s;
+            QStringList removed = s.value(kRemovedBundledKey).toStringList();
+            if (!removed.contains(id)) removed.append(id);
+            s.setValue(kRemovedBundledKey, removed);
+            s.remove(key("attach", id));
+            s.remove(key("failedVersion", id));
+            if (removeData) removePluginData(id);
+            if (Installed* q = find(id)) clearUiState(*q);
+            m_plugins.erase(id);
+            saveEnabled(id);
+            emit pluginsChanged();
+            emit catalogChanged();
+        });
         return;
     }
+    dropPendingUpdate(id);
     const bool wasRunning = p->process != nullptr;
     stopThen(*p, [this, id, removeData, wasRunning] {
         QString error;
@@ -1038,13 +1254,8 @@ void PluginManager::uninstall(const QString& id, bool removeData)
         s.remove(key("verified", id));
         s.remove(key("granted", id));
         s.remove(key("attach", id));
-        if (removeData) {
-            QDir(AppPaths::pluginDataDir() + u'/' + id).removeRecursively();
-            // The log holds whatever the plugin wrote, so it goes with the data.
-            const QString log = AppPaths::logsDir() + QStringLiteral("/plugins/") + id + QStringLiteral(".log");
-            QFile::remove(log);
-            QFile::remove(log + QStringLiteral(".1"));
-        }
+        s.remove(key("failedVersion", id));
+        if (removeData) removePluginData(id);
         // An update of a bundled plugin: the shipped copy takes over again.
         if (Installed* q = find(id); q && !q->bundledDir.isEmpty()) {
             reloadOne(id);
@@ -1381,6 +1592,46 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
         hideOverlayOf(p.id);
         return reply(true);
     }
+    // A small question in the top-left corner of the game's screen ("lock the subtitle area?"). It takes
+    // clicks but never the focus (the game stays in front); the answer comes back as overlay.promptAnswered.
+    if (method == QLatin1String("overlay.prompt")) {
+        if (!needs("overlay")) return;
+        if (m_prompt.visible && m_prompt.owner != p.id)
+            return fail(MAKINE_E_BUSY, QStringLiteral("another plugin owns the prompt"));
+        const QString id = params.value(u"id").toString().left(64);
+        const QString text = params.value(u"text").toString().left(300);
+        if (id.isEmpty() || text.isEmpty()) return fail(MAKINE_E_INVALID_ARGUMENT, QStringLiteral("id and text are required"));
+        QVariantList actions;
+        for (const auto& a : params.value(u"actions").toArray()) {
+            if (actions.size() >= 3) break;
+            const QJsonObject action = a.toObject();
+            const QString actionId = action.value(u"id").toString().left(32);
+            if (actionId.isEmpty()) continue;
+            actions.append(QVariantMap{{"id", actionId},
+                                       {"label", action.value(u"label").toString().left(40)},
+                                       {"key", action.value(u"key").toString().left(8)}});
+        }
+        const QJsonObject n = params.value(u"near").toObject();
+        const QRect nearIn(n.value(u"x").toInt(), n.value(u"y").toInt(), n.value(u"width").toInt(), n.value(u"height").toInt());
+        m_prompt.owner = p.id;
+        m_prompt.id = id;
+        m_prompt.title = params.value(u"title").toString().left(120);
+        m_prompt.text = text;
+        m_prompt.actions = actions;
+        m_prompt.nearRect = nearIn.isValid() ? toLogical(nearIn) : QRect();
+        m_prompt.visible = true;
+        emit overlayChanged();
+        return reply(true);
+    }
+    if (method == QLatin1String("overlay.promptHide")) {
+        if (!needs("overlay")) return;
+        const QString id = params.value(u"id").toString();
+        if (m_prompt.visible && m_prompt.owner == p.id && (id.isEmpty() || id == m_prompt.id)) {
+            m_prompt.visible = false;
+            emit overlayChanged();
+        }
+        return reply(true);
+    }
     // Defect reports through the launcher's Sentry (docs/plugins/README.md): one SDK, one consent,
     // one gate. Only plugins Makine ships may use it; their reports land in our project.
     if (method.startsWith(QLatin1String("telemetry."))) {
@@ -1471,10 +1722,35 @@ void PluginManager::broadcast(const QString& event, const QJsonObject& payload)
 
 void PluginManager::hideOverlayOf(const QString& id)
 {
-    if (m_overlay.owner != id || !m_overlay.visible) return;
-    m_overlay.visible = false;
-    m_overlay.owner.clear();
+    bool changed = false;
+    if (m_overlay.owner == id && m_overlay.visible) {
+        m_overlay.visible = false;
+        m_overlay.owner.clear();
+        changed = true;
+    }
+    if (m_prompt.owner == id && m_prompt.visible) {
+        m_prompt.visible = false;
+        changed = true;
+    }
+    if (changed) emit overlayChanged();
+}
+
+QVariantMap PluginManager::overlayPrompt() const
+{
+    if (!m_prompt.visible) return {};
+    return {{"id", m_prompt.id}, {"title", m_prompt.title}, {"text", m_prompt.text},
+            {"actions", m_prompt.actions}, {"near", m_prompt.nearRect}};
+}
+
+void PluginManager::answerPrompt(const QString& action)
+{
+    if (!m_prompt.visible) return;
+    m_prompt.visible = false;
     emit overlayChanged();
+    Installed* p = find(m_prompt.owner);
+    if (!p || !p->process || !p->process->isReady()) return;
+    p->process->sendEvent(QStringLiteral("overlay.promptAnswered"),
+                          QJsonObject{{"id", m_prompt.id}, {"action", action.left(32)}});
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

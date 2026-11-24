@@ -29,17 +29,26 @@ class ProcessScanner;
 } // namespace makine
 class PluginProcess;
 class PluginRegistry;
+struct PluginRegistryEntry;
 class QNetworkAccessManager;
+class QTimer;
 
 /**
  * Plugin system v2 (docs/adr/0009-plugin-system-v2.md), as QML sees it.
  *
  * Installed plugins come from AppPaths::pluginsDir() and from the read-only
  * <launcher>/plugins folder of plugins that ship with Makine (bundled: verified,
- * capabilities granted, enabled on first run, never uninstalled; a newer user copy
- * wins). The official catalogue comes from the signed CDN registry. Each enabled plugin runs in its own
- * makine-plugin-host.exe (PluginProcess). Plugins never run before the user has
- * granted every capability their manifest declares.
+ * capabilities granted, enabled on first run, never uninstalled). Of the two copies
+ * of one id the higher version runs; the same version runs the bundled copy
+ * (plugininstaller::resolve). The official catalogue comes from the signed CDN
+ * registry. Each enabled plugin runs in its own makine-plugin-host.exe (PluginProcess).
+ *
+ * Verified plugins (bundled, or installed from the signed registry) run with every
+ * capability their manifest declares, also one an update adds: no consent, the
+ * signature is the trust (pluginupdate.h). They update by themselves when the
+ * registry lists a newer version: downloaded and checked like a manual update,
+ * put in place when the host is not in use. A plugin installed from a file
+ * (developer mode) never runs before the user has granted every capability.
  *
  * `plugins` entries: id, name, version, description, publisher, homepage, license,
  *   verified, enabled, state, statusText, lastError, capabilities [{id,label,reason}],
@@ -79,6 +88,8 @@ class PluginManager : public QObject {
     Q_PROPERTY(QRect overlayFrame READ overlayFrame NOTIFY overlayChanged)
     // overlay.show `fit`: {maxLines, minFontScale, maxWidthFrac, chunk, chunks}, empty = none
     Q_PROPERTY(QVariantMap overlayFit READ overlayFit NOTIFY overlayChanged)
+    // overlay.prompt: a small question in the game's corner {id, title, text, actions, near}, empty = none
+    Q_PROPERTY(QVariantMap overlayPrompt READ overlayPrompt NOTIFY overlayChanged)
 
     /// Enabled plugins with a screen of their own (contributes.screen): {id, title, icon}
     Q_PROPERTY(QVariantList screens READ screens NOTIFY pluginsChanged)
@@ -119,17 +130,21 @@ public:
     bool overlayMovable() const { return m_overlay.movable; }
     QRect overlayFrame() const { return m_overlay.frame; }
     QVariantMap overlayFit() const { return m_overlay.fit; }
+    QVariantMap overlayPrompt() const;
     /// A plugin's physical-pixel rectangle in Qt's logical global coordinates
     Q_INVOKABLE QRect logicalRect(const QRect& physical) const;
     /// The overlay window was dragged to this logical rectangle: the plugin that made it
     /// movable gets `overlay.moved {x, y, width, height}` in physical pixels.
     Q_INVOKABLE void overlayMoved(int x, int y, int width, int height);
+    /// The player answered the overlay prompt (an action id, "" = closed): its plugin gets
+    /// `overlay.promptAnswered {id, action}` and the prompt goes away.
+    Q_INVOKABLE void answerPrompt(const QString& action);
     QVariantList screens() const;
 
     Q_INVOKABLE QVariantMap plugin(const QString& id) const;
     Q_INVOKABLE void refreshCatalog();
-    /// Installs or updates from the registry. The caller has shown the entry's
-    /// capabilities, so they count as granted.
+    /// Installs or updates from the registry, with no consent and no developer mode:
+    /// a registry plugin is verified, its capabilities count as granted.
     Q_INVOKABLE void install(const QString& id);
     /// Developer mode only: an unverified .mkplugin chosen by the user.
     Q_INVOKABLE void installFromFile(const QUrl& file);
@@ -181,6 +196,8 @@ signals:
     /// Install, update and start failures, worded for the user.
     void pluginError(const QString& id, const QString& message);
     void pluginInstalled(const QString& id);
+    /// A new version replaced an installed one; `automatic`: the launcher did it by itself.
+    void pluginUpdated(const QString& id, const QString& version, bool automatic);
     void actionFinished(const QString& id, const QString& actionId, bool ok, const QString& message);
     /// ok: `result` is the plugin's answer; otherwise the error message.
     void invokeFinished(const QString& id, const QString& method, bool ok, const QVariant& result);
@@ -257,8 +274,18 @@ private:
                        const QJsonObject& params);
     QJsonObject attachResult(const QString& gameId) const;
 
+    /// `automatic`: an auto-update; failures go to the log, not to a toast.
     void replaceInstalled(const plugininstaller::StagedPlugin& staged, bool verified,
-                          const QStringList& grant);
+                          const QStringList& grant, bool automatic = false);
+    /// Downloads a registry package and checks its size, SHA-256, id and version.
+    void fetchPackage(const PluginRegistryEntry& entry, bool showProgress,
+                      std::function<void(const plugininstaller::StagedPlugin&)> done,
+                      std::function<void(const QString&)> fail);
+    /// Starts the background download of every verified plugin the registry has newer.
+    void autoUpdate();
+    /// Puts downloaded auto-updates in place whose plugin is not in use.
+    void applyPendingUpdates();
+    void dropPendingUpdate(const QString& id);
     void setBusy(const QString& id, double progress);
     void appendLog(Installed& p, int level, const QString& line);
     void setState(Installed& p, const QString& state, const QString& error = {});
@@ -289,6 +316,17 @@ private:
     bool m_started = false;      // startEnabled() ran
     QVariantMap m_remoteOff;     // id → message (launcher.json)
 
+    // Auto-updates: downloaded and verified, waiting for the plugin to be idle.
+    struct PendingUpdate {
+        plugininstaller::StagedPlugin staged;
+        int idleChecks = 0;      // consecutive checks that found the running host idle
+    };
+    std::map<QString, PendingUpdate> m_pendingUpdates;
+    QStringList m_autoFetching;  // ids downloading in the background
+    QStringList m_autoFailed;    // "<id>@<version>" that failed this session: not retried
+    QTimer* m_pendingTimer = nullptr;
+    QTimer* m_registryTimer = nullptr;
+
     struct {
         QString owner;
         bool visible = false;
@@ -303,4 +341,14 @@ private:
         QRect frame;    // overlay.show frame (logical), empty = the screen
         QVariantMap fit;
     } m_overlay;
+
+    struct {
+        QString owner;
+        bool visible = false;
+        QString id;
+        QString title;
+        QString text;
+        QVariantList actions;   // [{id, label, key}]
+        QRect nearRect;         // logical; the prompt goes in the corner of this one's screen
+    } m_prompt;
 };

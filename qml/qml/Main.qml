@@ -1181,6 +1181,12 @@ ApplicationWindow {
             gameToast.show("", name, qsTr("%1 kuruldu").arg(name),
                 qsTr("Ayarlar > Eklentiler bölümünden yönetebilirsiniz."))
         }
+        function onPluginUpdated(pluginId, version, automatic) {
+            var name = window._pluginName(pluginId)
+            gameToast.show("", name, qsTr("%1 güncellendi").arg(name),
+                automatic ? qsTr("Yeni sürüm (%1) kendiliğinden kuruldu.").arg(version)
+                          : qsTr("Sürüm %1 kuruldu.").arg(version))
+        }
     }
 
     // ===== PLUGIN REGION SELECTOR =====
@@ -1204,6 +1210,11 @@ ApplicationWindow {
         movable: PluginManager ? PluginManager.overlayMovable : false
         frame: PluginManager ? PluginManager.overlayFrame : Qt.rect(0, 0, 0, 0)
         fit: PluginManager ? PluginManager.overlayFit : ({})
+    }
+
+    // A plugin's question over the game (overlay.prompt), top-left; the plugin hides it
+    OverlayPrompt {
+        prompt: PluginManager ? PluginManager.overlayPrompt : ({})
     }
 
     // A Binding rather than `shown:` — the overlay assigns shown itself when new

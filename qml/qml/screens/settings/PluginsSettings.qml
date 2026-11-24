@@ -11,9 +11,12 @@ pragma ComponentBehavior: Bound
 /**
  * PluginsSettings.qml - Plugin management panel (plugin system v2)
  *
- * "Yüklü": installed plugins with state, enable switch, consent and update.
- * "Keşfet": the signed official catalogue; installing asks for the permissions first.
- * Developer mode adds installing an unverified .mkplugin from disk.
+ * "Yüklü": installed plugins with state, enable switch, consent (file installs) and update.
+ * "Keşfet": the signed official catalogue. Its plugins are verified: "Kur" installs
+ * at once, no permission question (the badges show what a plugin can do), and they
+ * update by themselves (PluginManager).
+ * Developer mode adds installing an unverified .mkplugin from disk; those keep the
+ * warning and ask for their permissions before they run.
  * Details of one plugin replace the list in place (PluginSettingsPage).
  * Backend: PluginManager C++ service (null in builds without dev tools).
  * Everything a plugin or the registry supplies is untrusted text: PlainText only.
@@ -29,8 +32,6 @@ ColumnLayout {
     property var catalog: []
     // Id of the plugin whose details are open; "" shows the list.
     property string detailId: ""
-    // Catalogue entry waiting for the user's confirmation.
-    property var pendingInstall: null
 
     readonly property string busyId: PluginManager ? PluginManager.busyPluginId : ""
     readonly property real busyProgress: PluginManager ? PluginManager.busyProgress : 0
@@ -80,34 +81,15 @@ ColumnLayout {
         if (f) f["contentY"] = 0
     }
 
-    function askInstall(id) {
-        var entry = catalogEntry(id)
-        if (!entry) return
-        pendingInstall = entry
-        _installConfirm.open()
+    // Catalogue plugins are verified by the registry signature: no confirmation.
+    function install(id) {
+        if (PluginManager && catalogEntry(id)) PluginManager.install(id)
     }
 
     function formatSize(bytes) {
         if (!(bytes > 0)) return "?"
         if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB"
         return (bytes / 1048576).toFixed(1) + " MB"
-    }
-
-    function installMessage(entry) {
-        var caps = entry.capabilities || []
-        var text = ""
-        if (caps.length > 0) {
-            var lines = []
-            for (var i = 0; i < caps.length; i++)
-                lines.push("• " + caps[i].label + (caps[i].reason ? " — " + caps[i].reason : ""))
-            text = qsTr("Bu eklenti Makine'den ayrı bir işlem olarak çalışır ve şu izinleri ister:")
-                   + "\n\n" + lines.join("\n")
-        } else {
-            text = qsTr("Bu eklenti özel bir izin istemiyor.")
-        }
-        text += "\n\n" + qsTr("Boyut: %1").arg(formatSize(entry.size))
-        if (entry.publisher) text += "   ·   " + qsTr("Yayıncı: %1").arg(entry.publisher)
-        return text
     }
 
     function stateText(s) {
@@ -643,10 +625,22 @@ ColumnLayout {
                                 kind: "primary"
                                 text: qsTr("Güncelle") + " · v" + card.info.availableVersion
                                 enabled: pluginsRoot.busyId === ""
-                                onClicked: pluginsRoot.askInstall(card.pluginId)
+                                onClicked: pluginsRoot.install(card.pluginId)
                             }
 
                             Item { Layout.fillWidth: true }
+
+                            PluginButton {
+                                kind: "danger"
+                                text: qsTr("Kaldır")
+                                enabled: pluginsRoot.busyId !== card.pluginId
+                                onClicked: {
+                                    uninstallDialog.pluginId = card.pluginId
+                                    uninstallDialog.pluginName = card.info.name || ""
+                                    uninstallDialog.bundled = card.info.bundled === true
+                                    uninstallDialog.open()
+                                }
+                            }
 
                             PluginButton {
                                 text: qsTr("Ayrıntılar")
@@ -855,7 +849,7 @@ ColumnLayout {
                                 kind: "primary"
                                 text: entryCard.installed ? qsTr("Güncelle") : qsTr("Kur")
                                 enabled: entryCard.modelData.compatible === true && pluginsRoot.busyId === ""
-                                onClicked: pluginsRoot.askInstall(entryCard.modelData.id)
+                                onClicked: pluginsRoot.install(entryCard.modelData.id)
                             }
                         }
 
@@ -997,21 +991,6 @@ ColumnLayout {
         onAccepted: if (PluginManager) PluginManager.installFromFile(selectedFile)
     }
 
-    // The registry entry's permissions count as granted once the user confirms.
-    ConfirmDialog {
-        id: _installConfirm
-        parent: Overlay.overlay
-        accentColor: Theme.warning
-        title: pluginsRoot.pendingInstall
-               ? (pluginsRoot.pendingInstall.installed ? qsTr("%1 güncellensin mi?") : qsTr("%1 kurulsun mu?"))
-                     .arg(pluginsRoot.pendingInstall.name)
-               : ""
-        message: pluginsRoot.pendingInstall ? pluginsRoot.installMessage(pluginsRoot.pendingInstall) : ""
-        confirmText: pluginsRoot.pendingInstall && pluginsRoot.pendingInstall.installed
-                     ? qsTr("Güncelle") : qsTr("Kur")
-        onConfirmed: {
-            if (PluginManager && pluginsRoot.pendingInstall)
-                PluginManager.install(pluginsRoot.pendingInstall.id)
-        }
-    }
+    // "Kaldır" on a plugin's card (the detail page has its own)
+    UninstallPluginDialog { id: uninstallDialog }
 }

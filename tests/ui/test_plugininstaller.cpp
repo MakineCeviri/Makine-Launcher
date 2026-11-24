@@ -212,3 +212,32 @@ TEST(PluginInstaller, UserPluginsWithoutABundledCopyStayAsTheyAre)
     }
     EXPECT_EQ(r[2].id, "org.example.b");   // a broken folder keeps its folder name as id
 }
+
+// The rule the launcher documents: the higher version runs, the same version runs the
+// bundled copy. Covers a file install of the version Makine ships, a launcher update
+// that ships a newer bundled copy, and a registry update newer than the bundled one.
+TEST(PluginInstaller, HighestVersionWinsAndTheSameVersionRunsBundled)
+{
+    const QString id = "org.makineceviri.live";
+    const auto bundled = [&](const QString& v) { return folder("app/plugins/" + id, id, v); };
+    const auto user = [&](const QString& v) { return folder("user/" + id, id, v); };
+
+    // A 0.4.0 installed from a file next to a bundled 0.4.0: the bundled one runs.
+    auto r = plugininstaller::resolve({user("0.4.0")}, {bundled("0.4.0")});
+    ASSERT_EQ(r.size(), 1);
+    EXPECT_EQ(r[0].folder.dir, bundled("0.4.0").dir);
+
+    // The launcher update ships 0.5.0 over a 0.4.1 the registry installed: bundled wins.
+    r = plugininstaller::resolve({user("0.4.1")}, {bundled("0.5.0")});
+    EXPECT_EQ(r[0].folder.dir, bundled("0.5.0").dir);
+    EXPECT_EQ(r[0].folder.manifest->version, "0.5.0");
+
+    // The registry has 0.4.1, the launcher still ships 0.4.0: the user copy wins.
+    r = plugininstaller::resolve({user("0.4.1")}, {bundled("0.4.0")});
+    EXPECT_EQ(r[0].folder.dir, user("0.4.1").dir);
+    EXPECT_EQ(r[0].bundledDir, bundled("0.4.0").dir);
+
+    // Pre-release ordering: 0.4.0 is newer than 0.4.0-beta, in either folder.
+    r = plugininstaller::resolve({user("0.4.0")}, {bundled("0.4.0-beta")});
+    EXPECT_EQ(r[0].folder.dir, user("0.4.0").dir);
+}

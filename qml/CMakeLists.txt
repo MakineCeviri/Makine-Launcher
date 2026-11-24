@@ -167,6 +167,7 @@ set(BACKEND_HEADERS
     src/services/pluginprocess.h
     src/services/pluginregistry.h
     src/services/pluginwire.h
+    src/services/pluginupdate.h
     src/services/translationstatemanager.h
     src/services/installflowservice.h
     src/services/xdeltaapply.h
@@ -273,6 +274,7 @@ qt_add_qml_module(MakineLauncher
         qml/components/RegionSelector.qml         # Full-screen rubber-band OCR region selector
         qml/components/TranslationOverlay.qml     # Frameless overlay window for OCR results
         qml/components/SubtitleBlock.qml          # Subtitle drawing shared by the overlay and Live's preview
+        qml/components/OverlayPrompt.qml          # A plugin's small question in the game's corner (overlay.prompt)
         qml/components/RefreshIndicator.qml       # SWR catalog refresh corner badge
         #
         # ── Internal Components (settings/detail screens only) ──
@@ -320,6 +322,7 @@ qt_add_qml_module(MakineLauncher
         qml/dialogs/DialogCloseButton.qml
         qml/dialogs/AntiCheatWarningDialog.qml
         qml/dialogs/ConfirmDialog.qml
+        qml/dialogs/UninstallPluginDialog.qml     # Remove a plugin (list and detail page)
         qml/dialogs/VariantSelectionDialog.qml
         qml/dialogs/InstallOptionsDialog.qml
         qml/dialogs/UpdateAlertDialog.qml

@@ -249,6 +249,14 @@ target_include_directories(test_pluginwake PRIVATE ${MAKINE_PROJECT_ROOT}/qml/sr
 target_link_libraries(test_pluginwake PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
 add_test(NAME test_pluginwake COMMAND test_pluginwake)
 
+# Verified plugins: no consent, auto-update selection, when a running host may restart.
+add_executable(test_pluginupdate test_pluginupdate.cpp
+    ${MAKINE_PROJECT_ROOT}/qml/src/services/pluginmanifest.cpp)
+target_include_directories(test_pluginupdate PRIVATE
+    ${MAKINE_PROJECT_ROOT}/qml/src/services ${MAKINE_PROJECT_ROOT}/core/include)
+target_link_libraries(test_pluginupdate PRIVATE GTest::gtest GTest::gtest_main Qt6::Core)
+add_test(NAME test_pluginupdate COMMAND test_pluginupdate)
+
 if(NOT MAKINE_UI_ONLY)
     # Ed25519 registry signature + entry rules (OpenSSL).
     add_executable(test_pluginregistry test_pluginregistry.cpp

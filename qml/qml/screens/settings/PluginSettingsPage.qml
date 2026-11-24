@@ -1167,10 +1167,10 @@ ColumnLayout {
         }
     }
 
-    // ── Uninstall ── (a plugin that ships with Makine is only switched off)
+    // ── Uninstall ── (a plugin that ships with Makine is hidden; the catalogue brings it back)
     SettingsCard {
         Layout.fillWidth: true
-        visible: pluginPage._exists && pluginPage.info.bundled !== true
+        visible: pluginPage._exists
 
         Item {
             Layout.fillWidth: true
@@ -1197,7 +1197,9 @@ ColumnLayout {
                     Label {
                         Layout.fillWidth: true
                         textFormat: Text.PlainText
-                        text: qsTr("Eklenti dosyaları silinir. Ayarlarını isteğe bağlı olarak saklayabilirsiniz.")
+                        text: pluginPage.info.bundled === true
+                              ? qsTr("Makine ile gelir: listeden ve menüden kalkar, Keşfet'ten geri eklenebilir.")
+                              : qsTr("Eklenti dosyaları silinir. Ayarlarını isteğe bağlı olarak saklayabilirsiniz.")
                         font.pixelSize: Dimensions.fontBody
                         color: Theme.textMuted
                         elide: Text.ElideRight
@@ -1214,86 +1216,10 @@ ColumnLayout {
         }
     }
 
-    // ConfirmDialog keeps the header and the buttons; only the body is replaced
-    // by one with the "delete data too" choice.
-    ConfirmDialog {
+    UninstallPluginDialog {
         id: _uninstallDialog
-        parent: Overlay.overlay
-        title: qsTr("Eklenti kaldırılsın mı?")
-        confirmText: qsTr("Kaldır")
-        property bool removeData: false
-        contentHeight: _uninstallBody.implicitHeight
-        onAboutToShow: removeData = false
-        onConfirmed: if (PluginManager) PluginManager.uninstall(pluginPage.pluginId, removeData)
-
-        contentItem: ColumnLayout {
-            id: _uninstallBody
-            spacing: Dimensions.spacingMD
-
-            Item { Layout.preferredHeight: Dimensions.spacingXS }
-
-            Label {
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.paddingLG
-                Layout.rightMargin: Dimensions.paddingLG
-                textFormat: Text.PlainText
-                text: qsTr("“%1” kaldırılacak. Eklenti çalışıyorsa önce durdurulur.").arg(pluginPage.info.name || "")
-                font.pixelSize: Dimensions.fontSM
-                color: Theme.textSecondary
-                wrapMode: Text.WordWrap
-                lineHeight: 1.5
-            }
-
-            CheckBox {
-                id: dataBox
-                Layout.leftMargin: Dimensions.paddingLG
-                Layout.rightMargin: Dimensions.paddingLG
-                text: qsTr("Eklentinin verilerini de sil")
-                checked: _uninstallDialog.removeData
-                onToggled: _uninstallDialog.removeData = checked
-
-                indicator: Rectangle {
-                    implicitWidth: 18
-                    implicitHeight: 18
-                    x: dataBox.leftPadding
-                    y: (dataBox.height - height) / 2
-                    radius: Dimensions.radiusSM
-                    color: dataBox.checked ? Theme.primary : "transparent"
-                    border.color: dataBox.checked ? Theme.primary : Theme.textPrimary25
-                    border.width: 1
-
-                    Label {
-                        anchors.centerIn: parent
-                        visible: dataBox.checked
-                        textFormat: Text.PlainText
-                        text: "\u2713"
-                        font.pixelSize: Dimensions.fontSM
-                        color: Theme.textOnColor
-                    }
-                }
-
-                contentItem: Label {
-                    leftPadding: dataBox.indicator.width + dataBox.spacing
-                    textFormat: Text.PlainText
-                    text: dataBox.text
-                    font.pixelSize: Dimensions.fontSM
-                    color: Theme.textPrimary
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
-
-            Label {
-                Layout.fillWidth: true
-                Layout.leftMargin: Dimensions.paddingLG
-                Layout.rightMargin: Dimensions.paddingLG
-                textFormat: Text.PlainText
-                text: qsTr("İşaretlemezseniz ayarlar ve eklentinin kaydettiği veriler korunur; yeniden kurarsanız kaldığınız yerden devam eder.")
-                font.pixelSize: Dimensions.fontCaption
-                color: Theme.textMuted
-                wrapMode: Text.WordWrap
-            }
-
-            Item { Layout.preferredHeight: Dimensions.spacingXS }
-        }
+        pluginId: pluginPage.pluginId
+        pluginName: pluginPage.info.name || ""
+        bundled: pluginPage.info.bundled === true
     }
 }

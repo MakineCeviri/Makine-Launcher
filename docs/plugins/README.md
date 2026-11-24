@@ -126,9 +126,14 @@ minutes stop the plugin until the user restarts it.
 | `contributes.actions` | buttons on the plugin page; pressing one calls `invoke(method)` (`method` defaults to `id`) |
 | `contributes.events` | the events the plugin receives |
 
-**Capabilities.** A plugin does not run until the user has agreed to every
-capability it declares; an update that adds one asks again. Native code cannot be
-sandboxed by a manifest: the guarantee is review plus the signed registry. Where
+**Capabilities.** A verified plugin (bundled with Makine, or installed from the
+signed registry) runs with every capability its manifest declares, with no
+question: installing it from the catalogue shows them only as information, and
+a capability an update adds is granted the same way (`pluginupdate.h`). A plugin
+installed from a file (developer mode, *Doğrulanmamış*) does not run until the
+user has agreed to every capability it declares; an update that adds one asks
+again. Native code cannot be sandboxed by a manifest: the guarantee is review
+plus the signed registry. Where
 the launcher is in the path, it enforces them — host methods below check them.
 
 | id | Meaning | Enforced by Makine |
@@ -191,8 +196,13 @@ never sees them and an older launcher answers the new methods with
 plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is one.
 - A bundled plugin counts as verified, its capabilities as granted, and it is
   enabled on first run. The user can still disable it; that choice is kept.
-- A newer version of the same id in the user plugins folder (registry update)
-  wins over the bundled one; uninstalling it falls back to the bundled copy.
+- Of the bundled copy and the copy in the user plugins folder
+  (`%LOCALAPPDATA%\MakineCeviri\Makine-Launcher\plugins\<id>`), the higher
+  version runs; the same version runs the bundled copy, and so does a user copy
+  whose manifest is broken (`plugininstaller::resolve`). A registry update
+  newer than the bundled copy is installed to the user folder and wins; a
+  launcher update that ships a newer bundled copy wins over an older user copy
+  (left on disk, unused). Uninstalling the user copy falls back to the bundled one.
   A bundled plugin itself cannot be uninstalled, only disabled.
 - `init` gains `bundled: true`. `dataDir` is still the per-user folder: never
   write into `pluginDir`.
@@ -212,6 +222,8 @@ plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is on
 | `overlay.show` | optional `style` object (below), optional `lines: [{text, sourceText?}]` instead of `text` for a multi-line subtitle | `overlay` |
 | `overlay.show` `frame` | optional `{x, y, width, height}` (physical): the area (a console's video) that `bottom`/`top`, `widthPct` and the text scale refer to instead of the screen. In console mode the overlay stays visible to capture (the source is read with PrintWindow), excluded only in PC mode unless `showOnStream` | `overlay` |
 | `overlay.setMovable` | `{on}`: the player may drag the subtitle (not click-through while on); each new place comes back as the event `overlay.moved {x, y, width, height}` (physical pixels) and is kept; `on:false` answers `{x, y}`, the box centre as a fraction of its screen (keep it as `style.boxX/boxY`, which places the box there) | `overlay` |
+| `overlay.prompt` | `{id, text, title?, actions: [{id, label, key?}] (≤ 3), near?: {x, y, width, height}}`: a small question in the top-left corner of `near`'s screen (physical px; else the primary screen), over the game. It takes clicks but never the focus; `key` is only a label for a global key the plugin itself listens to. A click answers with the event `overlay.promptAnswered {id, action}` and closes it. One prompt at a time per launcher (`MAKINE_E_BUSY` if another plugin's is up); a new call from the same plugin replaces it | `overlay` |
+| `overlay.promptHide` | `{id?}`: closes the plugin's prompt (only that one, if `id` is given). It also goes when the plugin stops | `overlay` |
 | `telemetry.capture` | `{reason, level?: info\|warning\|error, message?, tags?}` → `true` when it went to Sentry. `reason` (`[a-z0-9_.-]`, ≤ 48) is the issue's fingerprint and gate key; `message` ≤ 300 chars, paths redacted; `tags` only `mode` `game` `source_app` `output` `phase` `component`. The launcher adds `plugin`, `plugin_version`, `plugin.reason`. | plugins Makine ships |
 | `telemetry.breadcrumb` | `{message, level?}`: context for the next event (≤ 200 chars) | plugins Makine ships |
 | `telemetry.logs` | `{lines: [{level, body, ts?} or "text"], attributes?: {log_request, mode, game, source_app}}` → `true` once Sentry Logs took them (answered after the upload; `false`: reports off, cap reached, Sentry refused — fall back to your own channel). Newest 8,000 lines / 2 MB, each ≤ 2,000 chars, paths redacted, 3 sends a session | plugins Makine ships |
@@ -298,6 +310,22 @@ whose SHA-256 differs from the index.
    ```
    and pushes Makine-Launcher-Assets, whose workflow syncs `assets/` to R2.
    The signing key lives outside every repository (`MAKINE_PLUGIN_SIGNING_KEY`).
+
+Installing from the catalogue needs no developer mode and asks nothing.
+
+**Automatic updates.** The registry is fetched 2 s after the first frame and
+every 6 hours. A verified plugin whose registry entry is newer, has a supported
+ABI and a `minLauncher` this launcher meets is downloaded in the background and
+checked exactly like a manual update (index signature, package size and SHA-256,
+manifest id and version). It is put in place at once when its host is not
+running; a running host is restarted only once it has been idle on two checks
+30 s apart: no game running, it does not own the visible overlay or overlay
+prompt, no attach/region request or call waits on it, and its last `ui.state`
+has neither `running` nor `busy` true (set one of those while the plugin works
+for the player). The player sees a "güncellendi" notice. A version that fails to
+start is rolled back and never auto-installed again (`plugins/<id>/failedVersion`);
+a download or install that fails is not retried in that session. Plugins installed
+from a file are not auto-updated (their catalogue "Güncelle" still works).
 
 Anything else installs only from a file, in developer mode, marked *Doğrulanmamış*.
 
