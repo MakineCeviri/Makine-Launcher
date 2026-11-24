@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
+import QtQuick.Shapes
 import MakineLauncher 1.0
 
 /**
@@ -32,6 +33,8 @@ Window {
     property rect selectionRect: Qt.rect(0, 0, 0, 0)
     // The region read now (logical global), shown until a new one is drawn
     property rect currentRect: Qt.rect(0, 0, 0, 0)
+    // The subtitle band Live found itself (logical global), dashed: accept it or draw your own
+    property rect foundRect: Qt.rect(0, 0, 0, 0)
 
     function show() {
         selecting = false
@@ -51,6 +54,37 @@ Window {
     // Cut-out effect: darken everything except selected region
     Item {
         anchors.fill: parent
+
+        // The band Live found, dashed and quieter than the selection
+        Shape {
+            id: foundBand
+            visible: regionWindow.foundRect.width > 0 && !regionWindow.selecting
+            x: regionWindow.foundRect.x - regionWindow.x
+            y: regionWindow.foundRect.y - regionWindow.y
+            width: regionWindow.foundRect.width
+            height: regionWindow.foundRect.height
+            ShapePath {
+                strokeColor: Qt.rgba(1, 1, 1, 0.7)
+                strokeWidth: 1.5
+                strokeStyle: ShapePath.DashLine
+                dashPattern: [4, 3]
+                fillColor: "transparent"
+                startX: 0; startY: 0
+                PathLine { x: foundBand.width; y: 0 }
+                PathLine { x: foundBand.width; y: foundBand.height }
+                PathLine { x: 0; y: foundBand.height }
+                PathLine { x: 0; y: 0 }
+            }
+            Text {
+                anchors.left: parent.left
+                anchors.top: parent.bottom
+                anchors.topMargin: 4
+                text: "Live'ın bulduğu altyazı bandı"
+                font.pixelSize: 12
+                color: Qt.rgba(1, 1, 1, 0.7)
+                textFormat: Text.PlainText
+            }
+        }
 
         // The region read now, with its size
         Rectangle {

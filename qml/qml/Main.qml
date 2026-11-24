@@ -1139,6 +1139,10 @@ ApplicationWindow {
             const r = st && st.mode !== "console" && st.region ? st.region.pc : null
             regionSelector.currentRect = r ? PluginManager.logicalRect(Qt.rect(r.x, r.y, r.width, r.height))
                                            : Qt.rect(0, 0, 0, 0)
+            // The band Live found (autoRegion.screenRect, physical), when it knows where it is
+            const f = st && st.autoRegion ? st.autoRegion.screenRect : null
+            regionSelector.foundRect = f ? PluginManager.logicalRect(Qt.rect(f.x, f.y, f.width, f.height))
+                                         : Qt.rect(0, 0, 0, 0)
             regionSelector.show()
         }
         function onAttachRequested(requestId, pluginId, pluginName, gameName) {
