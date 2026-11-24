@@ -158,6 +158,8 @@ QVariantMap sanitizeOverlayStyle(const QJsonObject& in)
     number("marginPx", 0, 400);
     flag("showSource");
     flag("showOnStream");
+    number("boxX", 0, 1);
+    number("boxY", 0, 1);
     return out;
 }
 
@@ -276,6 +278,7 @@ void PluginManager::setProcessScanner(ProcessScanner* scanner)
     connect(scanner, &ProcessScanner::runningGameChanged, this, onChange);
     connect(scanner, &ProcessScanner::gameRunningChanged, this, onChange);
     connect(scanner, &ProcessScanner::otherGameChanged, this, onChange);
+    updateGameWatch();
 }
 
 // ── Lifecycle ───────────────────────────────────────────────────────────────
@@ -750,6 +753,7 @@ bool PluginManager::keepOutOfCapture(QObject* window, bool excluded)
 void PluginManager::overlayMoved(int x, int y, int width, int height)
 {
     Installed* p = m_overlay.moveOwner.isEmpty() ? nullptr : find(m_overlay.moveOwner);
+    m_overlay.placed = QRect(x, y, width, height);
     if (!p || !p->process || !p->process->isReady()) return;
     const QRect physical = toPhysical(QRect(x, y, width, height));
     p->process->sendEvent(QStringLiteral("overlay.moved"),
@@ -1157,6 +1161,7 @@ bool PluginManager::storeSetting(Installed& p, const QString& k, const QJsonValu
     }
     saveSettings(p);
     emit settingsChanged(p.id);
+    updateGameWatch();
     return true;
 }
 
@@ -1327,10 +1332,22 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
     }
     if (method == QLatin1String("overlay.setMovable")) {
         if (!needs("overlay")) return;
-        m_overlay.movable = params.value(u"on").toBool();
-        m_overlay.moveOwner = m_overlay.movable ? p.id : QString();
+        const bool on = params.value(u"on").toBool();
+        // Locking again answers where the box now is: its centre as a fraction of its
+        // screen (the plugin keeps it as style.boxX/boxY)
+        QJsonObject result;
+        if (!on && m_overlay.placed.isValid()) {
+            const QPoint c = m_overlay.placed.center();
+            if (const QScreen* screen = QGuiApplication::screenAt(c)) {
+                const QRect g = screen->geometry();
+                result = {{"x", qBound(0.0, double(c.x() - g.x()) / g.width(), 1.0)},
+                          {"y", qBound(0.0, double(c.y() - g.y()) / g.height(), 1.0)}};
+            }
+        }
+        m_overlay.movable = on;
+        m_overlay.moveOwner = on ? p.id : QString();
         emit overlayChanged();
-        return reply(true);
+        return reply(result);
     }
     if (method == QLatin1String("overlay.hide")) {
         if (!needs("overlay")) return;
@@ -1448,6 +1465,20 @@ void PluginManager::setState(Installed& p, const QString& state, const QString& 
     p.lastError = error;
     if (state != QLatin1String("running")) p.statusText.clear();
     emit pluginChanged(p.id);
+    updateGameWatch();
+}
+
+// The scan runs fast while a plugin that listens for game.started is up, or would be
+// woken by it (its autoStart setting): game.started then arrives within ~3 s.
+void PluginManager::updateGameWatch()
+{
+    if (!m_processScanner) return;
+    bool wants = false;
+    for (const auto& [id, p] : m_plugins) {
+        if (!p.enabled || !p.manifest || !p.manifest->events.contains(QStringLiteral("game.started"))) continue;
+        if (p.state == QLatin1String("running") || p.values.value(QLatin1String("autoStart")).toBool()) wants = true;
+    }
+    m_processScanner->setFastScan(wants);
 }
 
 void PluginManager::saveEnabled(const QString& forget) const

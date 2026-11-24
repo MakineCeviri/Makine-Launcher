@@ -31,6 +31,17 @@ TEST(GameProcessRules, BrowsersChatAndMakineAreNeverGames)
         EXPECT_FALSE(looksLikeForegroundGame(exe, true, true)) << exe;
 }
 
+TEST(GameProcessRules, ScanCadence)
+{
+    EXPECT_EQ(scanIntervalMs(AppState::Active, false), 30000);
+    EXPECT_EQ(scanIntervalMs(AppState::Inactive, false), 120000);
+    EXPECT_EQ(scanIntervalMs(AppState::Hidden, false), -1);
+    // A plugin waiting for games: fast everywhere, the tray included
+    EXPECT_EQ(scanIntervalMs(AppState::Active, true), 3000);
+    EXPECT_EQ(scanIntervalMs(AppState::Inactive, true), 3000);
+    EXPECT_EQ(scanIntervalMs(AppState::Hidden, true), 3000);
+}
+
 TEST(GameProcessRules, OnlyExecutables)
 {
     EXPECT_FALSE(looksLikeForegroundGame("game", true, true));

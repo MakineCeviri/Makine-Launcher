@@ -74,6 +74,8 @@ public:
     static constexpr int kDefaultScanIntervalMs = 10000;
     Q_INVOKABLE void startWatching(int intervalMs = kDefaultScanIntervalMs);
     Q_INVOKABLE void stopWatching();
+    /// A plugin waits for games (Live's host up or autoStart on): scan every ~3 s in any state
+    void setFastScan(bool fast);
 
     /**
      * @brief User selected a heavy process as their game
@@ -144,6 +146,8 @@ private:
 
     QTimer m_scanTimer;
     bool m_isWatching{false};
+    bool m_fastScan{false};
+    void applyCadence();
     bool m_gameRunning{false};
     QString m_runningGameId;
     QString m_runningGameName;

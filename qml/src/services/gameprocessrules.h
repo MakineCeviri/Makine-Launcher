@@ -54,4 +54,19 @@ inline bool looksLikeForegroundGame(const QString& exeName, bool coversMonitor, 
         && !isExcludedExe(exeName);
 }
 
+/// How often the process scan runs (ms; -1 = paused). While a plugin waits for games
+/// (Makine Live's host is up, or its autoStart is on) every ~3 s in any app state, so
+/// game.started arrives promptly; otherwise 30 s in front, 2 min behind, paused in the tray.
+enum class AppState { Active, Inactive, Hidden };
+inline int scanIntervalMs(AppState state, bool pluginWantsGames)
+{
+    if (pluginWantsGames) return 3000;
+    switch (state) {
+    case AppState::Active: return 30000;
+    case AppState::Inactive: return 120000;
+    case AppState::Hidden: return -1;
+    }
+    return -1;
+}
+
 } // namespace gameprocessrules

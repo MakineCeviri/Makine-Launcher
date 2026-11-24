@@ -210,7 +210,7 @@ plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is on
 | `ui.state` | `{…any JSON object…}`: replaces the plugin's screen state (fire-and-forget via `emitEvent` is the normal use) | |
 | `overlay.pickRegion` | optional `{within: {x, y, width, height}}`: the selection is clamped to that rectangle (a console window's video area) | `overlay` |
 | `overlay.show` | optional `style` object (below), optional `lines: [{text, sourceText?}]` instead of `text` for a multi-line subtitle | `overlay` |
-| `overlay.setMovable` | `{on}`: the player may drag the subtitle (not click-through while on); each new place comes back as the event `overlay.moved {x, y, width, height}` (physical pixels) and is kept | `overlay` |
+| `overlay.setMovable` | `{on}`: the player may drag the subtitle (not click-through while on); each new place comes back as the event `overlay.moved {x, y, width, height}` (physical pixels) and is kept; `on:false` answers `{x, y}`, the box centre as a fraction of its screen (keep it as `style.boxX/boxY`, which places the box there) | `overlay` |
 | `telemetry.capture` | `{reason, level?: info\|warning\|error, message?, tags?}` → `true` when it went to Sentry. `reason` (`[a-z0-9_.-]`, ≤ 48) is the issue's fingerprint and gate key; `message` ≤ 300 chars, paths redacted; `tags` only `mode` `game` `source_app` `output` `phase` `component`. The launcher adds `plugin`, `plugin_version`, `plugin.reason`. | plugins Makine ships |
 | `telemetry.breadcrumb` | `{message, level?}`: context for the next event (≤ 200 chars) | plugins Makine ships |
 | `telemetry.logs` | `{lines: [{level, body, ts?} or "text"], attributes?: {log_request, mode, game, source_app}}` → `true` once Sentry Logs took them (answered after the upload; `false`: reports off, cap reached, Sentry refused — fall back to your own channel). Newest 8,000 lines / 2 MB, each ≤ 2,000 chars, paths redacted, 3 sends a session | plugins Makine ships |
@@ -250,7 +250,7 @@ optional `pid` and `exe` of the running game. A running game outside the catalog
 `preset` (`classic` · `contrast` · `band` · `minimal`), `font`, `sizePx`, `maxLines`,
 `textColor`, `bandColor`, `bandOpacity` (0–1), `outlinePx`, `shadow` (bool),
 `widthPct` (of the region or screen), `marginPx`, `position` (`bottom` · `top` ·
-`region`), `showSource` (bool), `showOnStream` (bool).
+`region`), `showSource` (bool), `showOnStream` (bool), `boxX`/`boxY` (0–1, the box centre on the screen; wins over `position`).
 
 **Launcher → plugin.** QML calls `PluginManager.invoke(id, method, params)` →
 `invoke(method, paramsJson)` in the plugin; the answer arrives as the

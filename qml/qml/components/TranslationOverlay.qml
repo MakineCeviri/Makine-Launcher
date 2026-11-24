@@ -56,6 +56,8 @@ Window {
     property bool movable: false
     property bool _placed: false
     property point _place: Qt.point(0, 0)
+    // A saved place: the box centre as a fraction of the screen (style boxX/boxY)
+    readonly property bool _boxed: _style("boxX", -1) >= 0 && _style("boxY", -1) >= 0
 
     // Off when a plugin drives the overlay and hides it itself
     property bool autoHide: true
@@ -111,10 +113,14 @@ Window {
     width: _subtitle ? Math.round(_stretch) : Math.max(200, textItem.implicitWidth + 28)
     height: _subtitle ? Math.round(_roomHeight) : textItem.implicitHeight + 20
 
-    x: _placed ? _place.x : _subtitle
+    x: _placed ? _place.x
+       : _boxed && _subtitle ? Math.round(_screenRect.x + _style("boxX", 0.5) * _screenRect.width - width / 2)
+       : _subtitle
        ? Math.round((_inRegion ? sourceRegion.x + sourceRegion.width / 2 : _screenRect.x + _screenRect.width / 2) - width / 2)
        : sourceRegion.x + (sourceRegion.width - width) / 2
-    y: _placed ? _place.y : !_subtitle ? sourceRegion.y + sourceRegion.height + 6
+    y: _placed ? _place.y
+       : _boxed && _subtitle ? Math.round(_screenRect.y + _style("boxY", 0.85) * _screenRect.height - height / 2)
+       : !_subtitle ? sourceRegion.y + sourceRegion.height + 6
        : _above ? Math.round(sourceRegion.y - height + subtitle.gutter - 4)
        : _inRegion ? Math.round(sourceRegion.y + sourceRegion.height / 2 - height / 2)
        : _position === "top" ? _screenRect.y + _marginPx - subtitle.gutter
@@ -184,7 +190,8 @@ Window {
             id: subtitle
             visible: overlayWindow._subtitle
             x: Math.round((parent.width - width) / 2)
-            y: overlayWindow._above ? parent.height - height
+            y: overlayWindow._boxed || overlayWindow._placed ? Math.round((parent.height - height) / 2)
+             : overlayWindow._above ? parent.height - height
              : overlayWindow._inRegion ? Math.round((parent.height - height) / 2)
              : overlayWindow._position === "top" ? 0
              : parent.height - height
@@ -221,7 +228,8 @@ Window {
             overlayWindow._place = Qt.point(overlayWindow.x, overlayWindow.y)
             overlayWindow._placed = true
             if (typeof PluginManager !== "undefined" && PluginManager)
-                PluginManager.overlayMoved(overlayWindow.x, overlayWindow.y, overlayWindow.width, overlayWindow.height)
+                PluginManager.overlayMoved(overlayWindow.x + subtitle.x, overlayWindow.y + subtitle.y,
+                                           subtitle.width, subtitle.height)
         }
     }
 

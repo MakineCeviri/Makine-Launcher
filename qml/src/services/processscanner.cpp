@@ -115,18 +115,30 @@ ProcessScanner::ProcessScanner(QObject *parent)
 {
     connect(&m_scanTimer, &QTimer::timeout, this, &ProcessScanner::performScan);
 
-    // Pause scanning when app goes inactive (minimize/tray)
-    connect(qApp, &QGuiApplication::applicationStateChanged, this,
-        [this](Qt::ApplicationState state) {
-            if (!m_isWatching) return;
-            if (state == Qt::ApplicationActive) {
-                m_scanTimer.start(30000);
-            } else if (state == Qt::ApplicationSuspended || state == Qt::ApplicationHidden) {
-                m_scanTimer.stop();
-            } else {
-                m_scanTimer.start(120000);
-            }
-        });
+    // Slower when the app is behind, paused in the tray (gameprocessrules::scanIntervalMs)
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this] {
+        if (m_isWatching) applyCadence();
+    });
+}
+
+void ProcessScanner::applyCadence()
+{
+    const Qt::ApplicationState s = QGuiApplication::applicationState();
+    const auto state = s == Qt::ApplicationActive ? gameprocessrules::AppState::Active
+                     : s == Qt::ApplicationInactive ? gameprocessrules::AppState::Inactive
+                     : gameprocessrules::AppState::Hidden;
+    const int ms = gameprocessrules::scanIntervalMs(state, m_fastScan);
+    if (ms < 0) m_scanTimer.stop();
+    else if (!m_scanTimer.isActive() || m_scanTimer.interval() != ms) m_scanTimer.start(ms);
+}
+
+void ProcessScanner::setFastScan(bool fast)
+{
+    if (m_fastScan == fast) return;
+    m_fastScan = fast;
+    qCDebug(lcProcessScanner) << "fast scan" << fast;
+    if (fast && !m_isWatching) startWatching(3000);
+    else if (m_isWatching) applyCadence();
 }
 
 ProcessScanner::~ProcessScanner()
@@ -143,6 +155,8 @@ ProcessScanner* ProcessScanner::create(QQmlEngine *qmlEngine, QJSEngine *jsEngin
 
 void ProcessScanner::startWatching(int intervalMs)
 {
+    // A plugin waiting for games keeps the fast cadence whatever the caller asks
+    if (m_fastScan) intervalMs = qMin(intervalMs, 3000);
     // Update interval even if already watching (e.g. 10000ms -> 60000ms on minimize)
     if (m_isWatching && m_scanTimer.interval() == intervalMs)
         return;

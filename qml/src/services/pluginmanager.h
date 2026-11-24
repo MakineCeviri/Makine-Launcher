@@ -242,6 +242,7 @@ private:
     void onCall(const QString& id, const QJsonValue& callId, const QString& method, const QJsonValue& params);
     void broadcast(const QString& event, const QJsonObject& payload);
     QJsonObject runningGameJson() const;
+    void updateGameWatch();
 
     /// A call (callId set) or a fire-and-forget emit (callId undefined) from a plugin.
     void handleRequest(Installed& p, const QJsonValue& callId, const QString& method,
@@ -290,5 +291,6 @@ private:
         QVariantMap style;
         bool movable = false;
         QString moveOwner;
+        QRect placed;   // where the player last put the subtitle (logical)
     } m_overlay;
 };

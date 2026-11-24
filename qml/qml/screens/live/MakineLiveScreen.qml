@@ -106,9 +106,20 @@ Item {
     readonly property bool _ready: _loginState === "signedIn" && _sourceOk && _server.maintenance !== true
     readonly property var _announcements: Array.isArray(_state.announcements) ? _state.announcements : []
     // This session's lines, newest first (plugin keeps ~50): [{source, text, kind}]
-    readonly property var _history: Array.isArray(_state.history) ? _state.history.slice().reverse() : []
-    // Hotkeys (plugin settings, F8/F9/F10 by default) and what failed to register
-    readonly property var _hotkeys: _state.hotkeys || ({})
+    readonly property var _history: Array.isArray(_state.history) ? _state.history : []
+    // Hotkeys: {armed, keys: {start|region|move: {key: "F9"|…|"off", active, error}}}
+    readonly property var _hotkeys: (_state.hotkeys && _state.hotkeys.keys) || ({})
+    function _hotkey(action, label) {
+        const k = _hotkeys[action] || {}
+        const key = k.key || ({ start: "F9", region: "F10", move: "F8" })[action]
+        return key === "off" ? qsTr("%1: kapalı").arg(label) : qsTr("%1 %2").arg(key).arg(label)
+    }
+    readonly property string _hotkeyError: {
+        const names = ["start", "region", "move"]
+        for (let i = 0; i < names.length; ++i)
+            if (_hotkeys[names[i]] && _hotkeys[names[i]].error) return _hotkeys[names[i]].error
+        return ""
+    }
     readonly property string _output: _consoleMode ? (_state.output || "pc") : "pc"
     readonly property var _web: _state.web || ({})
     readonly property var _tv: _state.tv || ({})
@@ -794,9 +805,9 @@ Item {
                         required property var modelData
                         icon: modelData.kind === "verified" ? Icons.circleCheck : Icons.languages
                         iconTint: modelData.kind === "verified" ? Theme.success : Theme.textMuted
-                        title: modelData.text || modelData.tr || ""
-                        subtitle: (modelData.source || modelData.en || "")
-                                  + (modelData.kind === "verified" ? "  ·  " + qsTr("onaylı") : "  ·  " + qsTr("makine çevirisi"))
+                        title: modelData.text || ""
+                        subtitle: (modelData.source || "")
+                                  + "  ·  " + (modelData.kind === "verified" ? qsTr("Onaylı") : qsTr("Makine çevirisi"))
                     }
                 }
                 ListRow {
@@ -1335,10 +1346,11 @@ Item {
                 ListRow {
                     icon: Icons.keyboard
                     title: qsTr("Kısayollar")
-                    subtitle: live._hotkeys.error ? live._hotkeys.error
-                            : qsTr("%1 altyazı kutusunu taşır · %2 başlatır ya da durdurur · %3 bölge seçtirir")
-                                  .arg(live._hotkeys.move || "F8").arg(live._hotkeys.toggle || "F9").arg(live._hotkeys.region || "F10")
-                    iconTint: live._hotkeys.error ? Theme.warning : Theme.primary
+                    subtitle: (live._hotkeyError !== "" ? live._hotkeyError + " "
+                               : [live._hotkey("start", qsTr("başlatır / durdurur")), live._hotkey("region", qsTr("bölge seçtirir")),
+                                  live._hotkey("move", qsTr("kutuyu taşır"))].join(" · ") + ". ")
+                              + qsTr("Oyun açıkken bu tuşlar başka programlara gitmez; oyun F9'u kullanıyorsa (hızlı kayıt gibi) eklenti ayarlarından başka bir tuş seç ya da kapat.")
+                    iconTint: live._hotkeyError !== "" ? Theme.warning : Theme.primary
                 }
                 ListRow {
                     visible: live._running
