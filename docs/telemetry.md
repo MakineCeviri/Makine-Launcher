@@ -91,6 +91,17 @@ iki kez toplanmaz); tasarım Makine-WEB `docs/live-sentry.md`. Launcher tarafı:
 - Eklenti süreci beklenmedik kapanınca launcher bildirir: pencerenin ilk çöküşü
   `host_exit`, vazgeçince `host_gave_up` (her yeniden başlatma değil).
 - Sentry'de filtre: `plugin:org.makineceviri.live`.
+- **Günlük (Sentry Logs):** ekibin portaldan istediği günlük `telemetry.logs` ile Sentry Logs'a gider
+  (planda 5 GB/ay). sentry-native 0.9.1'de log API'si yok (0.11.1+), launcher zarfı kendisi gönderir
+  (`CrashReporter::sendPluginLogs`): yalnız raporlar açıkken (kapatınca uçuştaki gönderim kesilir), her
+  satır yol temizliğinden geçer, oturumda 3 gönderim, 429'dan sonra hiç. Her satırda `log_request`,
+  `seq` (sıra), `plugin`, `plugin_version`, `user.id` (kurulum kimliği). Sentry reddederse eklenti eski
+  R2 yüklemesine döner.
+- **İz (spans):** örneklenen bir satır `live.line` işlemi olur (`ocr` → `translate.pool|api`);
+  `telemetry.transaction`. Bunun için `traces_sample_rate` 1.0 (launcher'ın kendi işlemi yok, tek kaynak
+  bu). Bütçe sunucudan: beat cevabındaki `trace_n` (portaldan, 0 = kapalı); launcher oturumda en fazla 20.
+- Öz-test: `MAKINE_SELFTEST_PLUGIN=1 python scripts/telemetry_selftest.py` olay + işlem + günlük gönderir
+  (günlükte gömülü kullanıcı adı `[redacted]` gelmeli). 2026-11-24 denendi: üçü de Sentry'de.
 
 ---
 

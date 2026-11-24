@@ -354,3 +354,50 @@ TEST(TelemetryRules, PluginTagsAreAllowListedAndTheLaunchersWin)
     EXPECT_EQ(tags.value(QStringLiteral("plugin_version")), QStringLiteral("1.2.0"));
     EXPECT_EQ(tags.value(QStringLiteral("plugin.reason")), QStringLiteral("ocr_init"));
 }
+
+TEST(TelemetryRules, DsnGivesTheEnvelopeEndpoint)
+{
+    const Dsn d = parseDsn(QStringLiteral("https://abc123@o1.ingest.de.sentry.io/4512134234898512"));
+    ASSERT_TRUE(d.valid());
+    EXPECT_EQ(d.publicKey, QStringLiteral("abc123"));
+    EXPECT_EQ(d.envelopeUrl(), QStringLiteral("https://o1.ingest.de.sentry.io/api/4512134234898512/envelope/"));
+    EXPECT_FALSE(parseDsn({}).valid());
+    EXPECT_FALSE(parseDsn(QStringLiteral("http://k@h/1")).valid());
+}
+
+TEST(TelemetryRules, LogItemsKeepOrderRedactPathsAndTheNewest)
+{
+    QJsonArray lines;
+    lines.append(QJsonObject{{"level", "warning"}, {"body", "C:\\Users\\selftest_user_name\\x missing"}, {"ts", 1795490000.5}});
+    lines.append(QStringLiteral("plain line"));
+    lines.append(QJsonObject{{"level", "nonsense"}, {"body", "   "}});
+    const QJsonArray items = pluginLogItems(lines, QJsonObject{{"log_request", "abc"}}, QStringLiteral("t"), 1795490100.0);
+    ASSERT_EQ(items.size(), 2);   // the blank line is dropped
+    const QJsonObject a = items.at(0).toObject();
+    EXPECT_EQ(a.value("level").toString(), QStringLiteral("warn"));
+    EXPECT_FALSE(a.value("body").toString().contains(QStringLiteral("selftest_user_name")));
+    EXPECT_EQ(a.value("timestamp").toDouble(), 1795490000.5);
+    EXPECT_EQ(a.value("attributes").toObject().value("log_request").toObject().value("value").toString(), QStringLiteral("abc"));
+    EXPECT_EQ(a.value("attributes").toObject().value("seq").toObject().value("type").toString(), QStringLiteral("integer"));
+    const QJsonObject b = items.at(1).toObject();
+    EXPECT_EQ(b.value("level").toString(), QStringLiteral("info"));
+    EXPECT_EQ(b.value("timestamp").toDouble(), 1795490100.0);   // no ts: now
+    EXPECT_EQ(b.value("attributes").toObject().value("seq").toObject().value("value").toInt(), 1);
+
+    QJsonArray many;
+    for (int i = 0; i < kPluginLogLinesMax + 5; ++i) many.append(QStringLiteral("line %1").arg(i));
+    const QJsonArray kept = pluginLogItems(many, {}, QStringLiteral("t"), 1795490100.0);
+    EXPECT_EQ(kept.size(), kPluginLogLinesMax);
+    EXPECT_EQ(kept.at(0).toObject().value("body").toString(), QStringLiteral("line 5"));
+}
+
+TEST(TelemetryRules, LogEnvelopeIsHeaderItemHeaderPayload)
+{
+    const QJsonArray items{QJsonObject{{"body", "x"}}};
+    const QList<QByteArray> parts = logEnvelope(items, QStringLiteral("2026-11-24T00:00:00Z")).split('\n');
+    ASSERT_GE(parts.size(), 3);
+    const QJsonObject header = QJsonDocument::fromJson(parts.at(1)).object();
+    EXPECT_EQ(header.value("type").toString(), QStringLiteral("log"));
+    EXPECT_EQ(header.value("item_count").toInt(), 1);
+    EXPECT_EQ(header.value("length").toInt(), parts.at(2).size());
+}

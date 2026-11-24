@@ -13,7 +13,10 @@
  */
 
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonObject>
+
+#include <functional>
 #include <QString>
 
 namespace makine {
@@ -75,6 +78,25 @@ public:
     static bool reportPlugin(const QString& pluginId, const QString& pluginVersion,
                              const QString& reason, const QString& level,
                              const QString& message, const QJsonObject& tags = {});
+
+    /**
+     * @brief Send a plugin's log lines to Sentry Logs (host API telemetry.logs).
+     *
+     * The log the team asked for in the Live portal. sentry-native 0.9.1 has no
+     * log API, so this posts the envelope itself: only while reports are on
+     * (switching them off aborts it), paths redacted, at most
+     * telemetryrules::kPluginLogSendsPerSession sends, none after a 429.
+     * `done(true)` once Sentry took it. GUI thread only.
+     */
+    static void sendPluginLogs(const QString& pluginId, const QString& pluginVersion,
+                               const QJsonArray& lines, const QJsonObject& attributes,
+                               std::function<void(bool)> done);
+
+    /// A plugin's sampled transaction (host API telemetry.transaction): name, op,
+    /// start_us/end_us (microseconds since the epoch), spans [{op, description,
+    /// start_us, end_us}], tags. Tokens only, capped per session. True when sent.
+    static bool reportPluginTransaction(const QString& pluginId, const QString& pluginVersion,
+                                        const QJsonObject& tx);
 
     /// Breadcrumb naming the game the next operation is about (no tags:
     /// failure events carry game.id/game.name themselves)

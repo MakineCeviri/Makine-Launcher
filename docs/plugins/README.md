@@ -212,6 +212,8 @@ plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is on
 | `overlay.show` | optional `style` object (below), optional `lines: [{text, sourceText?}]` instead of `text` for a multi-line subtitle | `overlay` |
 | `telemetry.capture` | `{reason, level?: info\|warning\|error, message?, tags?}` → `true` when it went to Sentry. `reason` (`[a-z0-9_.-]`, ≤ 48) is the issue's fingerprint and gate key; `message` ≤ 300 chars, paths redacted; `tags` only `mode` `game` `source_app` `output` `phase` `component`. The launcher adds `plugin`, `plugin_version`, `plugin.reason`. | plugins Makine ships |
 | `telemetry.breadcrumb` | `{message, level?}`: context for the next event (≤ 200 chars) | plugins Makine ships |
+| `telemetry.logs` | `{lines: [{level, body, ts?} or "text"], attributes?: {log_request, mode, game, source_app}}` → `true` once Sentry Logs took them (answered after the upload; `false`: reports off, cap reached, Sentry refused — fall back to your own channel). Newest 8,000 lines / 2 MB, each ≤ 2,000 chars, paths redacted, 3 sends a session | plugins Makine ships |
+| `telemetry.transaction` | `{name, op, start_us, end_us, spans?: [{op, description?, start_us, end_us}], tags?}` (µs since the epoch; names and ops are `[a-z0-9_.-]` tokens, ≤ 8 spans, ≤ 10 min) → `true` when sent; 20 a session | plugins Makine ships |
 
 **Telemetry** goes through the launcher's own Sentry: the user's "Çökme ve Hata
 Raporlarını Gönder" setting, the gate (one event per plugin and reason per install

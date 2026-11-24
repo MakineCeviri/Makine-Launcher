@@ -29,6 +29,7 @@
 #include <QJsonDocument>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QPointer>
 #include <QSaveFile>
 #include <QScreen>
 #include <QSettings>
@@ -1313,8 +1314,22 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
     }
     // Defect reports through the launcher's Sentry (docs/plugins/README.md): one SDK, one consent,
     // one gate. Only plugins Makine ships may use it; their reports land in our project.
-    if (method == QLatin1String("telemetry.capture") || method == QLatin1String("telemetry.breadcrumb")) {
+    if (method.startsWith(QLatin1String("telemetry."))) {
         if (p.bundledDir.isEmpty()) return fail(MAKINE_E_DENIED, QStringLiteral("telemetry is for plugins Makine ships"));
+        if (method == QLatin1String("telemetry.transaction"))
+            return reply(CrashReporter::reportPluginTransaction(p.id, m.version, params));
+        if (method == QLatin1String("telemetry.logs")) {
+            // Answered when Sentry has replied: the plugin falls back to its own upload on false.
+            QPointer<PluginProcess> target = proc;
+            CrashReporter::sendPluginLogs(p.id, m.version, params.value(u"lines").toArray(),
+                                          params.value(u"attributes").toObject(),
+                                          [target, callId, isCall](bool sent) {
+                                              if (isCall && target) target->respond(callId, sent);
+                                          });
+            return;
+        }
+        if (method != QLatin1String("telemetry.capture") && method != QLatin1String("telemetry.breadcrumb"))
+            return fail(MAKINE_E_NOT_FOUND, QStringLiteral("unknown method %1").arg(method));
         if (method == QLatin1String("telemetry.breadcrumb")) {
             const QByteArray category = (QStringLiteral("plugin.") + p.id).toUtf8();
             const QByteArray message = params.value(u"message").toString().left(200).toUtf8();

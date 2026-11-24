@@ -33,6 +33,7 @@
 #include <QJsonDocument>
 #include <QTimer>
 #include <QEventLoop>
+#include <QJsonArray>
 #include <QSettings>
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -1826,6 +1827,30 @@ int main(int argc, char *argv[])
                 QStringLiteral("info"),
                 QStringLiteral("telemetry self-test plugin event: C:\\Users\\selftest_user_name\\x"),
                 QJsonObject{{"mode", "konsol"}, {"game", "gta-vi"}, {"user", "dropped"}});
+            // A sampled line (ocr 120 ms, then translate 300 ms) and a log the team asked for,
+            // with a planted user name that must arrive redacted.
+            const qint64 nowUs = QDateTime::currentMSecsSinceEpoch() * 1000;
+            const double t0 = static_cast<double>(nowUs - 500000);
+            makine::CrashReporter::reportPluginTransaction(
+                QStringLiteral("org.makineceviri.live"), QStringLiteral("selftest"),
+                QJsonObject{{"name", "live.line"}, {"op", "live.line"}, {"start_us", t0}, {"end_us", t0 + 420000},
+                            {"tags", QJsonObject{{"mode", "pc"}, {"game", "selftest"}}},
+                            {"spans", QJsonArray{QJsonObject{{"op", "ocr"}, {"start_us", t0}, {"end_us", t0 + 120000}},
+                                                 QJsonObject{{"op", "translate.api"}, {"start_us", t0 + 120000},
+                                                             {"end_us", t0 + 420000}}}}});
+            QEventLoop wait;
+            const QString request = QStringLiteral("selftest%1").arg(QDateTime::currentSecsSinceEpoch() % 100000);
+            makine::CrashReporter::sendPluginLogs(
+                QStringLiteral("org.makineceviri.live"), QStringLiteral("selftest"),
+                QJsonArray{QStringLiteral("selftest log line 1"),
+                           QJsonObject{{"level", "warn"}, {"body", "selftest log line 2: C:\\Users\\selftest_user_name\\x"}}},
+                QJsonObject{{"log_request", request}},
+                [&wait, request](bool sent) {
+                    qInfo("plugin log self-test: %s (log_request:%s)", sent ? "sent" : "NOT sent", qPrintable(request));
+                    wait.quit();
+                });
+            QTimer::singleShot(35000, &wait, &QEventLoop::quit);
+            wait.exec();
         }
         // MAKINE_SELFTEST_HANG proves the hang watchdog: the UI thread blocks
         // past the threshold inside a running event loop.

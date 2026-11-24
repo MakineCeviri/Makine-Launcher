@@ -84,10 +84,35 @@ static bool admitToSentry(const QString& key)
 #include <QTimer>
 #include <algorithm>   // std::min — not pulled in implicitly on MinGW
 #include <chrono>
+#include <functional>
 #include <condition_variable>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QPointer>
+#include <QUuid>
+
+// Plugin logs go to Sentry Logs as a hand-built envelope (sentry-native 0.9.1
+// has no log API); these hold what that sender needs. GUI thread only.
+static QByteArray s_dsn;
+static QString s_userId;
+static QNetworkAccessManager* s_logNam = nullptr;
+static QList<QPointer<QNetworkReply>> s_logReplies;
+static int s_pluginLogSends = 0;
+static bool s_logsRateLimited = false;
+static int s_pluginTransactions = 0;
+
+static const char* sentryEnvironment()
+{
+#if defined(NDEBUG) && !defined(MAKINE_DEV_TOOLS)
+    return "production";
+#else
+    return "development";
+#endif
+}
 
 namespace {
 
@@ -469,6 +494,7 @@ void CrashReporter::initialize()
     const char* dsn = SENTRY_DSN;
 #endif
     sentry_options_set_dsn(options, dsn);
+    s_dsn = dsn;
 
     // Release tag for version tracking (matches deploy.py Sentry release name)
     sentry_options_set_release(options, MAKINE_SENTRY_RELEASE);
@@ -476,11 +502,7 @@ void CrashReporter::initialize()
     // Environment. The dev presets are Release builds (NDEBUG) with DEV_TOOLS,
     // so keying on NDEBUG alone filed every dev run and self-test under
     // "production" — the environment the alert rules and crash-free rates use.
-#if defined(NDEBUG) && !defined(MAKINE_DEV_TOOLS)
-    sentry_options_set_environment(options, "production");
-#else
-    sentry_options_set_environment(options, "development");
-#endif
+    sentry_options_set_environment(options, sentryEnvironment());
 
     // Database path for breadcrumbs, envelope queue (AppData, not exe dir)
     QString dbPath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
@@ -504,6 +526,12 @@ void CrashReporter::initialize()
     // to start dropping the oldest ones — and the oldest ones are the startup
     // phases, which is exactly the context a crash report needs.
     sentry_options_set_max_breadcrumbs(options, 100);
+
+    // Transactions: the launcher starts none of its own; the only ones are the
+    // plugin's sampled lines (reportPluginTransaction), budgeted by the server
+    // and capped per session there. 0.9.1 drops every transaction at the
+    // default rate of 0.
+    sentry_options_set_traces_sample_rate(options, 1.0);
 
     // Uploads wait for consent, and consent follows the user's setting
     // (setEnabled). That is what makes switching reports off total: the SDK
@@ -573,10 +601,15 @@ void CrashReporter::setEnabled(bool enabled)
         initialize();
         return;
     }
-    if (enabled)
+    if (enabled) {
         sentry_user_consent_give();
-    else
+    } else {
         sentry_user_consent_revoke();
+        // The SDK's transport stops at the consent; plugin log posts are ours.
+        const auto inFlight = s_logReplies;
+        for (const QPointer<QNetworkReply>& r : inFlight)
+            if (r) r->abort();
+    }
 #endif
     s_enabled = enabled;
 }
@@ -664,6 +697,7 @@ void CrashReporter::setUser(const QString& id)
     sentry_value_t user = sentry_value_new_object();
     sentry_value_set_by_key(user, "id", sentry_value_new_string(id.toUtf8().constData()));
     sentry_set_user(user);
+    s_userId = id;
 #else
     Q_UNUSED(id)
 #endif
@@ -745,6 +779,106 @@ bool CrashReporter::reportPlugin(const QString& pluginId, const QString& pluginV
 #endif
 }
 
+void CrashReporter::sendPluginLogs(const QString& pluginId, const QString& pluginVersion,
+                                   const QJsonArray& lines, const QJsonObject& attributes,
+                                   std::function<void(bool)> done)
+{
+#ifdef MAKINE_HAS_SENTRY
+    namespace rules = makine::telemetryrules;
+    const rules::Dsn dsn = rules::parseDsn(QString::fromUtf8(s_dsn));
+    if (!s_enabled || !dsn.valid() || s_logsRateLimited
+        || s_pluginLogSends >= rules::kPluginLogSendsPerSession)
+        return done(false);
+    QJsonObject attrs;
+    for (const char* key : {"log_request", "mode", "game", "source_app"}) {
+        const QString v = rules::pluginToken(attributes.value(QLatin1String(key)).toVariant().toString(), 64);
+        if (!v.isEmpty()) attrs.insert(QLatin1String(key), v);
+    }
+    attrs.insert(QStringLiteral("plugin"), pluginId);
+    attrs.insert(QStringLiteral("plugin_version"), pluginVersion);
+    attrs.insert(QStringLiteral("sentry.release"), QStringLiteral(MAKINE_SENTRY_RELEASE));
+    attrs.insert(QStringLiteral("sentry.environment"), QLatin1String(sentryEnvironment()));
+    if (!s_userId.isEmpty()) attrs.insert(QStringLiteral("user.id"), s_userId);
+    const QJsonArray items = rules::pluginLogItems(lines, attrs, QUuid::createUuid().toString(QUuid::Id128),
+                                                   QDateTime::currentMSecsSinceEpoch() / 1000.0);
+    if (items.isEmpty()) return done(false);
+    ++s_pluginLogSends;
+
+    QNetworkRequest req{QUrl(dsn.envelopeUrl())};
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/x-sentry-envelope"));
+    req.setRawHeader("X-Sentry-Auth", "Sentry sentry_version=7, sentry_key=" + dsn.publicKey.toUtf8()
+                                          + ", sentry_client=" MAKINE_SENTRY_RELEASE);
+    req.setTransferTimeout(30000);
+    if (!s_logNam) s_logNam = new QNetworkAccessManager(QCoreApplication::instance());
+    const QString sentAt = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
+    QNetworkReply* reply = s_logNam->post(req, rules::logEnvelope(items, sentAt));
+    s_logReplies.append(reply);
+    QObject::connect(reply, &QNetworkReply::finished, reply, [reply, done = std::move(done)] {
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status == 429) s_logsRateLimited = true;   // Sentry asked us to stop: not again this session
+        s_logReplies.removeAll(reply);
+        reply->deleteLater();
+        done(reply->error() == QNetworkReply::NoError && status >= 200 && status < 300);
+    });
+#else
+    Q_UNUSED(pluginId)
+    Q_UNUSED(pluginVersion)
+    Q_UNUSED(lines)
+    Q_UNUSED(attributes)
+    done(false);
+#endif
+}
+
+bool CrashReporter::reportPluginTransaction(const QString& pluginId, const QString& pluginVersion,
+                                            const QJsonObject& tx)
+{
+#ifdef MAKINE_HAS_SENTRY
+    namespace rules = makine::telemetryrules;
+    constexpr uint64_t kDayUs = 86400ULL * 1000 * 1000;
+    constexpr uint64_t kMaxLengthUs = 600ULL * 1000 * 1000;
+    const auto us = [](const QJsonValue& v) { return static_cast<uint64_t>(std::max(0.0, v.toDouble())); };
+    const uint64_t start = us(tx.value(u"start_us")), end = us(tx.value(u"end_us"));
+    const uint64_t nowUs = static_cast<uint64_t>(QDateTime::currentMSecsSinceEpoch()) * 1000;
+    const QString name = rules::pluginToken(tx.value(u"name").toString(), 64);
+    const QString op = rules::pluginToken(tx.value(u"op").toString(), 32);
+    // Named, at most ten minutes long, at most a day of clock skew.
+    if (!s_enabled || name.isEmpty() || op.isEmpty() || end < start || end - start > kMaxLengthUs
+        || start + kDayUs < nowUs || start > nowUs + kDayUs)
+        return false;
+    {
+        QMutexLocker lock(&s_gateMutex);
+        if (s_pluginTransactions >= rules::kPluginTransactionsPerSession) return false;
+        ++s_pluginTransactions;
+    }
+    sentry_transaction_context_t* ctx = sentry_transaction_context_new(name.toUtf8().constData(),
+                                                                      op.toUtf8().constData());
+    sentry_transaction_t* t = sentry_transaction_start_ts(ctx, sentry_value_new_null(), start);
+    if (!t) return false;
+    const auto tags = rules::pluginTags(pluginId, pluginVersion, {}, tx.value(u"tags").toObject());
+    for (auto it = tags.cbegin(); it != tags.cend(); ++it)
+        if (!it.value().isEmpty())
+            sentry_transaction_set_tag(t, it.key().toUtf8().constData(), it.value().toUtf8().constData());
+    const QJsonArray spans = tx.value(u"spans").toArray();
+    for (qsizetype i = 0; i < std::min<qsizetype>(spans.size(), rules::kPluginSpansPerTransaction); ++i) {
+        const QJsonObject sp = spans.at(i).toObject();
+        const uint64_t a = us(sp.value(u"start_us")), b = us(sp.value(u"end_us"));
+        const QString sop = rules::pluginToken(sp.value(u"op").toString(), 32);
+        if (sop.isEmpty() || a < start || b < a || b > end) continue;
+        const QString desc = rules::pluginToken(sp.value(u"description").toString(), 64);
+        sentry_span_t* child = sentry_transaction_start_child_ts(t, sop.toUtf8().constData(),
+                                                                 desc.toUtf8().constData(), a);
+        if (child) sentry_span_finish_ts(child, b);
+    }
+    sentry_transaction_finish_ts(t, end);
+    return true;
+#else
+    Q_UNUSED(pluginId)
+    Q_UNUSED(pluginVersion)
+    Q_UNUSED(tx)
+    return false;
+#endif
+}
+
 bool CrashReporter::isUserActionable(const QString& message)
 {
     // Conditions the user resolves on their own machine. Classified from the
@@ -775,9 +909,8 @@ bool CrashReporter::isUserActionable(const QString& message)
         // what a patch's program said (steprules::toolOutputCause): a locked or
         // read-only game file, a folder another patch left in the way
         QStringLiteral("oyunun dosyalarına yazamadı"), QStringLiteral("başka bir yamadan kalma"),
-        // the folder lacks what the patch needs: the player picked another
-        // folder, or the game is incomplete (Sentry 2026-11: half of these are
-        // repacks whose exe is gone); the page asks for "Klasörü değiştir"
+        // the folder lacks what the patch needs: the page asks the player for
+        // "Klasörü değiştir". Still sent (warning): a wrong "requires" shows here too
         QStringLiteral("lacks required files"),
         // an undo program that changed nothing, said once and asked again by design
         QStringLiteral("(first press)"),

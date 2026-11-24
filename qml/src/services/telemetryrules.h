@@ -22,11 +22,16 @@
 #include <QCryptographicHash>
 #include <QHash>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QList>
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
+
+#include "pathredaction.h"
+
+#include <algorithm>
 
 namespace makine::telemetryrules {
 
@@ -415,5 +420,118 @@ inline QHash<QString, QString> pluginTags(const QString& pluginId, const QString
     tags.insert(QStringLiteral("plugin.reason"), reason);
     return tags;
 }
+
+// ---- Plugin logs (host API telemetry.logs) -----------------------------------
+//
+// The log the team asks for in the Live portal goes to Sentry Logs (5 GB a
+// month on our plan) instead of an R2 upload of our own. sentry-native 0.9.1
+// has no log API (0.11.1+), so the launcher posts the envelope itself, under
+// the same consent switch. One send is one request from the team, so the cap
+// is per session, not per day. Measured 2026-11-24: 4,000 lines in one
+// envelope (1.7 MB) were all queryable ~30 s later.
+
+inline constexpr int kPluginLogSendsPerSession = 3;
+inline constexpr int kPluginLogLinesMax = 8000;
+inline constexpr int kPluginLogLineMax = 2000;
+inline constexpr qsizetype kPluginLogBytesMax = 2 * 1024 * 1024;
+
+struct Dsn {
+    QString publicKey, host, projectId;
+    bool valid() const { return !publicKey.isEmpty() && !host.isEmpty() && !projectId.isEmpty(); }
+    QString envelopeUrl() const { return QStringLiteral("https://%1/api/%2/envelope/").arg(host, projectId); }
+};
+
+/// "https://<key>@<host>/<project>" → its parts; invalid when it is not that shape.
+inline Dsn parseDsn(const QString& dsn)
+{
+    Dsn d;
+    if (!dsn.startsWith(QLatin1String("https://"))) return d;
+    const QString rest = dsn.mid(8);
+    const qsizetype at = rest.indexOf(QLatin1Char('@'));
+    const qsizetype slash = rest.lastIndexOf(QLatin1Char('/'));
+    if (at <= 0 || slash <= at + 1) return d;
+    d.publicKey = rest.left(at).section(QLatin1Char(':'), 0, 0);
+    d.host = rest.mid(at + 1, slash - at - 1);
+    d.projectId = rest.mid(slash + 1);
+    return d;
+}
+
+/// Sentry Logs severity: trace, debug, info, warn, error, fatal.
+inline QString logLevel(const QString& raw)
+{
+    const QString l = raw.trimmed().toLower();
+    if (l == QLatin1String("warning")) return QStringLiteral("warn");
+    static const QStringList known{QStringLiteral("trace"), QStringLiteral("debug"), QStringLiteral("info"),
+                                   QStringLiteral("warn"), QStringLiteral("error"), QStringLiteral("fatal")};
+    return known.contains(l) ? l : QStringLiteral("info");
+}
+
+inline QJsonObject logAttribute(const QJsonValue& v)
+{
+    if (v.isBool()) return {{"value", v}, {"type", "boolean"}};
+    if (v.isDouble()) {
+        const double d = v.toDouble();
+        if (d == static_cast<double>(static_cast<qint64>(d))) return {{"value", static_cast<qint64>(d)}, {"type", "integer"}};
+        return {{"value", d}, {"type", "double"}};
+    }
+    return {{"value", v.toString()}, {"type", "string"}};
+}
+
+/// One log item per line, in order (`seq`; equal timestamps do not sort), paths
+/// redacted, at most kPluginLogLinesMax lines and kPluginLogBytesMax of text —
+/// the newest are kept. `attributes` are added to every line as they are.
+/// Lines are {level, body, ts?} (ts: seconds since the epoch) or plain strings.
+inline QJsonArray pluginLogItems(const QJsonArray& lines, const QJsonObject& attributes,
+                                 const QString& traceId, double nowSecs)
+{
+    qsizetype first = std::max<qsizetype>(0, lines.size() - kPluginLogLinesMax);
+    qsizetype bytes = 0;
+    for (qsizetype i = lines.size() - 1; i >= first; --i) {
+        const QJsonValue l = lines.at(i);
+        bytes += (l.isString() ? l.toString() : l.toObject().value(u"body").toString()).size();
+        if (bytes > kPluginLogBytesMax) { first = i + 1; break; }
+    }
+    QJsonArray items;
+    for (qsizetype i = first; i < lines.size(); ++i) {
+        const QJsonValue l = lines.at(i);
+        const QJsonObject o = l.isString() ? QJsonObject{{"body", l.toString()}} : l.toObject();
+        const QByteArray raw = o.value(u"body").toString().left(kPluginLogLineMax).toUtf8();
+        const QString body = QString::fromStdString(redaction::redactUserPaths(raw.constData())).trimmed();
+        if (body.isEmpty()) continue;
+        QJsonObject attrs;
+        for (auto it = attributes.constBegin(); it != attributes.constEnd(); ++it)
+            attrs.insert(it.key(), logAttribute(it.value()));
+        attrs.insert(QStringLiteral("seq"), logAttribute(static_cast<double>(i - first)));
+        const double ts = o.value(u"ts").toDouble();
+        items.append(QJsonObject{{"timestamp", ts > 1e9 && ts <= nowSecs + 60 ? ts : nowSecs},
+                                 {"trace_id", traceId},
+                                 {"level", logLevel(o.value(u"level").toString())},
+                                 {"body", body},
+                                 {"attributes", attrs}});
+    }
+    return items;
+}
+
+/// The envelope Sentry's /envelope/ endpoint takes for a batch of log items.
+inline QByteArray logEnvelope(const QJsonArray& items, const QString& sentAtIso)
+{
+    const QByteArray payload = QJsonDocument(QJsonObject{{"items", items}}).toJson(QJsonDocument::Compact);
+    const QJsonObject header{{"type", "log"}, {"item_count", items.size()},
+                             {"content_type", "application/vnd.sentry.items.log+json"},
+                             {"length", payload.size()}};
+    return QJsonDocument(QJsonObject{{"sent_at", sentAtIso}}).toJson(QJsonDocument::Compact) + '\n'
+         + QJsonDocument(header).toJson(QJsonDocument::Compact) + '\n' + payload + '\n';
+}
+
+// ---- Plugin spans (host API telemetry.transaction) ---------------------------
+//
+// A sampled translated line as a transaction (ocr → translate). 50M spans a
+// month is ~33 a day for each of 50K daily players, so the plugin's budget
+// comes from the server (beat reply `trace_n`, portal-tunable, 0 = off) and
+// the launcher holds a hard cap of its own. Names and ops are tokens: no game
+// text can ride in them.
+
+inline constexpr int kPluginTransactionsPerSession = 20;
+inline constexpr int kPluginSpansPerTransaction = 8;
 
 } // namespace makine::telemetryrules
