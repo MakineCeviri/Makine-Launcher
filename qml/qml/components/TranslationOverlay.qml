@@ -94,14 +94,17 @@ Window {
     }
     readonly property rect _screenRect: Qt.rect(_screen ? _screen.virtualX : 0, _screen ? _screen.virtualY : 0,
                                                 _screen ? _screen.width : 1280, _screen ? _screen.height : 720)
+    // overlay.show frame (a console's video area): bottom/top/widthPct/scale refer to it
+    property rect frame: Qt.rect(0, 0, 0, 0)
+    readonly property rect _base: frame.width > 0 && frame.height > 0 ? frame : _screenRect
     readonly property bool _inRegion: _position === "region" && _hasRegion
     // Over a region the band may be as wide as the region (a console window's subtitle
     // area); a very narrow region still gets room for a readable line
     readonly property real _maxBand: _inRegion
-        ? Math.max(sourceRegion.width, Math.min(560, _screenRect.width * 0.5))
-        : _screenRect.width * _widthPct / 100
+        ? Math.max(sourceRegion.width, Math.min(560, _base.width * 0.5))
+        : _base.width * _widthPct / 100
     // A long line widens its band up to this instead of shrinking or adding rows
-    readonly property real _stretch: Math.max(_maxBand, _screenRect.width * 0.9)
+    readonly property real _stretch: Math.max(_maxBand, _base.width * 0.9)
 
     // Room for the tallest subtitle the style allows, so the window rarely resizes
     readonly property real _roomHeight: {
@@ -116,15 +119,15 @@ Window {
     x: _placed ? _place.x
        : _boxed && _subtitle ? Math.round(_screenRect.x + _style("boxX", 0.5) * _screenRect.width - width / 2)
        : _subtitle
-       ? Math.round((_inRegion ? sourceRegion.x + sourceRegion.width / 2 : _screenRect.x + _screenRect.width / 2) - width / 2)
+       ? Math.round((_inRegion ? sourceRegion.x + sourceRegion.width / 2 : _base.x + _base.width / 2) - width / 2)
        : sourceRegion.x + (sourceRegion.width - width) / 2
     y: _placed ? _place.y
        : _boxed && _subtitle ? Math.round(_screenRect.y + _style("boxY", 0.85) * _screenRect.height - height / 2)
        : !_subtitle ? sourceRegion.y + sourceRegion.height + 6
        : _above ? Math.round(sourceRegion.y - height + subtitle.gutter - 4)
        : _inRegion ? Math.round(sourceRegion.y + sourceRegion.height / 2 - height / 2)
-       : _position === "top" ? _screenRect.y + _marginPx - subtitle.gutter
-       : _screenRect.y + _screenRect.height - height - _marginPx + subtitle.gutter
+       : _position === "top" ? _base.y + _marginPx - subtitle.gutter
+       : _base.y + _base.height - height - _marginPx + subtitle.gutter
 
     // ── Appear / disappear ──
     onShownChanged: {
@@ -144,10 +147,12 @@ Window {
     // Out of screen capture once it has a native window (and again if the style changes)
     function _applyCapture() {
         if (visible && typeof PluginManager !== "undefined" && PluginManager)
-            _excluded = PluginManager.keepOutOfCapture(overlayWindow, !_showOnStream) && !_showOnStream
+            _excluded = PluginManager.keepOutOfCapture(overlayWindow, regionIsRead && !_showOnStream)
+                        && regionIsRead && !_showOnStream
     }
     onVisibleChanged: _applyCapture()
     on_ShowOnStreamChanged: _applyCapture()
+    onRegionIsReadChanged: _applyCapture()
 
     ParallelAnimation {
         id: showAnim
@@ -199,7 +204,7 @@ Window {
             style: overlayWindow.overlayStyle
             maxWidth: overlayWindow._maxBand
             stretchWidth: overlayWindow._stretch
-            textScale: overlayWindow._screenRect.height > 0 ? overlayWindow._screenRect.height / 1080 : 1
+            textScale: overlayWindow._base.height > 0 ? overlayWindow._base.height / 1080 : 1
             animate: overlayWindow._animate
         }
     }

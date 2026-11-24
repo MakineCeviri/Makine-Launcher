@@ -30,6 +30,8 @@ Window {
     property bool selecting: false
     property point startPos: Qt.point(0, 0)
     property rect selectionRect: Qt.rect(0, 0, 0, 0)
+    // The region read now (logical global), shown until a new one is drawn
+    property rect currentRect: Qt.rect(0, 0, 0, 0)
 
     function show() {
         selecting = false
@@ -49,6 +51,28 @@ Window {
     // Cut-out effect: darken everything except selected region
     Item {
         anchors.fill: parent
+
+        // The region read now, with its size
+        Rectangle {
+            visible: regionWindow.currentRect.width > 0 && !regionWindow.selecting && regionWindow.selectionRect.width === 0
+            x: regionWindow.currentRect.x - regionWindow.x
+            y: regionWindow.currentRect.y - regionWindow.y
+            width: regionWindow.currentRect.width
+            height: regionWindow.currentRect.height
+            color: "transparent"
+            border.color: "#60a5fa"
+            border.width: 1
+            opacity: 0.7
+            Text {
+                anchors.left: parent.left
+                anchors.bottom: parent.top
+                anchors.bottomMargin: 4
+                text: "\u015eu anki b\u00f6lge \u00b7 " + Math.round(parent.width) + " \u00d7 " + Math.round(parent.height)
+                font.pixelSize: 12
+                color: "#ffffff"
+                textFormat: Text.PlainText
+            }
+        }
 
         // Selection rectangle (bright area)
         Rectangle {

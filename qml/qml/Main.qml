@@ -1134,6 +1134,11 @@ ApplicationWindow {
         function onRegionRequested(requestId, pluginId, pluginName) {
             window._regionRequestId = requestId
             regionSelector.pluginName = pluginName
+            // Live's current PC region, drawn so the player sees what is read now
+            const st = PluginManager.pluginState(pluginId)
+            const r = st && st.mode !== "console" && st.region ? st.region.pc : null
+            regionSelector.currentRect = r ? PluginManager.logicalRect(Qt.rect(r.x, r.y, r.width, r.height))
+                                           : Qt.rect(0, 0, 0, 0)
             regionSelector.show()
         }
         function onAttachRequested(requestId, pluginId, pluginName, gameName) {
@@ -1193,6 +1198,7 @@ ApplicationWindow {
         overlayStyle: PluginManager ? PluginManager.overlayStyle : ({})
         regionIsRead: window._liveReadsScreen
         movable: PluginManager ? PluginManager.overlayMovable : false
+        frame: PluginManager ? PluginManager.overlayFrame : Qt.rect(0, 0, 0, 0)
     }
 
     // A Binding rather than `shown:` — the overlay assigns shown itself when new

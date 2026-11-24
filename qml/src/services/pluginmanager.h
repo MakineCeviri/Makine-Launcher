@@ -75,6 +75,8 @@ class PluginManager : public QObject {
     Q_PROPERTY(QVariantMap overlayStyle READ overlayStyle NOTIFY overlayChanged)
     // overlay.setMovable: the player may drag the subtitle (no longer click-through)
     Q_PROPERTY(bool overlayMovable READ overlayMovable NOTIFY overlayChanged)
+    // overlay.show `frame`: the area (a console's video) bottom/top/widthPct refer to
+    Q_PROPERTY(QRect overlayFrame READ overlayFrame NOTIFY overlayChanged)
 
     /// Enabled plugins with a screen of their own (contributes.screen): {id, title, icon}
     Q_PROPERTY(QVariantList screens READ screens NOTIFY pluginsChanged)
@@ -113,6 +115,9 @@ public:
     QVariantList overlayLines() const { return m_overlay.lines; }
     QVariantMap overlayStyle() const { return m_overlay.style; }
     bool overlayMovable() const { return m_overlay.movable; }
+    QRect overlayFrame() const { return m_overlay.frame; }
+    /// A plugin's physical-pixel rectangle in Qt's logical global coordinates
+    Q_INVOKABLE QRect logicalRect(const QRect& physical) const;
     /// The overlay window was dragged to this logical rectangle: the plugin that made it
     /// movable gets `overlay.moved {x, y, width, height}` in physical pixels.
     Q_INVOKABLE void overlayMoved(int x, int y, int width, int height);
@@ -292,5 +297,6 @@ private:
         bool movable = false;
         QString moveOwner;
         QRect placed;   // where the player last put the subtitle (logical)
+        QRect frame;    // overlay.show frame (logical), empty = the screen
     } m_overlay;
 };

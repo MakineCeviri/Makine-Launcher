@@ -750,6 +750,11 @@ bool PluginManager::keepOutOfCapture(QObject* window, bool excluded)
     return false;
 }
 
+QRect PluginManager::logicalRect(const QRect& physical) const
+{
+    return physical.isValid() ? toLogical(physical) : QRect();
+}
+
 void PluginManager::overlayMoved(int x, int y, int width, int height)
 {
     Installed* p = m_overlay.moveOwner.isEmpty() ? nullptr : find(m_overlay.moveOwner);
@@ -1312,6 +1317,11 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
         if (params.contains(u"width") && params.contains(u"height"))
             m_overlay.region = toLogical(QRect(params.value(u"x").toInt(), params.value(u"y").toInt(),
                                                params.value(u"width").toInt(), params.value(u"height").toInt()));
+        {
+            const QJsonObject f = params.value(u"frame").toObject();
+            const QRect frame(f.value(u"x").toInt(), f.value(u"y").toInt(), f.value(u"width").toInt(), f.value(u"height").toInt());
+            m_overlay.frame = frame.isValid() ? toLogical(frame) : QRect();
+        }
         m_overlay.text = params.value(u"text").toString().left(4000);
         m_overlay.sourceText = params.value(u"sourceText").toString().left(4000);
         m_overlay.lines.clear();

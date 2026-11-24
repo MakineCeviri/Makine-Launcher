@@ -149,7 +149,30 @@ Item {
         PluginManager.invoke(pluginId, method, params || {})
     }
     function _setStyle(changes) { _call("style.set", changes) }
-    function _copy(text) { copyHelper.text = text; copyHelper.selectAll(); copyHelper.copy() }
+    property string _copied: ""
+    function _copy(text) { copyHelper.text = text; copyHelper.selectAll(); copyHelper.copy(); _copied = text; copiedTimer.restart() }
+    Timer { id: copiedTimer; interval: 1500; onTriggered: live._copied = "" }
+
+    // Counters' running time ticks only while reading and on screen
+    property real _now: Date.now()
+    Timer { interval: 1000; repeat: true; running: live._reading && live._onScreen; onTriggered: live._now = Date.now() }
+    function _elapsed(startedAt) {
+        if (!startedAt) return ""
+        const ms = startedAt > 1e12 ? startedAt : startedAt * 1000
+        const t = Math.max(0, Math.floor((_now - ms) / 1000))
+        const two = (n) => (n < 10 ? "0" : "") + n
+        return two(Math.floor(t / 3600)) + ":" + two(Math.floor(t / 60) % 60) + ":" + two(t % 60)
+    }
+    readonly property string _countersText: {
+        const c = _counters
+        const parts = [qsTr("%1 satır").arg(c.lines || 0)]
+        const pct = c.hitPct !== undefined ? Math.round(c.hitPct) : (c.lines ? Math.round(100 * (c.poolHits || 0) / c.lines) : 0)
+        parts.push(qsTr("%%1 havuzdan").arg(pct))
+        if (c.avgMs) parts.push(qsTr("ort. %1 ms").arg(Math.round(c.avgMs)))
+        if (c.startedAt && _reading) parts.push(_elapsed(c.startedAt))
+        return parts.join(" · ")
+    }
+    readonly property var _newestAnnouncement: _announcements.length > 0 ? _announcements[0] : null
     function _isSelected(src) {
         return !!_selected && _selected.key === src.key && _selected.pid === src.pid
     }
@@ -226,7 +249,8 @@ Item {
         if (_info.enabled === false)
             return { text: qsTr("Makine Live kapalı."), fixText: qsTr("Aç"), fix: "enable" }
         if (_running && _server.maintenance === true)
-            return { text: _server.message || qsTr("Çeviri havuzu bakımda; bakım bitince kendiliğinden devam eder."), fixText: "" }
+            return { text: _server.message || qsTr("Çeviri havuzu bakımda; bakım bitince kendiliğinden devam eder."),
+                     fixText: qsTr("Tekrar dene"), fix: "invoke:status.refresh" }
         const reasons = {
             source_missing: { text: qsTr("Konsol görüntüsü bulunamadı: Remote Play ya da yakalama kartının penceresi açık değil."),
                               fixText: qsTr("Yeniden ara"), fix: "sources" },
@@ -245,10 +269,16 @@ Item {
         const r = _state.reason
         if (_running && r && typeof r === "object" && r.code) {
             const known = reasons[r.code] || {}
+            // No action, no button. Some actions are the launcher's own, not plugin methods.
+            const a = r.action || ""
+            const local = { consent: "consent", "launcher.update": "update", update_launcher: "update",
+                            "tv.pairForm": "tvForm", tv_pair: "tvForm", login: "login", retry: "invoke:status.refresh" }
+            const labels = { consent: qsTr("Onayla"), update: qsTr("Güncelle"), tvForm: qsTr("TV'ye bağlan"),
+                             login: qsTr("Giriş yap"), "invoke:status.refresh": qsTr("Tekrar dene") }
+            const fix = a === "" ? "" : (local[a] || "invoke:" + a)
             return { text: r.text || known.text || r.code,
-                     fixText: r.action || r.code === "consent_required" ? (known.fixText || qsTr("Düzelt")) : "",
-                     // consent is not a method: it is the one-time GTA VI confirmation
-                     fix: r.code === "consent_required" ? "consent" : r.action ? "invoke:" + r.action : "" }
+                     fixText: fix === "" ? "" : (labels[fix] || known.fixText || qsTr("Düzelt")),
+                     fix: fix }
         }
         if (_running && typeof r === "string" && reasons[r]) return reasons[r]
         if (_error !== "") return { text: _error, fixText: "" }
@@ -259,6 +289,9 @@ Item {
         else if (kind === "enable") PluginManager.setEnabled(pluginId, true)
         else if (kind === "sources") _call("console.sources")
         else if (kind === "consent") consoleConfirm.open()
+        else if (kind === "update") { if (typeof UpdateService !== "undefined" && UpdateService) UpdateService.check() }
+        else if (kind === "tvForm") _scrollTo(whereSection)
+        else if (kind === "login") _scrollTo(accountSection)
         else if (kind && kind.indexOf("invoke:") === 0) _call(kind.slice(7))
     }
 
@@ -478,6 +511,24 @@ Item {
                            : live._ready ? qsTr("Altyazıyı okumaya başlar; Türkçesi oyunun üstünde çıkar.")
                            : qsTr("Önce aşağıdaki adımları tamamla.")
                     onClicked: live._reading ? live._call("stop") : live._start()
+                }
+            }
+
+            // ── 2b. The newest announcement, as a strip (the list stays at the bottom) ──
+            ListSection {
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.pageMargin
+                Layout.rightMargin: Dimensions.pageMargin
+                visible: live._newestAnnouncement !== null
+                ListRow {
+                    icon: Icons.bell
+                    title: live._newestAnnouncement ? (live._newestAnnouncement.title || live._newestAnnouncement.kindLabel || "") : ""
+                    subtitle: live._newestAnnouncement ? (live._newestAnnouncement.body || "") : ""
+                    AppButton {
+                        style: "plain"
+                        text: qsTr("Kapat")
+                        onClicked: live._call("announcement.read", { "id": live._newestAnnouncement["id"] })
+                    }
                 }
             }
 
@@ -776,9 +827,8 @@ Item {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: !live._lastLine.text ? qsTr("Örnek satır; oyunda bir altyazı çıkınca burada da görünür.")
-                            : qsTr("%1 satır · %2 tanesi havuzdan · %3")
-                                  .arg(live._counters.lines || 0).arg(live._counters.poolHits || 0)
-                                  .arg(live._lastLine.kind === "verified" ? qsTr("onaylı çeviri") : qsTr("makine çevirisi, onay bekliyor"))
+                            : live._countersText + " · "
+                              + (live._lastLine.kind === "verified" ? qsTr("onaylı çeviri") : qsTr("makine çevirisi, onay bekliyor"))
                         textFormat: Text.PlainText
                         font.family: Dimensions.fontText
                         font.pixelSize: Dimensions.caption1
@@ -837,10 +887,13 @@ Item {
                     ListRow {
                         icon: Icons.circleCheck
                         iconTint: Theme.success
-                        title: live._login.user || qsTr("Giriş yapıldı")
-                        subtitle: live._loginState === "offline"
-                                  ? qsTr("Sunucuya şu an ulaşılamıyor; hesabın duruyor.")
-                                  : qsTr("Çeviriler bu hesapla havuzdan gelir.")
+                        title: (live._login.user || qsTr("Giriş yapıldı"))
+                               + (live._login.role ? "  ·  " + (({ admin: qsTr("Yönetici"), translator: qsTr("Çevirmen"),
+                                                                    tester: qsTr("Test") })[live._login.role] || live._login.role) : "")
+                        subtitle: (live._loginState === "offline"
+                                   ? qsTr("Sunucuya şu an ulaşılamıyor; hesabın duruyor.")
+                                   : qsTr("Çeviriler bu hesapla havuzdan gelir."))
+                                  + (live._info.version ? "  " + qsTr("Makine Live %1").arg(live._info.version) : "")
                         AppButton {
                             style: "gray"
                             text: qsTr("Çıkış yap")
@@ -1158,6 +1211,31 @@ Item {
                         onClicked: live._call("tv.discover")
                     }
                 }
+                ListRow {
+                    visible: live._consoleMode && live._output === "tv" && !live._tv.paired
+                    icon: Icons.link
+                    title: qsTr("Adresle bağlan")
+                    subtitle: qsTr("TV bulunamazsa: TV'deki Makine TV'nin gösterdiği IP adresini ve 4 haneli kodu yaz.")
+                    CodeField {
+                        id: tvHost
+                        implicitWidth: 140
+                        placeholderText: "192.168.1.20"
+                    }
+                    CodeField {
+                        id: tvHostCode
+                        implicitWidth: 80
+                        placeholderText: qsTr("Kod")
+                        maximumLength: 4
+                        inputMethodHints: Qt.ImhDigitsOnly
+                    }
+                    AppButton {
+                        style: "tinted"
+                        text: qsTr("Bağlan")
+                        enabled: tvHost.text.length > 6 && tvHostCode.text.length === 4
+                        busy: live._busyMethod === "tv.pair"
+                        onClicked: live._call("tv.pair", { host: tvHost.text.trim(), code: tvHostCode.text })
+                    }
+                }
                 Repeater {
                     model: live._consoleMode && live._output === "tv" && !live._tv.paired && Array.isArray(live._tv.found)
                            ? live._tv.found : []
@@ -1255,8 +1333,8 @@ Item {
                     AppButton {
                         visible: !!live._web.phoneUrl
                         style: "gray"
-                        text: qsTr("Kopyala")
-                        icon: Icons.copy
+                        text: live._copied !== "" && live._copied === live._web.phoneUrl ? qsTr("Kopyalandı") : qsTr("Kopyala")
+                        icon: live._copied !== "" && live._copied === live._web.phoneUrl ? Icons.check : Icons.copy
                         onClicked: live._copy(live._web.phoneUrl)
                     }
                 }
@@ -1271,7 +1349,7 @@ Item {
                     AppButton {
                         visible: live._state.obs === true && !!live._web.obsUrl
                         style: "plain"
-                        text: qsTr("Kopyala")
+                        text: live._copied !== "" && live._copied === live._web.obsUrl ? qsTr("Kopyalandı") : qsTr("Kopyala")
                         onClicked: live._copy(live._web.obsUrl)
                     }
                     AppSwitch {
@@ -1315,6 +1393,25 @@ Item {
                 Layout.rightMargin: Dimensions.pageMargin
                 visible: live._exists
                 title: qsTr("Diğer")
+
+                // First run: a short donation note, closed for good with Kapat
+                ListRow {
+                    visible: !!live._state.donate && live._state.donate.seen === false
+                    icon: Icons.handHeart
+                    iconTint: Theme.primary
+                    title: qsTr("Live işine yaradıysa")
+                    subtitle: qsTr("Sunucu ve çeviri havuzu bağışlarla ayakta; küçük bir destek de yeter.")
+                    AppButton {
+                        style: "tinted"
+                        text: qsTr("Destek ol")
+                        onClicked: PluginManager.openUrl("https://makineceviri.org/destek")
+                    }
+                    AppButton {
+                        style: "plain"
+                        text: qsTr("Kapat")
+                        onClicked: live._call("donate.dismiss")
+                    }
+                }
 
                 Repeater {
                     model: live._announcements
@@ -1382,6 +1479,13 @@ Item {
                               : qsTr("Discord açıksa okurken profilinde Türkçe oynadığın görünür.")
                 }
                 ListRow {
+                    icon: Icons.scrollText
+                    title: qsTr("Günlüğü aç")
+                    subtitle: qsTr("Makine Live'ın son kayıtları; bir sorunu bildirirken işe yarar. Ayarlar › Eklentiler'de de var.")
+                    clickable: true
+                    onClicked: logDialog.open()
+                }
+                ListRow {
                     icon: Icons.handHeart
                     title: qsTr("Makine Çeviri'ye destek ol")
                     subtitle: qsTr("Live'ın sunucusu ve çeviri havuzu bağışlarla ayakta.")
@@ -1399,6 +1503,30 @@ Item {
         anchors.top: parent.top
     }
 
+    // The plugin's log (the same lines Settings › Eklentiler shows)
+    BaseDialog {
+        id: logDialog
+        parent: Overlay.overlay
+        width: 640
+        title: qsTr("Makine Live günlüğü")
+        property var lines: []
+        onOpened: lines = PluginManager ? PluginManager.logLines(live.pluginId) : []
+        contentItem: ScrollView {
+            implicitHeight: 360
+            clip: true
+            TextArea {
+                readOnly: true
+                selectByMouse: true
+                wrapMode: TextEdit.WrapAnywhere
+                font.family: "Consolas"
+                font.pixelSize: Dimensions.footnote
+                color: Theme.textSecondary
+                background: null
+                text: logDialog.lines.length > 0 ? logDialog.lines.join("\n") : qsTr("Henüz kayıt yok.")
+            }
+        }
+    }
+
     // First console start: the pool is GTA VI's, every line goes there
     ConfirmDialog {
         id: consoleConfirm
@@ -1411,7 +1539,7 @@ Item {
         accentColor: Theme.primary
         onConfirmed: {
             seen.consoleWarned = true
-            live._call("consoleConsent.set", { enabled: true })
+            live._call("consoleConsent.set", { granted: true })
             live._call("start")
         }
     }
@@ -1435,6 +1563,7 @@ Item {
             readonly property string colorKey: String(preview.textColor).toLowerCase() === "#f2c230" ? "yellow" : "white"
             readonly property string position: live._style.position || "region"
             readonly property bool showSource: live._style.showSource === true
+            readonly property bool free: live._style.boxX !== undefined && live._style.boxX !== null
 
             function nearest(value, steps) {
                 let best = steps[0]
@@ -1572,9 +1701,70 @@ Item {
                     SegmentedControl {
                         small: true
                         model: [{ value: "region", text: qsTr("Altyazının üstü") }, { value: "bottom", text: qsTr("Alt") },
-                                { value: "top", text: qsTr("Üst") }]
-                        currentValue: look.position
-                        onActivated: (value) => live._setStyle({ position: value })
+                                { value: "top", text: qsTr("Üst") }, { value: "free", text: qsTr("Serbest") }]
+                        currentValue: look.free ? "free" : look.position
+                        // Serbest: drag the box in the game (F8); the place is kept as boxX/boxY
+                        onActivated: (value) => value === "free" ? live._call("box.move", { on: true })
+                                                                 : live._setStyle({ position: value, boxX: null, boxY: null })
+                    }
+                }
+                ListRow {
+                    visible: look.position !== "region" && !look.free
+                    icon: Icons.arrowUpDown
+                    title: qsTr("Kenardan uzaklık")
+                    subtitle: qsTr("Altyazının ekranın kenarından ne kadar içeride duracağı.")
+                    SegmentedControl {
+                        small: true
+                        model: [{ value: "12", text: qsTr("Dar") }, { value: "24", text: qsTr("Orta") },
+                                { value: "48", text: qsTr("Geniş") }, { value: "96", text: qsTr("Çok") }]
+                        currentValue: String(look.nearest(live._style.marginPx || 24, [12, 24, 48, 96]))
+                        onActivated: (value) => live._setStyle({ marginPx: Number(value) })
+                    }
+                }
+                ListRow {
+                    icon: Icons.maximize2
+                    title: qsTr("Genişlik")
+                    subtitle: qsTr("Bandın en geniş hâli, ekranın yüzdesi olarak; uzun satırda yine genişler.")
+                    SegmentedControl {
+                        small: true
+                        model: [{ value: "50", text: "%50" }, { value: "62", text: "%62" },
+                                { value: "80", text: "%80" }, { value: "100", text: "%100" }]
+                        currentValue: String(look.nearest(live._style.widthPct || 62, [50, 62, 80, 100]))
+                        onActivated: (value) => live._setStyle({ widthPct: Number(value) })
+                    }
+                }
+                ListRow {
+                    icon: Icons.swatchBook
+                    title: qsTr("Bant rengi")
+                    subtitle: qsTr("Makine Live'ın koyu tonları; hepsi yazıyı öne çıkarır.")
+                    SegmentedControl {
+                        small: true
+                        model: [{ value: "#0f1012", text: qsTr("Mürekkep") }, { value: "#16171a", text: qsTr("Gece") },
+                                { value: "#1d1f23", text: qsTr("Koyu") }, { value: "#24262b", text: qsTr("Gri") },
+                                { value: "#000000", text: qsTr("Siyah") }]
+                        currentValue: String(live._style.bandColor || "#0f1012").toLowerCase()
+                        onActivated: (value) => live._setStyle({ bandColor: value })
+                    }
+                }
+                ListRow {
+                    icon: Icons.layers
+                    title: qsTr("Gölge")
+                    subtitle: qsTr("Bandın ya da yazının altında yumuşak bir gölge.")
+                    AppSwitch {
+                        checked: preview.shadow
+                        accessibleName: qsTr("Gölge")
+                        onToggled: live._setStyle({ shadow: !preview.shadow })
+                    }
+                }
+                ListRow {
+                    icon: Icons.type
+                    title: qsTr("Yazı tipi")
+                    subtitle: qsTr("Launcher'ın kendi yazı tipleri.")
+                    SegmentedControl {
+                        small: true
+                        model: [{ value: "Inter Display", text: "Inter Display" }, { value: "Inter", text: "Inter" }]
+                        currentValue: live._style.font || "Inter Display"
+                        onActivated: (value) => live._setStyle({ font: value === "Inter Display" ? null : value })
                     }
                 }
                 ListRow {
@@ -1585,6 +1775,30 @@ Item {
                         checked: look.showSource
                         accessibleName: qsTr("İngilizcesini de göster")
                         onToggled: live._setStyle({ showSource: !look.showSource })
+                    }
+                }
+                ListRow {
+                    icon: Icons.eye
+                    title: qsTr("Örnek göster")
+                    subtitle: qsTr("Oyunun üstünde birkaç saniye örnek bir altyazı çıkar; ayarı orada dene.")
+                    AppButton {
+                        style: "gray"
+                        text: qsTr("Göster")
+                        busy: live._busyMethod === "sample"
+                        onClicked: live._call("sample")
+                    }
+                }
+                ListRow {
+                    icon: Icons.rotateCcw
+                    title: qsTr("Varsayılana dön")
+                    subtitle: qsTr("Bütün görünüm ayarlarını ilk hâline getirir.")
+                    AppButton {
+                        style: "plain"
+                        text: qsTr("Sıfırla")
+                        onClicked: live._setStyle({ preset: null, font: null, sizePx: null, maxLines: null, textColor: null,
+                                                    bandColor: null, bandOpacity: null, outlinePx: null, shadow: null,
+                                                    widthPct: null, marginPx: null, position: null, showSource: null,
+                                                    boxX: null, boxY: null })
                     }
                 }
             }
