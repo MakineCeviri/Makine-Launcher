@@ -170,7 +170,7 @@ kapları ve yazısı aynıdır: yalnız ışığı değişir. Tema çatalı değ
   başına kalır ve sayfa eksiksizdir. Görseli sürüm çıkmadan `assets/launcher.json` açar/kapatır:
   `"live": {"gta6Art": true|false}`; anahtar yoksa ya da dosya okunamadıysa launcher'ın kendi
   varsayılanı geçer (`_gta6ArtDefault`, şimdilik `false` — 2560×1080 manzara `site/gta6/launcher/`
-  altına konunca `true` gönderilir). Görsel önbelleğe alınmaz (`ImageCache` yalnız appId çözer).
+  altına konunca `true` gönderilir). Görsel kapaklar gibi `ImageCache`'ten gelir (`resolveUrl`: yalnız kendi CDN'imiz; bir kez iner, birkaç günde bir ETag ile sorulur).
 - **Kahraman kabı:** olağan `Card`; köşe ışığı pembe (`glowColor: gta6Pink`), üst kenarı `gta6Sun`
   çizgisi, başlığın üstünde "GTA VI · PS5 / XBOX" (11 px, kalın, aralıklı, `gta6Orange`), zincirin
   bağları pembe, bekleyen durak turuncu.

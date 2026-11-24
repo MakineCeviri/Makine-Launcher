@@ -88,6 +88,8 @@ QString ImageCacheManager::localPath(const QString& appId) const
 
 QString ImageCacheManager::remoteUrl(const QString& appId) const
 {
+    if (const auto it = m_urls.constFind(appId); it != m_urls.cend())
+        return *it;
     return QLatin1String(CDN_IMAGE_BASE) + appId + QStringLiteral(".png");
 }
 
@@ -95,6 +97,16 @@ QString ImageCacheManager::steamCdnUrl(const QString& appId) const
 {
     return QStringLiteral("https://cdn.akamai.steamstatic.com/steam/apps/")
            + appId + QStringLiteral("/library_600x900_2x.jpg");
+}
+
+QString ImageCacheManager::resolveUrl(const QString& url)
+{
+    if (!url.startsWith(QStringLiteral("https://cdn.makineceviri.org/")))
+        return {};
+    const QString key = QStringLiteral("url-")
+        + QString::fromLatin1(QCryptographicHash::hash(url.toUtf8(), QCryptographicHash::Md5).toHex().left(16));
+    m_urls.insert(key, url);
+    return resolve(key);
 }
 
 QString ImageCacheManager::resolve(const QString& appId)
@@ -194,7 +206,7 @@ void ImageCacheManager::startDownload(const QString& appId, bool useSteamCdn)
         }
 
         if (!success) {
-            if (!useSteamCdn && !m_r2Failed.contains(appId)) {
+            if (!useSteamCdn && !m_r2Failed.contains(appId) && !m_urls.contains(appId)) {
                 // R2 CDN failed — try Steam CDN as fallback
                 m_r2Failed.insert(appId);
                 startDownload(appId, true);

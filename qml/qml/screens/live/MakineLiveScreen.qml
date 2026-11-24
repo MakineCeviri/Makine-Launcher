@@ -68,6 +68,17 @@ Item {
     // read yet, offline) = this built-in default.
     readonly property bool _gta6ArtDefault: false
     readonly property bool _gta6ArtOn: UpdateService.liveGta6Art < 0 ? _gta6ArtDefault : UpdateService.liveGta6Art === 1
+    // Through the image cache: downloaded once, asked about again every few days,
+    // "" while offline or before the download lands (the sun stands alone)
+    property string _gta6ArtSrc: ""
+    function _resolveArt() { _gta6ArtSrc = _gta6 && _gta6ArtOn ? ImageCache.resolveUrl(_gta6ArtUrl) : "" }
+    on_Gta6Changed: _resolveArt()
+    on_Gta6ArtOnChanged: _resolveArt()
+    Connections {
+        target: ImageCache
+        enabled: live._gta6 && live._gta6ArtOn && live._gta6ArtSrc === ""
+        function onImageReady() { live._resolveArt() }
+    }
     readonly property string _gta6ArtUrl: "https://cdn.makineceviri.org/site/gta6/art/vice_city_postcard_landscape-960.webp"
     readonly property var _region: _state.region ? _state.region[_consoleMode ? "console" : "pc"] || null : null
     readonly property bool _hasRegion: !!_region && _region.width > 0 && _region.height > 0
@@ -132,7 +143,7 @@ Item {
     // Opening the page is the plugin's first use: asking for its state starts its
     // host (PluginManager.invoke). Nothing runs before the page is opened.
     readonly property bool _wanted: visible && _exists && _info.enabled === true && _pluginState !== "remote-off"
-    Component.onCompleted: { _refreshInfo(); _refreshState(); if (_wanted) _call("state") }
+    Component.onCompleted: { _refreshInfo(); _refreshState(); _resolveArt(); if (_wanted) _call("state") }
     on_WantedChanged: if (_wanted) _call("state")
 
     // Every subtitle line publishes a new state: read it only while the page can be seen.
@@ -385,7 +396,7 @@ Item {
 
             Image {
                 anchors.fill: parent
-                source: live._gta6 && live._gta6ArtOn ? live._gta6ArtUrl : ""
+                source: live._gta6ArtSrc
                 sourceSize.width: 1920
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true

@@ -48,6 +48,16 @@ public:
     Q_INVOKABLE QString resolve(const QString& appId);
 
     /**
+     * @brief Resolve a picture of our own CDN by its URL, cached like a cover.
+     *
+     * Only https://cdn.makineceviri.org/ URLs; anything else resolves to "".
+     * Cached under a key made from the URL (a new URL is a new file), asked
+     * about again every few days like covers, never sent to Steam's CDN.
+     * imageReady() is emitted with that key; QML just resolves again.
+     */
+    Q_INVOKABLE QString resolveUrl(const QString& url);
+
+    /**
      * @brief Delete all cached images.
      * Recreates the cache directory after deletion.
      */
@@ -96,6 +106,7 @@ private:
     QSet<QString> m_r2Failed;         // appIds that failed R2 CDN (try Steam CDN)
     QQueue<QString> m_queue;          // appIds waiting to download
     QSet<QString> m_queued;           // O(1) lookup for queue membership
+    QHash<QString, QString> m_urls;   // resolveUrl key → its CDN URL
     QHash<QString, qint64> m_checkedAt;  // appId → last CDN revalidation (epoch seconds), persisted
     QSet<QString> m_revalidated;      // asked about this session already
     QQueue<QString> m_revalidateQueue;
