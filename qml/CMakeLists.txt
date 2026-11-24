@@ -439,6 +439,12 @@ if(EXISTS "${MAKINE_COMPANION_DIR}/CMakeLists.txt")
     target_link_libraries(MakineLauncher PRIVATE makine_companion)
     target_compile_definitions(MakineLauncher PRIVATE MAKINE_HAS_COMPANION)
     message(STATUS "Makine:   built in (${MAKINE_COMPANION_DIR})")
+    # His test runs offscreen, but the build tree's platforms/ holds only qwindows (windeployqt):
+    # point it at the Qt kit's platform plugins, or it fails fast (0xc0000602) under ctest
+    if(TARGET test_companion AND QT6_INSTALL_PREFIX)
+        set_tests_properties(test_companion DIRECTORY "${MAKINE_COMPANION_DIR}" PROPERTIES ENVIRONMENT
+            "QT_QPA_PLATFORM_PLUGIN_PATH=${QT6_INSTALL_PREFIX}/${QT6_INSTALL_PLUGINS}/platforms")
+    endif()
 elseif(MAKINE_RELEASE_VERIFIED)
     message(FATAL_ERROR "A release without Makine: clone MakineCeviri/Makine-Companion next to "
         "this repo, or set MAKINE_COMPANION_DIR")
