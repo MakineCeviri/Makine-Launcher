@@ -73,6 +73,8 @@ class PluginManager : public QObject {
     // overlay.show `lines` [{text, sourceText}] and `style` (docs/plugins/README.md)
     Q_PROPERTY(QVariantList overlayLines READ overlayLines NOTIFY overlayChanged)
     Q_PROPERTY(QVariantMap overlayStyle READ overlayStyle NOTIFY overlayChanged)
+    // overlay.setMovable: the player may drag the subtitle (no longer click-through)
+    Q_PROPERTY(bool overlayMovable READ overlayMovable NOTIFY overlayChanged)
 
     /// Enabled plugins with a screen of their own (contributes.screen): {id, title, icon}
     Q_PROPERTY(QVariantList screens READ screens NOTIFY pluginsChanged)
@@ -110,6 +112,10 @@ public:
     QString overlaySourceText() const { return m_overlay.sourceText; }
     QVariantList overlayLines() const { return m_overlay.lines; }
     QVariantMap overlayStyle() const { return m_overlay.style; }
+    bool overlayMovable() const { return m_overlay.movable; }
+    /// The overlay window was dragged to this logical rectangle: the plugin that made it
+    /// movable gets `overlay.moved {x, y, width, height}` in physical pixels.
+    Q_INVOKABLE void overlayMoved(int x, int y, int width, int height);
     QVariantList screens() const;
 
     Q_INVOKABLE QVariantMap plugin(const QString& id) const;
@@ -282,5 +288,7 @@ private:
         QString sourceText;
         QVariantList lines;
         QVariantMap style;
+        bool movable = false;
+        QString moveOwner;
     } m_overlay;
 };

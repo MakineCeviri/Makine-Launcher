@@ -110,6 +110,8 @@ public:
 
     // Properties
     QVariantList games() const;
+    /// Installed games the stores report that have no translation of ours ({id, name, installPath})
+    QVariantList otherInstalledGames() const;
     int gameCount() const {
         // Avoid calling games() which may trigger a full QVariantList rebuild.
         // Count directly from the source list — installed + has-translation filter.

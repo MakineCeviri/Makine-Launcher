@@ -210,6 +210,7 @@ plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is on
 | `ui.state` | `{…any JSON object…}`: replaces the plugin's screen state (fire-and-forget via `emitEvent` is the normal use) | |
 | `overlay.pickRegion` | optional `{within: {x, y, width, height}}`: the selection is clamped to that rectangle (a console window's video area) | `overlay` |
 | `overlay.show` | optional `style` object (below), optional `lines: [{text, sourceText?}]` instead of `text` for a multi-line subtitle | `overlay` |
+| `overlay.setMovable` | `{on}`: the player may drag the subtitle (not click-through while on); each new place comes back as the event `overlay.moved {x, y, width, height}` (physical pixels) and is kept | `overlay` |
 | `telemetry.capture` | `{reason, level?: info\|warning\|error, message?, tags?}` → `true` when it went to Sentry. `reason` (`[a-z0-9_.-]`, ≤ 48) is the issue's fingerprint and gate key; `message` ≤ 300 chars, paths redacted; `tags` only `mode` `game` `source_app` `output` `phase` `component`. The launcher adds `plugin`, `plugin_version`, `plugin.reason`. | plugins Makine ships |
 | `telemetry.breadcrumb` | `{message, level?}`: context for the next event (≤ 200 chars) | plugins Makine ships |
 | `telemetry.logs` | `{lines: [{level, body, ts?} or "text"], attributes?: {log_request, mode, game, source_app}}` → `true` once Sentry Logs took them (answered after the upload; `false`: reports off, cap reached, Sentry refused — fall back to your own channel). Newest 8,000 lines / 2 MB, each ≤ 2,000 chars, paths redacted, 3 sends a session | plugins Makine ships |
@@ -243,7 +244,7 @@ click-through, never takes focus, and is excluded from screen capture
 picker): a plugin reading the screen does not read its own subtitles, and
 neither do OBS, Discord streams or screenshots, unless `showOnStream` is true
 (Windows before 10 2004: no exclusion). `game.started` and `games.running` carry
-optional `pid` and `exe` of the running game.
+optional `pid` and `exe` of the running game. A running game outside the catalogue (an installed game the library knows without a translation, or the fullscreen D3D/Vulkan process in front, never a browser, chat app or Makine itself) is reported too, with `gameId` `exe:<exe>` and `catalog: false`; the catalogue game wins when both run.
 
 `overlay.show.style` (every key optional; the launcher falls back to its defaults):
 `preset` (`classic` · `contrast` · `band` · `minimal`), `font`, `sizePx`, `maxLines`,

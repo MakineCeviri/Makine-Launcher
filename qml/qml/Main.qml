@@ -1192,6 +1192,7 @@ ApplicationWindow {
         lines: PluginManager ? PluginManager.overlayLines : []
         overlayStyle: PluginManager ? PluginManager.overlayStyle : ({})
         regionIsRead: window._liveReadsScreen
+        movable: PluginManager ? PluginManager.overlayMovable : false
     }
 
     // A Binding rather than `shown:` — the overlay assigns shown itself when new

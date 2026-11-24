@@ -59,6 +59,14 @@ public:
     /// The running game's process (0 when none) and executable name, for plugins
     quint32 runningPid() const { return m_runningPid; }
     QString runningExeName() const { return m_runningExeName; }
+    /// A running game outside the catalogue, for plugins (Makine Live): one the library
+    /// knows without a translation, or the fullscreen D3D/Vulkan process in front.
+    /// Only while no catalogue game runs. Id "exe:<exe>" (gameprocessrules.h).
+    bool otherGameRunning() const { return m_otherPid != 0; }
+    QString otherGameId() const { return m_otherId; }
+    QString otherGameName() const { return m_otherName; }
+    QString otherGameExe() const { return m_otherExe; }
+    quint32 otherGamePid() const { return m_otherPid; }
     bool hasAntiCheat() const { return m_hasAntiCheat; }
     QString antiCheatSummary() const { return m_antiCheatSummary; }
     QVariantList heavyProcesses() const { return m_heavyProcesses; }
@@ -96,6 +104,7 @@ signals:
     void runningGameChanged();
     void antiCheatChanged();
     void heavyProcessesChanged();
+    void otherGameChanged();
 
     // Emitted when a KNOWN game is detected (auto, not in library)
     void gameDetected(const QString& gameId, const QString& gameName);
@@ -123,6 +132,8 @@ private:
 
     void detectRunningGames(const QList<ProcessInfo>& processes);
     void updateHeavyProcessList(const QList<ProcessInfo>& processes);
+    void detectOtherGame(const QList<ProcessInfo>& processes, bool catalogGameRunning);
+    void setOtherGame(const QString& exe, const QString& name, quint32 pid);
     QList<ProcessInfo> getRunningProcesses();
 
 #ifdef Q_OS_WIN
@@ -145,6 +156,11 @@ private:
 
     QHash<QString, QString> m_knownProcesses;  // exe name -> appId
     QHash<QString, QString> m_appIdToPath;     // appId -> install dir
+    QHash<QString, QString> m_otherProcesses;  // exe name -> library name (installed, no translation)
+    QString m_otherId;
+    QString m_otherName;
+    QString m_otherExe;
+    quint32 m_otherPid = 0;
 
     QVariantList m_heavyProcesses;  // [{name, pid}] GPU-using processes with visible windows
     std::atomic<bool> m_scanInProgress{false};

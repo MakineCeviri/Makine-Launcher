@@ -29,8 +29,9 @@ pragma ComponentBehavior: Bound
  */
 Window {
     id: overlayWindow
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip
-           | Qt.WindowTransparentForInput | Qt.WindowDoesNotAcceptFocus
+    // Click-through unless the player is placing it (overlay.setMovable)
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip | Qt.WindowDoesNotAcceptFocus
+           | (movable ? 0 : Qt.WindowTransparentForInput)
     color: "transparent"
     visible: false
 
@@ -50,6 +51,11 @@ Window {
     property bool regionIsRead: false
     property bool _excluded: true
     readonly property bool _above: regionIsRead && _inRegion && (!_excluded || _showOnStream)
+
+    // overlay.setMovable: drag to place; the new place is kept and reported (overlayMoved)
+    property bool movable: false
+    property bool _placed: false
+    property point _place: Qt.point(0, 0)
 
     // Off when a plugin drives the overlay and hides it itself
     property bool autoHide: true
@@ -105,10 +111,10 @@ Window {
     width: _subtitle ? Math.round(_stretch) : Math.max(200, textItem.implicitWidth + 28)
     height: _subtitle ? Math.round(_roomHeight) : textItem.implicitHeight + 20
 
-    x: _subtitle
+    x: _placed ? _place.x : _subtitle
        ? Math.round((_inRegion ? sourceRegion.x + sourceRegion.width / 2 : _screenRect.x + _screenRect.width / 2) - width / 2)
        : sourceRegion.x + (sourceRegion.width - width) / 2
-    y: !_subtitle ? sourceRegion.y + sourceRegion.height + 6
+    y: _placed ? _place.y : !_subtitle ? sourceRegion.y + sourceRegion.height + 6
        : _above ? Math.round(sourceRegion.y - height + subtitle.gutter - 4)
        : _inRegion ? Math.round(sourceRegion.y + sourceRegion.height / 2 - height / 2)
        : _position === "top" ? _screenRect.y + _marginPx - subtitle.gutter
@@ -188,6 +194,34 @@ Window {
             stretchWidth: overlayWindow._stretch
             textScale: overlayWindow._screenRect.height > 0 ? overlayWindow._screenRect.height / 1080 : 1
             animate: overlayWindow._animate
+        }
+    }
+
+    // While movable: drag anywhere on it; once it rests, keep and report the place
+    MouseArea {
+        anchors.fill: parent
+        enabled: overlayWindow.movable
+        cursorShape: enabled ? Qt.SizeAllCursor : Qt.ArrowCursor
+        onPressed: overlayWindow.startSystemMove()
+    }
+    Rectangle {
+        anchors.fill: parent
+        visible: overlayWindow.movable
+        color: "transparent"
+        radius: 12
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.6)
+    }
+    onXChanged: if (movable) placeTimer.restart()
+    onYChanged: if (movable) placeTimer.restart()
+    Timer {
+        id: placeTimer
+        interval: 300
+        onTriggered: {
+            overlayWindow._place = Qt.point(overlayWindow.x, overlayWindow.y)
+            overlayWindow._placed = true
+            if (typeof PluginManager !== "undefined" && PluginManager)
+                PluginManager.overlayMoved(overlayWindow.x, overlayWindow.y, overlayWindow.width, overlayWindow.height)
         }
     }
 

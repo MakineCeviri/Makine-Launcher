@@ -334,6 +334,15 @@ QVariantList GameService::games() const
     return m_gamesCache;
 }
 
+QVariantList GameService::otherInstalledGames() const
+{
+    QVariantList out;
+    for (const auto& game : m_games)
+        if (game.isInstalled && !game.hasTranslation && !game.installPath.isEmpty())
+            out.append(QVariantMap{{"id", game.id}, {"name", game.name}, {"installPath", game.installPath}});
+    return out;
+}
+
 void GameService::noteScreen(const QString& screen, const QString& gameId)
 {
     const QString text = gameId.isEmpty() ? screen : screen + QStringLiteral(" ") + gameId;

@@ -10,6 +10,7 @@
 #include "processscanner.h"
 #include "gameservice.h"
 #include "localpackagemanager.h"
+#include "gameprocessrules.h"
 #include "profiler.h"
 #include <QGuiApplication>
 #include <QLoggingCategory>
@@ -46,6 +47,68 @@ private:
 Q_LOGGING_CATEGORY(lcProcessScanner, "makine.process")
 
 namespace makine {
+
+namespace {
+// A game's executables: the install root and the usual subfolders (6–9 dir listings),
+// without installers, redistributables and crash handlers.
+template <typename Fn>
+void forEachGameExe(const QString& path, Fn&& fn)
+{
+    static const QStringList kExeDirs = {
+        QStringLiteral("."),
+        QStringLiteral("Game"),
+        QStringLiteral("Binaries/Win64"),
+        QStringLiteral("Binaries/Win32"),
+        QStringLiteral("bin"),
+        QStringLiteral("bin/x64"),
+        QStringLiteral("x64"),
+        QStringLiteral("Shipping"),
+        QStringLiteral("Game/Binaries/Win64"),
+    };
+    const auto isToolExe = [](const QString& name) {
+        return name.startsWith(QLatin1String("unins"))
+            || name.startsWith(QLatin1String("setup"))
+            || name.startsWith(QLatin1String("redist"))
+            || name.startsWith(QLatin1String("vcredist"))
+            || name.startsWith(QLatin1String("dxsetup"))
+            || name.startsWith(QLatin1String("dotnet"))
+            || name.contains(QLatin1String("prerequisite"))
+            || name.contains(QLatin1String("crashreport"))
+            || name.contains(QLatin1String("crashhandler"))
+            || name == QLatin1String("updater.exe")
+            || name == QLatin1String("ue4prerequesitiessetup.exe");
+    };
+    for (const QString& subDir : kExeDirs) {
+        QDir dir(path + QLatin1Char('/') + subDir);
+        if (!dir.exists()) continue;
+        for (const QString& exe : dir.entryList({QStringLiteral("*.exe")}, QDir::Files, QDir::NoSort)) {
+            const QString lowerExe = exe.toLower();
+            if (!isToolExe(lowerExe)) fn(lowerExe);
+        }
+    }
+}
+
+#ifdef Q_OS_WIN
+// The foreground window's process, when the window covers its whole monitor
+// (exclusive fullscreen or borderless). 0 otherwise.
+DWORD fullscreenForegroundPid()
+{
+    const HWND hwnd = GetForegroundWindow();
+    if (!hwnd || !IsWindowVisible(hwnd)) return 0;
+    RECT rect{};
+    if (!GetWindowRect(hwnd, &rect)) return 0;
+    MONITORINFO mi{};
+    mi.cbSize = sizeof(mi);
+    if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi)) return 0;
+    if (rect.left > mi.rcMonitor.left || rect.top > mi.rcMonitor.top
+        || rect.right < mi.rcMonitor.right || rect.bottom < mi.rcMonitor.bottom)
+        return 0;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    return pid;
+}
+#endif
+} // namespace
 
 ProcessScanner::ProcessScanner(QObject *parent)
     : QObject(parent)
@@ -109,6 +172,7 @@ void ProcessScanner::rebuildProcessMap()
 {
     m_knownProcesses.clear();
     m_appIdToPath.clear();
+    m_otherProcesses.clear();
 
     // === Layer 1: Scan actual exe files from installed game directories ===
     // This is the most reliable source - reads real files from the user's disk.
@@ -124,52 +188,18 @@ void ProcessScanner::rebuildProcessMap()
             m_appIdToPath.insert(appId, path);
 
             // Scan game directory for .exe files in known locations.
-            // Game executables live in root or common subdirectories:
-            //   root/, Game/, Binaries/Win64/, bin/, bin/x64/, x64/
-            // Scanning a fixed list is fast (6 dir listings) and covers 99% of games.
-            static const QStringList kExeDirs = {
-                QStringLiteral("."),
-                QStringLiteral("Game"),
-                QStringLiteral("Binaries/Win64"),
-                QStringLiteral("Binaries/Win32"),
-                QStringLiteral("bin"),
-                QStringLiteral("bin/x64"),
-                QStringLiteral("x64"),
-                QStringLiteral("Shipping"),
-                QStringLiteral("Game/Binaries/Win64"),
-            };
+            forEachGameExe(path, [&](const QString& lowerExe) {
+                if (!m_knownProcesses.contains(lowerExe)) m_knownProcesses.insert(lowerExe, appId);
+            });
+        }
 
-            // Exe names to skip (installers, redistributables, crash handlers)
-            auto isToolExe = [](const QString& name) {
-                return name.startsWith(QLatin1String("unins"))
-                    || name.startsWith(QLatin1String("setup"))
-                    || name.startsWith(QLatin1String("redist"))
-                    || name.startsWith(QLatin1String("vcredist"))
-                    || name.startsWith(QLatin1String("dxsetup"))
-                    || name.startsWith(QLatin1String("dotnet"))
-                    || name.contains(QLatin1String("prerequisite"))
-                    || name.contains(QLatin1String("crashreport"))
-                    || name.contains(QLatin1String("crashhandler"))
-                    || name == QLatin1String("updater.exe")
-                    || name == QLatin1String("ue4prerequesitiessetup.exe");
-            };
-
-            for (const QString& subDir : kExeDirs) {
-                QDir dir(path + QLatin1Char('/') + subDir);
-                if (!dir.exists()) continue;
-
-                const QStringList exeFiles = dir.entryList(
-                    {QStringLiteral("*.exe")}, QDir::Files, QDir::NoSort);
-
-                for (const QString& exe : exeFiles) {
-                    QString lowerExe = exe.toLower();
-                    if (isToolExe(lowerExe)) continue;
-
-                    if (!m_knownProcesses.contains(lowerExe)) {
-                        m_knownProcesses.insert(lowerExe, appId);
-                    }
-                }
-            }
+        // === Layer 1b: installed games without a translation (for plugins: Makine Live) ===
+        for (const auto& g : m_gameService->otherInstalledGames()) {
+            const QVariantMap map = g.toMap();
+            const QString name = map.value("name").toString();
+            forEachGameExe(map.value("installPath").toString(), [&](const QString& lowerExe) {
+                if (!m_otherProcesses.contains(lowerExe)) m_otherProcesses.insert(lowerExe, name);
+            });
         }
     }
 
@@ -313,8 +343,53 @@ void ProcessScanner::detectRunningGames(const QList<ProcessInfo>& processes)
             qCDebug(lcProcessScanner) << "Game closed:" << previousGameId;
         }
     }
+    detectOtherGame(processes, foundGame);
 #else
     Q_UNUSED(processes)
+#endif
+}
+
+void ProcessScanner::setOtherGame(const QString& exe, const QString& name, quint32 pid)
+{
+    if (pid == m_otherPid && exe == m_otherExe) return;
+    m_otherExe = exe;
+    m_otherName = name;
+    m_otherPid = pid;
+    m_otherId = pid ? gameprocessrules::otherGameId(exe) : QString();
+    qCDebug(lcProcessScanner) << "Other game:" << (pid ? name : QStringLiteral("none")) << exe << pid;
+    emit otherGameChanged();
+}
+
+// A game outside the catalogue: kept while its process lives; otherwise a library game
+// without a translation, else the fullscreen D3D/Vulkan process in front.
+void ProcessScanner::detectOtherGame(const QList<ProcessInfo>& processes, bool catalogGameRunning)
+{
+#ifdef Q_OS_WIN
+    if (catalogGameRunning) return setOtherGame({}, {}, 0);
+    if (m_otherPid) {
+        for (const auto& proc : processes)
+            if (proc.pid == m_otherPid && proc.exeName.compare(m_otherExe, Qt::CaseInsensitive) == 0) return;
+        setOtherGame({}, {}, 0);
+    }
+    for (const auto& proc : processes) {
+        const auto it = m_otherProcesses.constFind(proc.exeName.toLower());
+        if (it != m_otherProcesses.cend() && !gameprocessrules::isExcludedExe(proc.exeName))
+            return setOtherGame(proc.exeName.toLower(), it.value(), proc.pid);
+    }
+    const DWORD pid = fullscreenForegroundPid();
+    if (!pid || pid == GetCurrentProcessId()) return;
+    for (const auto& proc : processes) {
+        if (proc.pid != pid) continue;
+        if (gameprocessrules::looksLikeForegroundGame(proc.exeName, true, isProcessUsingGpu(pid))) {
+            QString name = proc.exeName;
+            name.remove(QLatin1String(".exe"), Qt::CaseInsensitive);
+            setOtherGame(proc.exeName.toLower(), name, pid);
+        }
+        return;
+    }
+#else
+    Q_UNUSED(processes)
+    Q_UNUSED(catalogGameRunning)
 #endif
 }
 

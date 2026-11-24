@@ -248,6 +248,11 @@ void PluginManager::setGameService(GameService* service)
 // the PC region only while that process's window is in front)
 QJsonObject PluginManager::runningGameJson() const
 {
+    // A game outside the catalogue has no catalogue id: "exe:<exe>", and catalog false
+    if (!m_processScanner->gameRunning() && m_processScanner->otherGameRunning())
+        return QJsonObject{{"gameId", m_processScanner->otherGameId()}, {"name", m_processScanner->otherGameName()},
+                           {"pid", qint64(m_processScanner->otherGamePid())}, {"exe", m_processScanner->otherGameExe()},
+                           {"catalog", false}};
     QJsonObject game{{"gameId", m_processScanner->runningGameId()}, {"name", m_processScanner->runningGameName()}};
     if (const quint32 pid = m_processScanner->runningPid()) game.insert(QStringLiteral("pid"), qint64(pid));
     if (const QString exe = m_processScanner->runningExeName(); !exe.isEmpty()) game.insert(QStringLiteral("exe"), exe);
@@ -259,7 +264,8 @@ void PluginManager::setProcessScanner(ProcessScanner* scanner)
     m_processScanner = scanner;
     if (!scanner) return;
     const auto onChange = [this] {
-        const QString now = m_processScanner->gameRunning() ? m_processScanner->runningGameId() : QString();
+        const QString now = m_processScanner->gameRunning() ? m_processScanner->runningGameId()
+                          : m_processScanner->otherGameRunning() ? m_processScanner->otherGameId() : QString();
         if (now == m_runningGameId) return;
         if (!m_runningGameId.isEmpty())
             broadcast(QStringLiteral("game.stopped"), {{"gameId", m_runningGameId}});
@@ -269,6 +275,7 @@ void PluginManager::setProcessScanner(ProcessScanner* scanner)
     };
     connect(scanner, &ProcessScanner::runningGameChanged, this, onChange);
     connect(scanner, &ProcessScanner::gameRunningChanged, this, onChange);
+    connect(scanner, &ProcessScanner::otherGameChanged, this, onChange);
 }
 
 // ── Lifecycle ───────────────────────────────────────────────────────────────
@@ -738,6 +745,16 @@ bool PluginManager::keepOutOfCapture(QObject* window, bool excluded)
     }
     qCDebug(lcPlugin) << "capture affinity not set, error" << error;
     return false;
+}
+
+void PluginManager::overlayMoved(int x, int y, int width, int height)
+{
+    Installed* p = m_overlay.moveOwner.isEmpty() ? nullptr : find(m_overlay.moveOwner);
+    if (!p || !p->process || !p->process->isReady()) return;
+    const QRect physical = toPhysical(QRect(x, y, width, height));
+    p->process->sendEvent(QStringLiteral("overlay.moved"),
+                          QJsonObject{{"x", physical.x()}, {"y", physical.y()},
+                                      {"width", physical.width()}, {"height", physical.height()}});
 }
 
 bool PluginManager::openUrl(const QString& url)
@@ -1233,7 +1250,8 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
         return reply(true);
     }
     if (method == QLatin1String("games.running")) {
-        if (!m_processScanner || !m_processScanner->gameRunning()) return reply(QJsonValue::Null);
+        if (!m_processScanner || (!m_processScanner->gameRunning() && !m_processScanner->otherGameRunning()))
+            return reply(QJsonValue::Null);
         return reply(runningGameJson());
     }
     if (method == QLatin1String("games.list")) {
@@ -1304,6 +1322,13 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
         }
         m_overlay.style = sanitizeOverlayStyle(params.value(u"style").toObject());
         m_overlay.visible = true;
+        emit overlayChanged();
+        return reply(true);
+    }
+    if (method == QLatin1String("overlay.setMovable")) {
+        if (!needs("overlay")) return;
+        m_overlay.movable = params.value(u"on").toBool();
+        m_overlay.moveOwner = m_overlay.movable ? p.id : QString();
         emit overlayChanged();
         return reply(true);
     }
