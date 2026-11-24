@@ -76,8 +76,8 @@ inline bool isKnownAction(const QString& action)
 //
 // The cause nearest the end wins. AC Valhalla's tool lists every archive first — some
 // "FARKLI SURUM" — then rebuilds them from its translation anyway and stops on its last
-// line: a file it could not write, or an index it could not match (Sentry 2026-11-23: 74
-// players filed as "another game version", most of them a locked or read-only file).
+// line: an index it could not match (6 of 10 sampled), a crash, or a file it could not
+// write (Sentry 2026-11-23) — only the last line tells them apart.
 // The scripts close with their own help ("Kurulum yapilamadi; yukaridaki mesaja bakin",
 // what to do when "access denied" shows), which names every cause and is cut off first.
 struct ToolCauseRule {
