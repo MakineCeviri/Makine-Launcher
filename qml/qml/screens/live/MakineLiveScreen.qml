@@ -105,6 +105,10 @@ Item {
     readonly property bool _sourceOk: _consoleMode ? _hasSource : _hasRegion
     readonly property bool _ready: _loginState === "signedIn" && _sourceOk && _server.maintenance !== true
     readonly property var _announcements: Array.isArray(_state.announcements) ? _state.announcements : []
+    // This session's lines, newest first (plugin keeps ~50): [{source, text, kind}]
+    readonly property var _history: Array.isArray(_state.history) ? _state.history.slice().reverse() : []
+    // Hotkeys (plugin settings, F8/F9/F10 by default) and what failed to register
+    readonly property var _hotkeys: _state.hotkeys || ({})
     readonly property string _output: _consoleMode ? (_state.output || "pc") : "pc"
     readonly property var _web: _state.web || ({})
     readonly property var _tv: _state.tv || ({})
@@ -772,6 +776,38 @@ Item {
                 }
             }
 
+            // ── 4b. Bu oturum: the lines read so far ──
+            ListSection {
+                id: historySection
+                Layout.fillWidth: true
+                Layout.leftMargin: Dimensions.pageMargin
+                Layout.rightMargin: Dimensions.pageMargin
+                visible: live._running && live._history.length > 0
+                title: qsTr("Bu oturum")
+                footer: qsTr("Bu oturumda okunan son satırlar; en yenisi üstte.")
+
+                property bool all: false
+
+                Repeater {
+                    model: historySection.all ? live._history : live._history.slice(0, 5)
+                    ListRow {
+                        required property var modelData
+                        icon: modelData.kind === "verified" ? Icons.circleCheck : Icons.languages
+                        iconTint: modelData.kind === "verified" ? Theme.success : Theme.textMuted
+                        title: modelData.text || modelData.tr || ""
+                        subtitle: (modelData.source || modelData.en || "")
+                                  + (modelData.kind === "verified" ? "  ·  " + qsTr("onaylı") : "  ·  " + qsTr("makine çevirisi"))
+                    }
+                }
+                ListRow {
+                    visible: live._history.length > 5
+                    icon: Icons.history
+                    title: historySection.all ? qsTr("Daha az göster") : qsTr("Hepsini göster (%1)").arg(live._history.length)
+                    clickable: true
+                    onClicked: historySection.all = !historySection.all
+                }
+            }
+
             // ── 5a. Hesap ──
             Item {
                 id: accountSection
@@ -1295,6 +1331,14 @@ Item {
                         text: qsTr("Kapat")
                         onClicked: live._call("support.dismiss")
                     }
+                }
+                ListRow {
+                    icon: Icons.keyboard
+                    title: qsTr("Kısayollar")
+                    subtitle: live._hotkeys.error ? live._hotkeys.error
+                            : qsTr("%1 altyazı kutusunu taşır · %2 başlatır ya da durdurur · %3 bölge seçtirir")
+                                  .arg(live._hotkeys.move || "F8").arg(live._hotkeys.toggle || "F9").arg(live._hotkeys.region || "F10")
+                    iconTint: live._hotkeys.error ? Theme.warning : Theme.primary
                 }
                 ListRow {
                     visible: live._running
