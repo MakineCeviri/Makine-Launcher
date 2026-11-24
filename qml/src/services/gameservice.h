@@ -439,6 +439,17 @@ public:
     Q_INVOKABLE QVariantMap getCatalogEntry(const QString& steamAppId) const;
 
     /**
+     * @brief The game's patches for the game page's picker and compatibility line
+     *
+     * {anyInstalled, installedPkg, current: {build, source ("installed"/"latest"/""),
+     *  date}, options: [{pkg ("" = default), label, description, contributors,
+     *  version, sizeBytes, downloadSize, gameVersion {label, steamBuild, date},
+     *  installed, action ("install"/"switch"/"update"/"installed"), comingSoon,
+     *  warn}]} — the default first, then the alternatives in index order.
+     */
+    Q_INVOKABLE QVariantMap patchOptions(const QString& gameId) const;
+
+    /**
      * @brief Catalogue entries by package date ("version", YYYY-MM-DD), newest
      * first; at most `limit`. Refreshes with supportedGamesModel.
      */

@@ -13,9 +13,12 @@
 #include "networksecurity.h"
 #include "profiler.h"
 #include "installsteprules.h"
+#include "patchcompat.h"
 
+#include <makine/package_catalog.hpp>
 #include <makine/path_utils.hpp>
 
+#include <QDir>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -37,34 +40,40 @@ DetailFetcher::DetailFetcher(QObject* parent)
 
 // ========== Public API ==========
 
-void DetailFetcher::fetch(const QString& appId)
+bool DetailFetcher::validPkg(const QString& pkg)
+{
+    return pkg.isEmpty() || packages::isValidAlternativeId(pkg.toStdString());
+}
+
+void DetailFetcher::fetch(const QString& appId, const QString& pkg)
 {
     MAKINE_ZONE_NAMED("DetailFetcher::fetch");
 
-    if (appId.isEmpty() || m_pending.contains(appId))
+    const QString key = patchcompat::detailKey(appId, pkg);
+    if (appId.isEmpty() || m_pending.contains(key))
         return;
 
     // Security: validate appId before any file path construction
-    if (makine::path::containsTraversalPattern(appId.toStdString())) {
-        qCWarning(lcDetailFetcher) << "DetailFetcher: rejecting traversal in appId:" << appId;
+    if (makine::path::containsTraversalPattern(appId.toStdString()) || !validPkg(pkg)) {
+        qCWarning(lcDetailFetcher) << "DetailFetcher: rejecting traversal in appId:" << appId << pkg;
         return;
     }
 
     // Check in-memory cache
-    if (m_details.contains(appId)) {
+    if (m_details.contains(key)) {
         emit detailReady(appId);
         return;
     }
 
     // Check disk cache
-    const QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(appId);
+    const QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(key);
     if (QFile::exists(cachePath)) {
         QFile file(cachePath);
         if (file.open(QIODevice::ReadOnly)) {
             QJsonParseError err;
             const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &err);
             if (err.error == QJsonParseError::NoError && doc.isObject()) {
-                m_details.insert(appId, doc.object().toVariantMap());
+                m_details.insert(key, doc.object().toVariantMap());
                 emit detailReady(appId);
                 return;
             }
@@ -72,9 +81,9 @@ void DetailFetcher::fetch(const QString& appId)
     }
 
     // Fetch from API
-    m_pending.insert(appId);
+    m_pending.insert(key);
 
-    QNetworkRequest req{QUrl{detailUrl(appId)}};
+    QNetworkRequest req{QUrl{detailUrl(appId, pkg)}};
     // Which recipe steps this build runs; without it the API serves the
     // recipe kept for 0.1.5 (installsteprules.h).
     req.setRawHeader("X-Makine-Recipe", QByteArray::number(steprules::kRecipeLevel));
@@ -89,12 +98,12 @@ void DetailFetcher::fetch(const QString& appId)
     QNetworkReply* reply = m_nam.get(req);
     security::installSizeGuard(reply, 1 * 1024 * 1024);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, appId]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, appId, key]() {
         reply->deleteLater();
-        m_pending.remove(appId);
+        m_pending.remove(key);
 
         if (reply->error() != QNetworkReply::NoError) {
-            qCWarning(lcDetailFetcher) << "DetailFetcher: network error for" << appId
+            qCWarning(lcDetailFetcher) << "DetailFetcher: network error for" << key
                                        << reply->errorString();
             emit detailReady(appId);
             return;
@@ -102,43 +111,58 @@ void DetailFetcher::fetch(const QString& appId)
 
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         if (status >= 200 && status < 300) {
-            onFetched(appId, reply->readAll());
+            onFetched(appId, key, reply->readAll());
         } else {
-            qCWarning(lcDetailFetcher) << "DetailFetcher: HTTP" << status << "for" << appId;
+            qCWarning(lcDetailFetcher) << "DetailFetcher: HTTP" << status << "for" << key;
             emit detailReady(appId);
         }
     });
 }
 
-QVariantMap DetailFetcher::get(const QString& appId) const
+QVariantMap DetailFetcher::get(const QString& appId, const QString& pkg) const
 {
-    return m_details.value(appId);
+    return m_details.value(patchcompat::detailKey(appId, pkg));
 }
 
-bool DetailFetcher::has(const QString& appId) const
+bool DetailFetcher::has(const QString& appId, const QString& pkg) const
 {
-    if (m_details.contains(appId))
+    const QString key = patchcompat::detailKey(appId, pkg);
+    if (m_details.contains(key))
         return true;
 
-    if (m_diskCache.contains(appId))
+    if (m_diskCache.contains(key))
         return true;
+
+    if (!validPkg(pkg))
+        return false;
 
     // Cold path: disk check
-    const QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(appId);
+    const QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(key);
     const bool exists = QFile::exists(cachePath);
     if (exists)
-        m_diskCache.insert(appId);
+        m_diskCache.insert(key);
     return exists;
 }
 
 void DetailFetcher::invalidate(const QString& appId)
 {
-    m_details.remove(appId);
-    m_diskCache.remove(appId);
+    // The default's detail and every alternative's: "<appId>" and "<appId>--*"
+    const QString altPrefix = appId + QStringLiteral("--");
+    const auto drop = [&](const QString& key) {
+        return key == appId || key.startsWith(altPrefix);
+    };
+    m_details.removeIf([&](const auto& it) { return drop(it.key()); });
+    m_diskCache.removeIf([&](const QString& key) { return drop(key); });
 
     // Deferred deletion — cache is already invalidated in memory
-    const QString path = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(appId);
-    QTimer::singleShot(0, this, [path]() { QFile::remove(path); });
+    const QString dir = AppPaths::packageDetailDir();
+    QTimer::singleShot(0, this, [dir, appId, altPrefix]() {
+        QFile::remove(dir + QStringLiteral("/%1.json").arg(appId));
+        const QStringList alts = QDir(dir).entryList({altPrefix + QStringLiteral("*.json")},
+                                                     QDir::Files);
+        for (const QString& f : alts)
+            QFile::remove(dir + QLatin1Char('/') + f);
+    });
 }
 
 void DetailFetcher::invalidateAll()
@@ -149,33 +173,36 @@ void DetailFetcher::invalidateAll()
 
 // ========== Internal ==========
 
-void DetailFetcher::onFetched(const QString& appId, const QByteArray& data)
+void DetailFetcher::onFetched(const QString& appId, const QString& key, const QByteArray& data)
 {
     QJsonParseError err;
     const QJsonDocument doc = QJsonDocument::fromJson(data, &err);
 
     if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-        qCWarning(lcDetailFetcher) << "DetailFetcher: invalid JSON for" << appId;
+        qCWarning(lcDetailFetcher) << "DetailFetcher: invalid JSON for" << key;
         emit detailReady(appId);
         return;
     }
 
-    m_details.insert(appId, doc.object().toVariantMap());
+    m_details.insert(key, doc.object().toVariantMap());
 
     // Cache to disk
-    const QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(appId);
+    const QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(key);
     QFile file(cachePath);
     if (file.open(QIODevice::WriteOnly)) {
         file.write(data);
-        m_diskCache.insert(appId);
+        m_diskCache.insert(key);
     }
 
     emit detailReady(appId);
 }
 
-QString DetailFetcher::detailUrl(const QString& appId)
+QString DetailFetcher::detailUrl(const QString& appId, const QString& pkg)
 {
-    return QLatin1String(cdn::kGameDetail) + appId;
+    QString url = QLatin1String(cdn::kGameDetail) + appId;
+    if (!pkg.isEmpty())
+        url += QStringLiteral("?pkg=") + pkg;   // [a-z0-9-] only (validPkg)
+    return url;
 }
 
 } // namespace makine

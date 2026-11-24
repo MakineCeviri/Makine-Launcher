@@ -16,6 +16,7 @@
  *   assets/images/{id}.png      - Game cover images (260x370)
  *   assets/banners/{name}.png   - Announcement banners
  *   assets/launcher.json        - Launcher versions, notes, plan (0.2.3+)
+ *   assets/game-builds.json     - Latest Steam public build per game (patch compatibility)
  *   assets/update.json          - Self-update metadata (0.2.2 and older)
  *   data/{id}.makine            - Encrypted translation packages
  */
@@ -47,6 +48,9 @@ inline constexpr auto kPluginIndexSig = "https://cdn.makineceviri.org/assets/plu
 
 // Catalog API (static JSON — served via Cloudflare Workers + Assets)
 inline constexpr auto kCatalogUrl   = "https://cdn.makineceviri.org/assets/index.json";
+// Latest Steam public build per game, written by the Worker cron when it
+// changes: {generatedAt, builds: {appId: {steamBuild, date}}} (gamebuilds.h)
+inline constexpr auto kGameBuilds   = "https://cdn.makineceviri.org/assets/game-builds.json";
 inline constexpr auto kCatalogMeta  = "https://makineceviri.org/api/v2/catalog/meta";
 inline constexpr auto kCatalogDelta = "https://makineceviri.org/api/v2/catalog/delta";
 inline constexpr auto kGameDetail   = "https://makineceviri.org/api/v2/games/";

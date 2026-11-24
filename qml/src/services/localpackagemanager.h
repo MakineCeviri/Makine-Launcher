@@ -90,6 +90,8 @@ struct PackageInfo {
     QMap<QString, QList<InstallStep>> combinedSteps; // e.g. "dubbing+patch" -> steps
     QString specialDialog;          // "" or "eldenRing"
     QMap<QString, VariantConfigQt> variantInstallOptions; // variant -> options config
+    QString pkg;                    // which patch: "" = default, else an alternative id
+    QString label;                  // that patch's own name ("" = "Türkçe yama")
 };
 
 struct InstalledPackageInfo {
@@ -98,6 +100,8 @@ struct InstalledPackageInfo {
     QStringList installedFiles;     // All files (compatibility)
     QStringList addedFiles;         // New files (didn't exist in game)
     QStringList replacedFiles;      // Overwritten files (existed, backed up)
+    QString pkg;                    // which patch was installed: "" = default (old records too)
+    QString dirName;                // its folder under packages/ ("" = unknown)
     QString gameStoreVersion;       // Store buildid at install time
     QString gameSource;             // "steam", "epic", "gog"
     qint64 installedAt{0};
@@ -113,6 +117,10 @@ public:
     bool loadFromIndex(const QString& indexPath, const QString& packageCacheRoot);
     bool enrichPackageDetail(const QString& steamAppId, const QByteArray& jsonData);
     bool isDetailLoaded(const QString& steamAppId) const;
+    // Patch alternatives (core PackageCatalog::activePackage & co.)
+    QString activePackage(const QString& steamAppId) const;
+    void setPendingPackage(const QString& steamAppId, const QString& pkg);
+    void clearPendingPackage(const QString& steamAppId);
 
     bool hasPackage(const QString& steamAppId) const;
     std::optional<PackageInfo> getPackage(const QString& steamAppId) const;

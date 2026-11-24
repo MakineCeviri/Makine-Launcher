@@ -26,6 +26,9 @@ ColumnLayout {
     signal translateClicked()
     signal updateClicked()
     signal uninstallClicked()
+    // A game with several patches (PatchPicker)
+    signal installPatchRequested(string pkg)
+    signal switchPatchRequested(string pkg)
 
     // A folder dropped on the page or picked elsewhere: GameFolderBar takes it.
     function inspectFolder(url) {
@@ -336,12 +339,26 @@ ColumnLayout {
         Layout.preferredWidth: heroRoot._width
         spacing: 18
 
+        // The game version the patch was made for; a warning when the game
+        // is newer than that
+        CompatibilityNote {
+            vm: heroRoot.vm
+        }
+
         // A game update broke the patch, or its files are gone
         UpdateBanner {
             vm: heroRoot.vm
             Layout.leftMargin: 0
             Layout.rightMargin: 0
             Layout.topMargin: 0
+        }
+
+        // Several patches for this game: which one, and switching between them
+        PatchPicker {
+            vm: heroRoot.vm
+            onInstallRequested: (pkg) => heroRoot.installPatchRequested(pkg)
+            onSwitchRequested: (pkg) => heroRoot.switchPatchRequested(pkg)
+            onUpdateRequested: heroRoot.updateClicked()
         }
 
         // What a patch's own installer prints, and the answers to it

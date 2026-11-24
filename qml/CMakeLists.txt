@@ -153,6 +153,8 @@ set(BACKEND_HEADERS
     src/services/manifestsyncservice.h
     src/services/catalogstore.h
     src/services/detailfetcher.h
+    src/services/patchcompat.h
+    src/services/steammanifest.h
     src/services/telemetryservice.h
     src/services/translationdownloader.h
     src/services/supportedgamesmodel.h
@@ -240,6 +242,8 @@ qt_add_qml_module(MakineLauncher
         qml/screens/detail/TranslationActionButton.qml
         qml/screens/detail/AboutSection.qml
         qml/screens/detail/UpdateBanner.qml
+        qml/screens/detail/PatchPicker.qml
+        qml/screens/detail/CompatibilityNote.qml
         qml/screens/detail/GameFolderBar.qml
         qml/screens/detail/ProgramConsole.qml
         qml/screens/detail/ContributorsSection.qml

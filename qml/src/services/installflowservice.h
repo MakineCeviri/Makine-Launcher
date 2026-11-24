@@ -19,6 +19,8 @@
 #include <QVariantMap>
 #include <QVariantList>
 #include <QHash>
+#include <QPair>
+#include <QSet>
 
 namespace makine {
 
@@ -40,6 +42,19 @@ public:
     // Entry points
     Q_INVOKABLE void startInstall(const QString& gameId, const QString& gameName);
     Q_INVOKABLE void startUpdate(const QString& gameId, const QString& gameName);
+    /**
+     * @brief Install one of the game's patches ("" = the default; alternatives:
+     * index.json "alternatives"). Its detail comes from ?pkg=, its package
+     * and folder are its own, and the install record keeps which one it is.
+     */
+    Q_INVOKABLE void startInstallPackage(const QString& gameId, const QString& gameName,
+                                         const QString& pkg);
+    /**
+     * @brief Replace the installed patch with another: uninstall (the usual
+     * flow, backups restored), then install  pkg. One patch per game.
+     */
+    Q_INVOKABLE void startSwitchPackage(const QString& gameId, const QString& gameName,
+                                        const QString& pkg);
 
     // Dialog callbacks
     Q_INVOKABLE void onAntiCheatContinue(const QString& gameId, const QString& gameName);
@@ -63,6 +78,9 @@ signals:
     void installError(const QString& gameId, const QString& error);
 
 private:
+    void beginInstall(const QString& gameId, const QString& gameName);
+    /// An install that will not happen: the entry goes back to the installed patch
+    void dropPendingPackage(const QString& gameId);
     void continueAfterAntiCheat(const QString& gameId, const QString& gameName);
     void continueWithDetail(const QString& gameId, const QString& gameName);
     void continueAfterNotes(const QString& gameId, const QString& gameName);
@@ -101,6 +119,11 @@ private:
 
     // Pending variant data (for onVariantSelected callback)
     QVariantMap m_pendingVariantData;
+
+    // Patch switches waiting for their uninstall: gameId -> {gameName, pkg}
+    QHash<QString, QPair<QString, QString>> m_pendingSwitches;
+    // Installs waiting for "Yine de kur" (GameService::installNeedsConfirmation)
+    QSet<QString> m_heldInstalls;
 };
 
 } // namespace makine

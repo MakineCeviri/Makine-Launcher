@@ -1381,6 +1381,13 @@ static void wireSignals(
         gameService->settleOnQuit();
     });
 
+    // A game's detail is the detail of the patch its catalogue entry describes
+    // (the default, or an alternative being installed or installed).
+    manifestSync->setActivePackageResolver([](const QString& appId) {
+        auto* bridge = makine::CoreBridge::instance();
+        return bridge ? bridge->activePackage(appId) : QString();
+    });
+
     // Connect ManifestSync signals BEFORE syncing,
     // so catalogReady/packageDetailReady are never missed.
     QObject::connect(manifestSync, &makine::ManifestSyncService::catalogReady,

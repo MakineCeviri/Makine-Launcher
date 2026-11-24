@@ -27,6 +27,7 @@
 #include "pathsecurity.h"
 #include "rawfile.h"
 #include "packagestamp.h"
+#include "patchcompat.h"
 #include "processscanner.h"
 #include "processconsole.h"
 #include <QCryptographicHash>
@@ -3398,6 +3399,27 @@ QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
     for (const auto& entry : catalog) {
         QVariantMap m = entry.toMap();
         if (m.value("steamAppId").toString() == steamAppId) {
+            // Another patch than the default is being installed or is
+            // installed: what downloads and verifies is that patch's.
+            const QString pkg = m_coreBridge ? m_coreBridge->activePackage(steamAppId) : QString();
+            if (!pkg.isEmpty()) {
+                for (const QVariant& a : m.value(QStringLiteral("alternatives")).toList()) {
+                    const QVariantMap alt = a.toMap();
+                    if (alt.value(QStringLiteral("id")).toString() != pkg)
+                        continue;
+                    for (const char* key : {"version", "sizeBytes", "downloadSize", "dataUrl",
+                                            "checksum", "contributors", "label", "gameVersion",
+                                            "comingSoon"})
+                        m.insert(QLatin1String(key), alt.value(QLatin1String(key)));
+                    // Its own folder; the catalogue's core entry knows it when
+                    // the index left it out (<dirName>--<id>).
+                    const QString dir = alt.value(QStringLiteral("dirName")).toString();
+                    m.insert(QStringLiteral("dirName"),
+                             dir.isEmpty() ? m_coreBridge->getPackageDirName(steamAppId) : dir);
+                    break;
+                }
+            }
+            m.insert(QStringLiteral("pkg"), pkg);
             // Enrich with dirName from local manifest if missing
             if (!m.contains("dirName") && m_coreBridge) {
                 QString dirName = m_coreBridge->getPackageDirName(steamAppId);
@@ -3409,6 +3431,89 @@ QVariantMap GameService::getCatalogEntry(const QString& steamAppId) const
     }
     qCDebug(lcGameService) << "GameService::getCatalogEntry: not found for" << steamAppId;
     return {};
+}
+
+QVariantMap GameService::patchOptions(const QString& gameId) const
+{
+    const QVariantMap game = getGameById(gameId);
+    QString appId = game.value(QStringLiteral("steamAppId")).toString();
+    if (appId.isEmpty())
+        appId = gameId;
+
+    // The default's own keys come from the catalogue entry itself, not from
+    // getCatalogEntry (which shows the active patch).
+    QVariantMap base;
+    for (const QVariant& v : supportedGames()) {
+        const QVariantMap m = v.toMap();
+        if (m.value(QStringLiteral("steamAppId")).toString() == appId) { base = m; break; }
+    }
+    if (base.isEmpty())
+        return {};
+
+    const bool anyInstalled = m_coreBridge && m_coreBridge->isPackageInstalled(gameId);
+    const auto record = (anyInstalled && m_coreBridge) ? m_coreBridge->getInstalledInfo(gameId)
+                                                      : std::nullopt;
+    const QString installedPkg = record ? record->pkg : QString();
+    const bool hasUpdate = anyInstalled && hasTranslationUpdate(gameId);
+
+    // The game's build: the installed copy's, else Steam's latest public one
+    // (game-builds.json, or the detail's latestBuild while that is missing).
+    const QVariantMap own = m_coreBridge ? m_coreBridge->installedGameBuild(gameId) : QVariantMap{};
+    const qint64 installedBuild = own.value(QStringLiteral("buildId")).toLongLong();
+    QVariantMap latest = m_manifestSync ? m_manifestSync->latestGameBuild(appId) : QVariantMap{};
+    if (latest.isEmpty() && m_manifestSync && m_manifestSync->hasPackageDetail(appId)) {
+        const QVariant lb = m_manifestSync->getPackageDetail(appId).value(QStringLiteral("latestBuild"));
+        if (lb.typeId() == QMetaType::QVariantMap)
+            latest = lb.toMap();
+    }
+    const qint64 latestBuild = latest.value(QStringLiteral("steamBuild")).toLongLong();
+    const auto current = patchcompat::decide(0, installedBuild, latestBuild);
+
+    QVariantList options;
+    const auto addOption = [&](const QString& pkg, const QVariantMap& src, const QString& label,
+                               const QString& description) {
+        const QVariantMap gv = src.value(QStringLiteral("gameVersion")).toMap();
+        const qint64 patchBuild = gv.value(QStringLiteral("steamBuild")).toLongLong();
+        const bool installedHere = anyInstalled && installedPkg == pkg;
+        options.append(QVariantMap{
+            {QStringLiteral("pkg"), pkg},
+            {QStringLiteral("label"), label},
+            {QStringLiteral("description"), description},
+            {QStringLiteral("contributors"), src.value(QStringLiteral("contributors")).toList()},
+            {QStringLiteral("version"), src.value(QStringLiteral("version")).toString()},
+            {QStringLiteral("sizeBytes"), src.value(QStringLiteral("sizeBytes")).toLongLong()},
+            {QStringLiteral("downloadSize"), src.value(QStringLiteral("downloadSize")).toLongLong()},
+            {QStringLiteral("gameVersion"), gv},
+            {QStringLiteral("installed"), installedHere},
+            {QStringLiteral("installedVersion"),
+             installedHere && record ? record->version : QString()},
+            {QStringLiteral("action"), patchcompat::actionName(patchcompat::actionFor(
+                 pkg, anyInstalled, installedPkg, installedHere && hasUpdate))},
+            {QStringLiteral("comingSoon"), src.value(QStringLiteral("comingSoon")).toBool()},
+            {QStringLiteral("warn"), patchcompat::decide(patchBuild, installedBuild, latestBuild).warn},
+        });
+    };
+    addOption(QString(), base, base.value(QStringLiteral("label")).toString(), QString());
+    for (const QVariant& a : base.value(QStringLiteral("alternatives")).toList()) {
+        const QVariantMap alt = a.toMap();
+        addOption(alt.value(QStringLiteral("id")).toString(), alt,
+                  alt.value(QStringLiteral("label")).toString(),
+                  alt.value(QStringLiteral("description")).toString());
+    }
+
+    return {
+        {QStringLiteral("appId"), appId},
+        {QStringLiteral("anyInstalled"), anyInstalled},
+        {QStringLiteral("installedPkg"), installedPkg},
+        {QStringLiteral("current"), QVariantMap{
+            {QStringLiteral("build"), current.currentBuild},
+            {QStringLiteral("source"), patchcompat::sourceName(current.source)},
+            {QStringLiteral("date"), current.source == patchcompat::BuildSource::Installed
+                                         ? own.value(QStringLiteral("date")).toString()
+                                         : latest.value(QStringLiteral("date")).toString()},
+        }},
+        {QStringLiteral("options"), options},
+    };
 }
 
 QVariantList GameService::recentlyUpdatedGames(int limit) const

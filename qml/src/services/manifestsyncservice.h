@@ -25,6 +25,11 @@
 #include <QElapsedTimer>
 #include <QPointer>
 #include <QTimer>
+#include <QHash>
+
+#include <functional>
+
+#include "patchcompat.h"
 
 class QNetworkReply;
 
@@ -61,6 +66,18 @@ public:
     Q_INVOKABLE void fetchPackageDetail(const QString& appId);
     Q_INVOKABLE QVariantMap getPackageDetail(const QString& appId) const;
     Q_INVOKABLE bool hasPackageDetail(const QString& appId) const;
+    /// Which patch of a game the detail calls above mean ("" = the default):
+    /// the one the catalogue entry describes now (CoreBridge::activePackage).
+    /// Unset, every call is about the default.
+    void setActivePackageResolver(std::function<QString(const QString&)> resolver);
+    QString activePackage(const QString& appId) const;
+
+    /// Steam's latest public build of a game from assets/game-builds.json:
+    /// {steamBuild, date}, {} when unknown (file missing, not deployed, no entry).
+    Q_INVOKABLE QVariantMap latestGameBuild(const QString& appId) const;
+    /// Fetch game-builds.json again (If-None-Match). Not more often than every
+    /// 10 minutes; unforced, not more often than every 6 hours.
+    void fetchGameBuilds(bool force = false);
     bool hasCatalogEntry(const QString& appId) const;
     QString catalogGameName(const QString& appId) const;
 
@@ -84,8 +101,11 @@ signals:
     void packageDetailReady(const QString& appId);
     void syncError(const QString& error);
     void offlineChanged();
+    /// game-builds.json brought something new
+    void gameBuildsChanged();
 
 private:
+    void loadCachedGameBuilds();
     void setOffline(bool offline);
 
     // Sync paths
@@ -133,6 +153,15 @@ private:
     // of just clearing m_syncing — that previously left a zombie reply
     // racing the next sync attempt (B2-10).
     QPointer<QNetworkReply> m_currentSyncReply;
+
+    std::function<QString(const QString&)> m_activePkg;
+
+    // assets/game-builds.json: latest Steam build per appId (patchcompat.h)
+    QHash<QString, patchcompat::LatestBuild> m_gameBuilds;
+    QString m_gameBuildsEtag;
+    QElapsedTimer m_sinceGameBuildsFetch;
+    bool m_gameBuildsInFlight{false};
+    QTimer m_gameBuildsTimer;
 };
 
 } // namespace makine

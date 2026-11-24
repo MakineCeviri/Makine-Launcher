@@ -24,6 +24,12 @@ Three questions, each of which was answered wrong in the field:
      migration dropped variantType/variants for all 15 variant packages and the
      failure surfaced as "ambiguous at depth 1" install errors months later.
 
+  4. Are a game's other patches ("alternatives") whole?  Each one is a package
+     of its own: its R2 object, its size and checksum, its detail
+     (api/v2/games/<id>?pkg=<alt>, which the launcher installs from) — and the
+     optional keys must have the shape the launcher reads, or it drops the
+     patch silently (patch_alternatives.py).
+
 Exit code 1 on any finding, so it can gate a release.
 
 Usage:
@@ -40,6 +46,8 @@ import json
 import sys
 import urllib.error
 import urllib.request
+
+import patch_alternatives
 
 CDN = "https://cdn.makineceviri.org"
 API = "https://makineceviri.org/api/v2"
@@ -187,6 +195,41 @@ def main():
                     findings.append("api/v2/games/%s %s" % (app_id, problem))
         print("varyantli paket: %d (API alanlari denetlendi)" % len(variant_ids))
 
+    # --- 4. patch alternatives --------------------------------------------
+    findings.extend("alternatif: " + p for p in patch_alternatives.check_index(index))
+    alts = [(a, aid, alt) for a, e in entries.items()
+            for aid, alt in patch_alternatives.iter_alternatives(e)]
+    alt_own = [(a, aid, alt) for a, aid, alt in alts
+               if str(alt.get("dataUrl") or "").startswith(OURS)]
+
+    def probe_alt(item):
+        app_id, aid, alt = item
+        status, length = head(alt["dataUrl"])
+        try:
+            get_json("%s/games/%s?pkg=%s" % (API, app_id, aid))
+            detail = None
+        except Exception as e:                               # noqa: BLE001
+            detail = "%s: %s" % (type(e).__name__, e)
+        return app_id, aid, alt, status, length, detail
+
+    alt_sizes = {}
+    with cf.ThreadPoolExecutor(WORKERS) as ex:
+        for app_id, aid, alt, status, length, detail in ex.map(probe_alt, alt_own):
+            tag = "%s/%s" % (app_id, aid)
+            if status != 200:
+                findings.append("R2 nesnesi yok: %s -> %s" % (tag, status))
+            else:
+                alt_sizes[(app_id, aid)] = length
+                if alt.get("size") != length:
+                    findings.append("alternatif boyutu yanlis: %s (%s != %s)"
+                                    % (tag, alt.get("size"), length))
+            if not norm_sum(alt.get("checksum")):
+                findings.append("alternatif checksum yok/gecersiz: %s" % tag)
+            if detail:
+                findings.append("api/v2/games/%s?pkg=%s okunamadi: %s" % (app_id, aid, detail))
+    if alts:
+        print("alternatif yama: %d (%d kendi barindirdigimiz)" % (len(alts), len(alt_own)))
+
     # --- optional: the digests themselves ---------------------------------
     if args.verify_hashes:
         def verify(app_id):
@@ -203,6 +246,22 @@ def main():
                 if problem:
                     findings.append(problem)
         print("%d paketin SHA-256'si dogrulandi" % len(real_size))
+
+        def verify_alt(item):
+            (app_id, aid), size = item
+            alt = dict(patch_alternatives.iter_alternatives(entries[app_id]))[aid]
+            digest, n = sha256_of(alt["dataUrl"])
+            want = norm_sum(alt.get("checksum"))
+            if want and digest != want:
+                return "checksum uyusmuyor: %s/%s (%s != %s)" % (app_id, aid, digest[:16], want[:16])
+            if n != size:
+                return "indirilen boyut HEAD ile uyusmuyor: %s/%s" % (app_id, aid)
+            return None
+
+        with cf.ThreadPoolExecutor(4) as ex:
+            for problem in ex.map(verify_alt, alt_sizes.items()):
+                if problem:
+                    findings.append(problem)
 
     # --- verdict -----------------------------------------------------------
     print()

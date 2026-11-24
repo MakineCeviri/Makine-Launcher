@@ -121,6 +121,7 @@ bool PackageCatalog::loadFromIndex(const fs::path& indexPath, const fs::path& pa
 {
     std::unique_lock lock(mutex_);
     packages_.clear();
+    indexBase_.clear();
     storeIdToSteamAppId_.clear();
     dataPath_ = packageCacheRoot;
 
@@ -434,6 +435,86 @@ void parseContributors(PackageCatalogEntry& entry, const json& obj)
     }
 }
 
+// ---- Patch alternatives -----------------------------------------------------
+// Every key below is new and optional, and a launcher must never lose its
+// catalogue to one of them: each read checks the type first (json::value()
+// throws on a mismatch) and a wrong type reads as absent.
+
+std::string optString(const json& obj, const char* key)
+{
+    const auto it = obj.find(key);
+    return (it != obj.end() && it->is_string()) ? it->get<std::string>() : std::string{};
+}
+
+int64_t optInt(const json& obj, const char* key)
+{
+    const auto it = obj.find(key);
+    if (it == obj.end() || !it->is_number()) return 0;
+    if (it->is_number_float()) {
+        const double d = it->get<double>();
+        return (d > 0 && d < 9.0e15) ? static_cast<int64_t>(d) : 0;
+    }
+    if (it->is_number_unsigned()) {
+        const auto u = it->get<uint64_t>();
+        return u < static_cast<uint64_t>(INT64_MAX) ? static_cast<int64_t>(u) : 0;
+    }
+    const auto v = it->get<int64_t>();
+    return v > 0 ? v : 0;
+}
+
+std::vector<ContributorInfo> parseContributorList(const json& obj)
+{
+    std::vector<ContributorInfo> out;
+    const auto it = obj.find("contributors");
+    if (it == obj.end() || !it->is_array()) return out;
+    for (const auto& c : *it) {
+        if (!c.is_object()) continue;
+        out.push_back({optString(c, "name"), optString(c, "role")});
+    }
+    return out;
+}
+
+GameVersionInfo parseGameVersion(const json& obj)
+{
+    GameVersionInfo gv;
+    const auto it = obj.find("gameVersion");
+    if (it == obj.end() || !it->is_object()) return gv;
+    gv.label = optString(*it, "label");
+    gv.steamBuild = optInt(*it, "steamBuild");
+    gv.date = optString(*it, "date");
+    return gv;
+}
+
+// Unusable alternatives (bad or repeated id, no label) are skipped, not fatal.
+std::vector<PackageAlternative> parseAlternatives(const json& obj)
+{
+    std::vector<PackageAlternative> out;
+    const auto it = obj.find("alternatives");
+    if (it == obj.end() || !it->is_array()) return out;
+    for (const auto& a : *it) {
+        if (!a.is_object()) continue;
+        PackageAlternative alt;
+        alt.id = optString(a, "id");
+        alt.label = optString(a, "label");
+        if (!isValidAlternativeId(alt.id) || alt.label.empty()) continue;
+        if (std::any_of(out.begin(), out.end(),
+                        [&alt](const PackageAlternative& o) { return o.id == alt.id; }))
+            continue;
+        alt.description = optString(a, "description");
+        alt.version = optString(a, "v");
+        alt.sizeBytes = optInt(a, "sizeBytes");
+        alt.downloadSize = optInt(a, "size");
+        alt.dataUrl = optString(a, "dataUrl");
+        alt.checksum = optString(a, "checksum");
+        alt.dirName = optString(a, "dirName");
+        alt.contributors = parseContributorList(a);
+        alt.gameVersion = parseGameVersion(a);
+        out.push_back(std::move(alt));
+        if (out.size() >= 20) break;   // the contract's ceiling
+    }
+    return out;
+}
+
 } // anonymous namespace (parse helpers)
 
 bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::string& detailJson)
@@ -501,6 +582,16 @@ bool PackageCatalog::enrichPackage(const std::string& steamAppId, const std::str
         }
     }
 
+    // Patch alternatives: the detail describes the entry's own patch (the
+    // default, or the alternative asked for with ?pkg=). The index is what
+    // installs, so its list stands; the detail's only fills an index without one.
+    if (doc.contains("label") && doc["label"].is_string())
+        entry.label = doc["label"].get<std::string>();
+    if (doc.contains("gameVersion") && doc["gameVersion"].is_object())
+        entry.gameVersion = parseGameVersion(doc);
+    if (entry.alternatives.empty())
+        entry.alternatives = parseAlternatives(doc);
+
     // Auto-derive fingerprint if not explicit (neither from index nor detail)
     if (!entry.fingerprint.has_value())
         deriveFingerprint(entry);
@@ -553,6 +644,9 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
         if (!entry.is_object()) continue;
         if (keepExisting && packages_.contains(it.key())) continue;
 
+        // One malformed entry (a key of the wrong type: json::value() throws)
+        // costs that game, not the whole catalogue.
+        try {
         PackageCatalogEntry info;
         info.steamAppId = it.key();
         info.gameName   = entry.value("name", "");
@@ -584,13 +678,27 @@ void PackageCatalog::parseIndex(const fs::path& indexPath)
         if (!info.fingerprint.has_value())
             deriveFingerprint(info);
 
+        // Patch alternatives (optional): the default patch's own name and
+        // game version, and the other patches. Malformed parts read as absent.
+        info.label = optString(entry, "label");
+        info.gameVersion = parseGameVersion(entry);
+        info.alternatives = parseAlternatives(entry);
+
+        indexBase_[info.steamAppId] = info;
         packages_[info.steamAppId] = std::move(info);
+        } catch (const json::exception& e) {
+            MAKINE_LOG_WARN(log::PACKAGE, "Index entry {} skipped: {}", it.key(), e.what());
+        }
     }
     };
 
     loadEntries(doc["packages"], false);
     if (doc.contains("soon") && doc["soon"].is_object())
         loadEntries(doc["soon"], true);
+
+    // An installed or pending alternative: its entry describes it again.
+    for (auto& [appId, _] : packages_)
+        applyActiveLocked(appId);
 
     MAKINE_LOG_DEBUG(log::PACKAGE, "Index loaded: {} packages", packages_.size());
 }
@@ -1271,12 +1379,102 @@ void PackageCatalog::markInstalled(const std::string& steamAppId,
 {
     std::unique_lock lock(mutex_);
     installed_[steamAppId] = state;
+    // The patch that was being installed is now the installed one.
+    if (const auto p = pendingPkg_.find(steamAppId);
+        p != pendingPkg_.end() && p->second == state.pkg)
+        pendingPkg_.erase(p);
+    applyActiveLocked(steamAppId);
 }
 
 void PackageCatalog::markUninstalled(const std::string& steamAppId)
 {
     std::unique_lock lock(mutex_);
     installed_.erase(steamAppId);
+    applyActiveLocked(steamAppId);
+}
+
+// =============================================================================
+// PATCH ALTERNATIVES
+// =============================================================================
+
+std::string PackageCatalog::wantedPackageLocked(const std::string& steamAppId) const
+{
+    std::string want;
+    if (const auto p = pendingPkg_.find(steamAppId); p != pendingPkg_.end())
+        want = p->second;
+    else if (const auto i = installed_.find(steamAppId); i != installed_.end())
+        want = i->second.pkg;
+    if (want.empty()) return {};
+
+    // Only a patch the index lists: a hidden or removed alternative leaves
+    // its game on the default entry (the install record still names it).
+    const auto base = indexBase_.find(steamAppId);
+    if (base == indexBase_.end()) return {};
+    const auto& alts = base->second.alternatives;
+    const bool listed = std::any_of(alts.begin(), alts.end(),
+                                    [&want](const PackageAlternative& a) { return a.id == want; });
+    return listed ? want : std::string{};
+}
+
+void PackageCatalog::applyActiveLocked(const std::string& steamAppId)
+{
+    const auto cur = packages_.find(steamAppId);
+    const auto base = indexBase_.find(steamAppId);
+    if (cur == packages_.end() || base == indexBase_.end()) return;
+
+    const std::string want = wantedPackageLocked(steamAppId);
+    if (cur->second.pkg == want) return;
+
+    // From the index entry: game-level keys stay, the package keys become
+    // the chosen patch's, and its detail is unloaded — the alternative's
+    // recipe, notes and print come from its own detail (?pkg=).
+    PackageCatalogEntry next = base->second;
+    // What the detail taught about the GAME (store ids, aliases) survives.
+    next.storeIds = cur->second.storeIds;
+    for (const auto& a : cur->second.aliases)
+        if (std::find(next.aliases.begin(), next.aliases.end(), a) == next.aliases.end())
+            next.aliases.push_back(a);
+    if (!want.empty()) {
+        const auto& alts = base->second.alternatives;
+        const auto alt = std::find_if(alts.begin(), alts.end(),
+                                      [&want](const PackageAlternative& a) { return a.id == want; });
+        next.pkg = alt->id;
+        next.label = alt->label;
+        next.version = alt->version;
+        next.sizeBytes = alt->sizeBytes;
+        next.contributors = alt->contributors;
+        next.gameVersion = alt->gameVersion;
+        // Each patch extracts to its own folder; an alternative without one
+        // gets <dirName>--<id>, never the default's folder.
+        next.dirName = !alt->dirName.empty()
+            ? alt->dirName
+            : (base->second.dirName.empty() ? steamAppId : base->second.dirName) + "--" + alt->id;
+    }
+    next.detailLoaded = false;
+    MAKINE_LOG_DEBUG(log::PACKAGE, "Package {} now describes patch '{}'", steamAppId, want);
+    cur->second = std::move(next);
+}
+
+std::string PackageCatalog::activePackage(const std::string& steamAppId) const
+{
+    std::shared_lock lock(mutex_);
+    const auto it = packages_.find(steamAppId);
+    return it != packages_.end() ? it->second.pkg : std::string{};
+}
+
+void PackageCatalog::setPendingPackage(const std::string& steamAppId, const std::string& pkg)
+{
+    std::unique_lock lock(mutex_);
+    if (!pkg.empty() && !isValidAlternativeId(pkg)) return;
+    pendingPkg_[steamAppId] = pkg;
+    applyActiveLocked(steamAppId);
+}
+
+void PackageCatalog::clearPendingPackage(const std::string& steamAppId)
+{
+    std::unique_lock lock(mutex_);
+    if (pendingPkg_.erase(steamAppId) > 0)
+        applyActiveLocked(steamAppId);
 }
 
 std::optional<InstalledPackageState> PackageCatalog::getInstalledState(
@@ -1343,12 +1541,21 @@ void PackageCatalog::loadInstalledState(const fs::path& statePath)
             loadStringArray("files", state.installedFiles);
             loadStringArray("addedFiles", state.addedFiles);
             loadStringArray("replacedFiles", state.replacedFiles);
+
+            // Which patch (alternatives). A record without one, or with a
+            // value of the wrong type, is the default's.
+            state.pkg = optString(obj, "pkg");
+            if (!state.pkg.empty() && !isValidAlternativeId(state.pkg)) state.pkg.clear();
+            state.dirName = optString(obj, "dirName");
         } else {
             continue; // Skip unknown value types
         }
 
         installed_[it.key()] = std::move(state);
     }
+
+    for (auto& [appId, _] : packages_)
+        applyActiveLocked(appId);
 
     MAKINE_LOG_DEBUG(log::PACKAGE, "Loaded installed state: {} entries from {}",
                        installed_.size(), statePath.string());
@@ -1384,6 +1591,10 @@ void PackageCatalog::saveInstalledState(const fs::path& statePath) const
             obj["gameStoreVersion"] = state.gameStoreVersion;
         if (!state.gameSource.empty())
             obj["gameSource"] = state.gameSource;
+        // Always written: "" says the default patch. Older launchers ignore both.
+        obj["pkg"] = state.pkg;
+        if (!state.dirName.empty())
+            obj["dirName"] = state.dirName;
 
         auto saveStringArray = [&](const char* key, const std::vector<std::string>& arr) {
             if (!arr.empty()) {
