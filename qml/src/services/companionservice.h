@@ -69,6 +69,12 @@ public:
     Q_INVOKABLE void noteInterest(bool on);
     // He waves a Turkish flag
     Q_INVOKABLE void celebrate();
+    // What he wears: "hawaii" (an island shirt: Makine Live's console mode, its tour) or "" (none).
+    // He puts it on and takes it off in a short act of his own
+    Q_INVOKABLE void setOutfit(const QString& outfit);
+    // A longer line he keeps in his bubble (a page's guided tour), until the next one or an empty text;
+    // holdMs > 0 clears it by itself. Nothing shows while his speech is off in the settings
+    Q_INVOKABLE void say(const QString& text, int holdMs = 0);
 
 signals:
     // "Makine ayarları" in his menu: the launcher shows Ayarlar > Görünüm
@@ -89,6 +95,7 @@ private:
     QRectF m_dock, m_corner;
     QList<QPointer<QObject>> m_sheets;
     bool m_scanning = false, m_installing = false;
+    bool m_hawaii = false;   // the island shirt is on
     double m_progress = -1;
     QElapsedTimer m_away;   // how long the launcher has been hidden, or in the background
 };

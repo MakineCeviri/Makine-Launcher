@@ -34,6 +34,9 @@ pragma ComponentBehavior: Bound
  *   - Diğer, collapsed: account, hotkeys, auto start, usage report, Discord,
  *     announcements, log, donation
  * The GTA VI look (console mode, dark theme): backdrop, status card, previews.
+ * Makine, the companion, wears his island shirt in console mode. The first visit
+ * runs a guided tour (LiveTour.qml; "Nasıl kullanılır?" in the header again);
+ * the donation note waits until it has run.
  *
  * Cheap while a game runs: no running animation; the state is read only while
  * the page can be seen (minimised: never, behind the game: every 2 s).
@@ -86,7 +89,22 @@ Item {
         { url: "https://cdn.makineceviri.org/site/gta6/shots/vice_city_27-1920.webp", gain: 1.0 }
     ]
     property int _gta6ArtIdx: Math.floor(Math.random() * _gta6Art.length)
-    onVisibleChanged: if (!visible) { _gta6ArtIdx = (_gta6ArtIdx + 1) % _gta6Art.length; _resolveArt() }
+    onVisibleChanged: if (!visible) {
+        _gta6ArtIdx = (_gta6ArtIdx + 1) % _gta6Art.length
+        _resolveArt()
+        tour.skip()   // the page left mid-tour: it counts as seen ("Nasıl kullanılır?" opens it again)
+    }
+
+    // Makine, the companion, wears his island shirt while this page shows console mode, and all through
+    // the tour; off again when the page goes or switches to PC
+    readonly property bool _shirt: visible && (_consoleMode || tour.active)
+    on_ShirtChanged: _dress()
+    function _dress() { if (typeof Companion !== "undefined" && Companion) Companion.setOutfit(_shirt ? "hawaii" : "") }
+    Component.onDestruction: {
+        if (typeof Companion === "undefined" || !Companion) return
+        Companion.setOutfit("")
+        if (tour.active) Companion.say("")
+    }
     readonly property var _region: _state.region ? _state.region[_consoleMode ? "console" : "pc"] || null : null
     readonly property bool _hasRegion: !!_region && _region.width > 0 && _region.height > 0
     readonly property var _selected: _state.selectedSource || null
@@ -205,7 +223,11 @@ Item {
     // Opening the page is the plugin's first use: asking for its state starts its
     // host (PluginManager.invoke). Nothing runs before the page is opened.
     readonly property bool _wanted: visible && _exists && _info.enabled === true && _pluginState !== "remote-off"
-    Component.onCompleted: { _refreshInfo(); _refreshState(); _resolveArt(); if (_wanted) _call("state") }
+    Component.onCompleted: {
+        _refreshInfo(); _refreshState(); _resolveArt(); _dress()
+        if (_wanted) _call("state")
+        if (_wantTour) tourDelay.restart()
+    }
     on_WantedChanged: if (_wanted) _call("state")
 
     // Every subtitle line publishes a new state: read it only while the page can be seen.
@@ -251,6 +273,70 @@ Item {
         property bool modeChosen: false
         // The firewall note was read before the first TV search / phone page
         property bool firewallSeen: false
+        // The guided tour ran (or was skipped) once; "Nasıl kullanılır?" in the header runs it again
+        property bool tourDone: false
+    }
+
+    // ── The guided tour: the first visit, and "Nasıl kullanılır?" ───────────
+    // It starts once the plugin is up (or has said it will not be, or after a few seconds), and not
+    // under a dialog. The donation note waits for it (_wantDonate): first the tour, then the note.
+    readonly property bool _dialogOpen: blockDialog.opened || donateDialog.opened || consoleConfirm.opened
+                                        || resetConfirm.opened || logDialog.opened || tvWizard.opened
+    property bool _tourWaited: false
+    readonly property bool _tourReady: _running || _tourWaited || _pluginState === "crashed" || _pluginState === "error"
+                                       || _pluginState === "remote-off" || _info.enabled === false
+    readonly property bool _wantTour: _onScreen && _exists && !seen.tourDone && !tour.active && !_dialogOpen && _tourReady
+    on_WantTourChanged: if (_wantTour) tourDelay.restart()
+    Timer {
+        id: tourDelay
+        interval: 900   // let the page settle first
+        onTriggered: if (live._wantTour) live._startTour()
+    }
+    Timer {
+        interval: 5000
+        running: live._onScreen && !seen.tourDone && !live._tourWaited
+        onTriggered: live._tourWaited = true
+    }
+    function _startTour() {
+        tour.start()
+    }
+    function _tourKey(action, what) {
+        const k = (_hotkeys[action] || {}).key || ({ start: "F9", region: "F10", move: "F8" })[action]
+        return k === "off" ? "" : k + " " + what
+    }
+    // Bound while the tour runs: the steps follow the page (signed in or not, console or PC, its hotkeys)
+    function _tourSteps() {
+        const keys = [_tourKey("start", qsTr("okumayı başlatır ya da durdurur")), _tourKey("region", qsTr("bölgeyi seçtirir")),
+                      _tourKey("move", qsTr("altyazı kutusunu taşır"))].filter(s => s !== "")
+        const short = [_tourKey("start", qsTr("başlat/durdur")), _tourKey("region", qsTr("bölge")),
+                       _tourKey("move", qsTr("kutuyu taşı"))].filter(s => s !== "")
+        return [
+            { target: header, title: qsTr("Merhaba!"),
+              text: qsTr("Makine Live oyundaki İngilizce altyazıyı okur, Türkçesini oyunun üstüne yazar. Birkaç adımda nasıl kullanıldığını göstereyim."),
+              say: qsTr("Merhaba! Makine Live oyundaki İngilizce altyazıyı okur, Türkçesini oyunun üstüne yazar.") },
+            { target: signCard.visible ? signCard : statusCard, title: qsTr("Giriş"),
+              text: _signedIn ? qsTr("Giriş yapmışsın. Çeviriler Makine hesabınla ortak çeviri havuzundan gelir; hesabın Diğer bölümünde durur.")
+                              : qsTr("Çeviri havuzu için Makine hesabınla giriş yap. Şifre yazmazsın: tarayıcıda açılan sayfada bir kodu onaylarsın."),
+              say: _signedIn ? qsTr("Giriş tamam; çeviriler hesabınla havuzdan gelir.")
+                             : qsTr("Önce Makine hesabınla giriş yap; tarayıcıda bir kodu onaylaman yeter.") },
+            { target: readStep, title: qsTr("Ne okunacak"),
+              text: qsTr("Oyun bu bilgisayarda mı, konsolda mı? PS5 ya da Xbox'ı Remote Play ya da bir yakalama kartıyla bu bilgisayarda açıyorsan Konsolda'yı seç, sonra görüntünün penceresini listeden seç."),
+              say: qsTr("PC oyunu mu, konsol mu? Konsoldaysan PS5 ya da Xbox görüntüsünün penceresini seç.") },
+            { target: regionSection, title: qsTr("Altyazı bölgesi"),
+              text: qsTr("Altyazının çıktığı yeri istersen kendin çiz; çizmezsen Live okurken kendisi bulur. Bulunca oyunun içinde sorar: kilitlersen o oyun için saklanır."),
+              say: qsTr("Bölgeyi sen çiz ya da Live kendisi bulsun; bulunca oyunda sorar, kilitle.") },
+            { target: whereSection, title: qsTr("Altyazı nerede"),
+              text: _consoleMode ? qsTr("Türkçe altyazı bu ekranda, Makine TV'de ya da telefonunda çıkabilir. Makine TV'yi TV'ne buradan, kurulum sihirbazıyla adım adım kurarsın.")
+                                 : qsTr("Bilgisayardaki oyunda Türkçe altyazı oyunun üstünde çıkar. Konsolda oynarken Makine TV ya da telefon da seçilebilir."),
+              say: qsTr("Altyazı bu ekranda, Makine TV'de ya da telefonda çıkabilir.") },
+            { target: poolsSection, title: qsTr("Oyun havuzları"),
+              text: qsTr("Oyunların onaylı çevirileri bilgisayarına iner, yenileri kendiliğinden gelir; satırlar beklemeden çıkar."),
+              say: qsTr("Onaylı çeviriler bilgisayarına iner, yenileri kendiliğinden gelir.") },
+            { target: statusCard, title: qsTr("Başlat"),
+              text: qsTr("Hazır olunca Başlat'a bas.") + (keys.length > 0 ? " " + qsTr("Oyundayken %1.").arg(keys.join(", ")) : "")
+                    + " " + qsTr("Bu turu başlıktaki \"Nasıl kullanılır?\" ile yeniden açabilirsin."),
+              say: qsTr("Hazırsan Başlat'a bas!") + (short.length > 0 ? " " + qsTr("Oyunda %1.").arg(short.join(", ")) : "") }
+        ]
     }
 
     // ── The one blocking problem, if any: {text, fix, fixText} ───────────────
@@ -473,12 +559,24 @@ Item {
 
             // ── Header: the name and one sentence ──
             PageHeader {
+                id: header
                 Layout.topMargin: 52
                 Layout.leftMargin: Dimensions.pageMargin
                 Layout.rightMargin: Dimensions.pageMargin
                 title: "Makine Live"
                 subtitle: qsTr("Oyundaki İngilizce altyazıyı okur, Türkçesini oyunun üstüne altyazı olarak yazar.")
 
+                // The guided tour again, any time
+                AppButton {
+                    visible: live._exists
+                    style: "plain"
+                    size: "small"
+                    icon: Icons.circleHelp
+                    text: qsTr("Nasıl kullanılır?")
+                    toolTip: qsTr("Makine Live'ı adım adım gösterir.")
+                    enabled: !tour.active
+                    onClicked: live._startTour()
+                }
                 StatusBadge {
                     visible: live._exists
                     text: live._reading ? qsTr("Okuyor")
@@ -1058,6 +1156,7 @@ Item {
 
                 // Altyazı bölgesi
                 ListSection {
+                    id: regionSection
                     Layout.fillWidth: true
                     title: qsTr("Altyazı bölgesi")
                     footer: qsTr("Seçmezsen Live altyazının çıktığı bandı okurken kendisi bulur. Elle çizeceksen satırlara sıkı çiz: ne kadar dar, o kadar hızlı ve doğru.")
@@ -1350,6 +1449,7 @@ Item {
 
             // ═══ Oyun havuzları (hidden when the plugin does not send state.pools) ═══
             PoolsSection {
+                id: poolsSection
                 Layout.leftMargin: Dimensions.pageMargin
                 Layout.rightMargin: Dimensions.pageMargin
                 screen: live
@@ -1509,6 +1609,16 @@ Item {
         anchors.top: parent.top
     }
 
+    // The guided tour, over the page (dialogs open above it, in the window's overlay)
+    LiveTour {
+        id: tour
+        anchors.fill: parent
+        flick: flick
+        paused: live._dialogOpen
+        steps: tour.active ? live._tourSteps() : []
+        onFinished: seen.tourDone = true
+    }
+
     // The TV install wizard: one thing on screen at a time
     TvInstallWizard {
         id: tvWizard
@@ -1588,8 +1698,9 @@ Item {
     }
 
     // ── First time Live is opened: a word about support (Kreosus), once ──
+    // After the guided tour (seen once, not running now): the tour first, then this note
     readonly property bool _wantDonate: _onScreen && _running && !!_state.donate && _state.donate.seen === false
-                                        && _blockKey === ""
+                                        && _blockKey === "" && seen.tourDone && !tour.active
     on_WantDonateChanged: if (_wantDonate) donateDelay.restart()
     Timer {
         id: donateDelay

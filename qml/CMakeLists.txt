@@ -233,6 +233,7 @@ qt_add_qml_module(MakineLauncher
         qml/screens/live/CodeField.qml
         qml/screens/live/LiveFold.qml
         qml/screens/live/LiveStep.qml
+        qml/screens/live/LiveTour.qml
         qml/screens/live/PoolsSection.qml
         qml/screens/live/SunsetScene.qml
         qml/screens/live/TvInstallWizard.qml

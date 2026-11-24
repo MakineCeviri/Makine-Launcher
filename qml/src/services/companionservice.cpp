@@ -87,6 +87,7 @@ void CompanionService::pushConfig()
     c.size = size == QLatin1String("small") ? 0.64 : size == QLatin1String("large") ? 0.96 : 0.8;
     c.talk = m_settings->companionTalk();
     c.reduceMotion = !m_settings->enableAnimations();
+    c.outfit = m_hawaii ? companion::Outfit::Hawaii : companion::Outfit::None;
     c.lightTheme = !m_settings->isDarkMode();
     m_host->setConfig(c);
 }
@@ -221,6 +222,19 @@ void CompanionService::celebrate()
     m_host->moment(Moment::Flag);
 }
 
+void CompanionService::setOutfit(const QString& outfit)
+{
+    const bool hawaii = outfit == QLatin1String("hawaii");
+    if (hawaii == m_hawaii) return;
+    m_hawaii = hawaii;
+    pushConfig();
+}
+
+void CompanionService::say(const QString& text, int holdMs)
+{
+    m_host->say(text, std::max(0, holdMs));
+}
+
 #else // built without him: QML still reaches "Companion", and nothing answers
 
 CompanionService::CompanionService(SettingsManager* settings, QObject* parent)
@@ -235,6 +249,8 @@ void CompanionService::noteSheet(QObject*, bool) {}
 void CompanionService::noteTyping() {}
 void CompanionService::noteInterest(bool) {}
 void CompanionService::celebrate() {}
+void CompanionService::setOutfit(const QString&) {}
+void CompanionService::say(const QString&, int) {}
 
 #endif
 
