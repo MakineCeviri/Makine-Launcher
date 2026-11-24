@@ -69,7 +69,10 @@ just release-zip-dynamic 0.1.5-beta          # imzalı: just release-zip-dynamic
 #       rm -rf …/Makine-Launcher; mv …/Makine-Launcher{.bak,}; reg import <yedek>.reg
 
 # 5. Yayınla (etiketi sunucu tarafında oluşturur, pre-release DEĞİL)
-gh release create v0.1.5-beta   dist/Makine-Launcher-v0.1.5-beta-win64.zip dist/SHA256SUMS.txt   --target $(git rev-parse HEAD)   --title "v0.1.5-beta — <kısa tanım>"   --notes-file docs/release-notes/v0.1.5-beta.md   --latest
+gh release create v0.1.5-beta   dist/Makine-Launcher-v0.1.5-beta-win64.zip dist/SHA256SUMS.txt   --target $(git rev-parse HEAD)   --title "Makine Launcher 0.1.5 Beta"   --notes-file docs/release-notes/v0.1.5-beta.md   --latest
+
+# Başlık kuralı: "Makine Launcher X.Y.Z Beta" (sürüm notunun ilk başlığı öne çıkanı söyler; başlığa tema, "(Arşiv)" ya da
+#   küçük harfli cümle eklenmez — sürüm listesi tek biçimde kalır). Live eklentisi: "Makine Live X.Y.Z".
 
 # 6. Doğrula
 gh release view v0.1.5-beta
