@@ -90,12 +90,15 @@ inline const QList<ToolCauseRule>& toolCauseRules()
 {
     static const QList<ToolCauseRule> kRules = {
         {{QStringLiteral("FARKLI SURUM"), QStringLiteral("SURUM FARKLI"), QStringLiteral("FARKLI SÜRÜM"),
-          QStringLiteral("bu oyun verisine uymuyor"), QStringLiteral("UID/indeks uyusmazligi")},
+          QStringLiteral("bu oyun verisine uymuyor"), QStringLiteral("UID/indeks uyusmazligi"),
+          QStringLiteral("Kaynak metin degismis"), QStringLiteral("oyun surumune kurulamadi")},
          QStringLiteral("yamanın programı oyunun bu sürümünü tanımadı (oyun güncellenmiş ya da başka bir sürüm)"),
          QStringLiteral("Çözüm: oyunu mağazasından güncelleyip dosyalarını doğrulayın, sonra tekrar deneyin. "
                         "Oyununuz zaten güncelse yamanın bu sürüm için yenilenmesi gerekiyor.")},
         {{QStringLiteral("Device Guard"), QStringLiteral("Application Control"),
-          QStringLiteral("blocked by your organization")},
+          QStringLiteral("blocked by your organization"),
+          // ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION, when the tool's own DLL is the one refused
+          QStringLiteral("(hata 4551)"), QStringLiteral("(error 4551)")},
          QStringLiteral("Windows'un uygulama denetimi programı engelledi"),
          QStringLiteral("Çözüm: bu bilgisayarda Windows'un uygulama denetimi (Akıllı Uygulama Denetimi ya da "
                         "kurumunuzun ilkesi) yamanın programını çalıştırmıyor ve launcher bunu aşamaz. "
@@ -122,7 +125,10 @@ inline const QList<ToolCauseRule>& toolCauseRules()
                         "yere taşıyın, sonra tekrar deneyin.")},
         // The program was not told the folder, or did not take it: a recipe to fix, not the player
         {{QStringLiteral("Oyun bulunamadi"), QStringLiteral("Oyun klasoru bulunamadi"),
-          QStringLiteral("oyun klasoru degil"), QStringLiteral("Game folder not found")},
+          QStringLiteral("oyun klasoru degil"), QStringLiteral("Game folder not found"),
+          // Starfield's and DELTARUNE's tools name the game: "Starfield bulunamadi. --game ile …"
+          QStringLiteral("ile oyun yolunu verin"), QStringLiteral("ile oyun klasorunu ver"),
+          QStringLiteral("klasor secimi iptal edildi")},
          QStringLiteral("yamanın programı oyunun klasörünü tanımadı"),
          QStringLiteral("Çözüm: sayfadaki \"Klasörü değiştir\" ile oyunun kendi klasörünü seçip tekrar deneyin.")},
     };

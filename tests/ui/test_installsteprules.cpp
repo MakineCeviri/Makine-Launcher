@@ -652,6 +652,13 @@ TEST(StepRules, AProgramsLastWordIsItsCause)
     EXPECT_TRUE(toolOutputCause(QStringLiteral(
         "C:/Games/ELDEN RING/Game/TurkceYama klasoru bu yamaya ait degil; dokunulmadi.\r\n") + help)
         .contains(QStringLiteral("başka bir yamadan kalma")));
+    // Starfield's tool names the game, not "Oyun"; Phantom Blade's DLL refused by App Control
+    EXPECT_EQ(toolOutputCause(QStringLiteral("Starfield bulunamadi. --game ile oyun yolunu verin.\r\n")),
+              QStringLiteral("yamanın programı oyunun klasörünü tanımadı"));
+    EXPECT_TRUE(toolOutputCause(QStringLiteral("oo2core_9_win64.dll yuklenemedi (hata 4551)\r\n") + help)
+        .contains(QStringLiteral("uygulama denetimi")));
+    EXPECT_TRUE(toolOutputCause(QStringLiteral("Kaynak metin degismis: english_main:137BCE0B\r\n"))
+        .contains(QStringLiteral("sürümünü")));
     // A step detail with no named cause keeps the generic advice
     EXPECT_TRUE(toolCauseRemedy(QStringLiteral("Adım 1: run KUR.bat — araç hata kodu 1 verdi")).isEmpty());
 }
