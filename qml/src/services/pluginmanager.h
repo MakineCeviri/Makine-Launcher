@@ -77,6 +77,8 @@ class PluginManager : public QObject {
     Q_PROPERTY(bool overlayMovable READ overlayMovable NOTIFY overlayChanged)
     // overlay.show `frame`: the area (a console's video) bottom/top/widthPct refer to
     Q_PROPERTY(QRect overlayFrame READ overlayFrame NOTIFY overlayChanged)
+    // overlay.show `fit`: {maxLines, minFontScale, maxWidthFrac, chunk, chunks}, empty = none
+    Q_PROPERTY(QVariantMap overlayFit READ overlayFit NOTIFY overlayChanged)
 
     /// Enabled plugins with a screen of their own (contributes.screen): {id, title, icon}
     Q_PROPERTY(QVariantList screens READ screens NOTIFY pluginsChanged)
@@ -116,6 +118,7 @@ public:
     QVariantMap overlayStyle() const { return m_overlay.style; }
     bool overlayMovable() const { return m_overlay.movable; }
     QRect overlayFrame() const { return m_overlay.frame; }
+    QVariantMap overlayFit() const { return m_overlay.fit; }
     /// A plugin's physical-pixel rectangle in Qt's logical global coordinates
     Q_INVOKABLE QRect logicalRect(const QRect& physical) const;
     /// The overlay window was dragged to this logical rectangle: the plugin that made it
@@ -298,5 +301,6 @@ private:
         QString moveOwner;
         QRect placed;   // where the player last put the subtitle (logical)
         QRect frame;    // overlay.show frame (logical), empty = the screen
+        QVariantMap fit;
     } m_overlay;
 };

@@ -104,7 +104,10 @@ Window {
         ? Math.max(sourceRegion.width, Math.min(560, _base.width * 0.5))
         : _base.width * _widthPct / 100
     // A long line widens its band up to this instead of shrinking or adding rows
-    readonly property real _stretch: Math.max(_maxBand, _base.width * 0.9)
+    // overlay.show fit: the band may widen to maxWidthFrac of the frame
+    property var fit: ({})
+    readonly property bool _fitted: !!fit && fit.maxLines !== undefined
+    readonly property real _stretch: Math.max(_maxBand, _base.width * (_fitted && fit.maxWidthFrac ? fit.maxWidthFrac : 0.9))
 
     // Room for the tallest subtitle the style allows, so the window rarely resizes
     readonly property real _roomHeight: {
@@ -205,6 +208,7 @@ Window {
             maxWidth: overlayWindow._maxBand
             stretchWidth: overlayWindow._stretch
             textScale: overlayWindow._base.height > 0 ? overlayWindow._base.height / 1080 : 1
+            fit: overlayWindow.fit
             animate: overlayWindow._animate
         }
     }

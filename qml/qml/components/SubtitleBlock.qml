@@ -44,6 +44,12 @@ Item {
     // Text size multiplier (the overlay scales 28 px @1080p to the screen)
     property real textScale: 1
     property bool animate: true
+    // overlay.show fit {maxLines, minFontScale, maxWidthFrac, chunk, chunks}: wrap to maxLines,
+    // shrink to minFontScale at most (never below), the band widens to stretchWidth (the
+    // caller passes maxWidthFrac of the frame); chunks > 1 puts a quiet "1/3" in the corner.
+    // Without fit: no shrinking (the old behaviour).
+    property var fit: ({})
+    readonly property bool _fitted: !!fit && fit.maxLines !== undefined
 
     // Makine Live's signature: classic subtitle yellow, only ever on subtitles
     readonly property color signatureYellow: "#f2c230"
@@ -65,8 +71,9 @@ Item {
         const preset = _presets[s.preset] || _presets.band
         return preset[key] !== undefined ? preset[key] : fallback
     }
-    readonly property int sizePx: Math.round(_pick("sizePx", 28) * textScale)
-    readonly property int maxLines: Math.max(1, Math.round(_pick("maxLines", 2)))
+    readonly property int _baseSize: Math.round(_pick("sizePx", 28) * textScale)
+    readonly property int sizePx: Math.round(_baseSize * _fitScale)
+    readonly property int maxLines: Math.max(1, Math.round(_fitted ? fit.maxLines : _pick("maxLines", 2)))
     readonly property color textColor: _pick("textColor", "#FFFFFF")
     readonly property color bandColor: _pick("bandColor", "#0f1012")
     readonly property real bandOpacity: _pick("bandOpacity", 0.9)
@@ -89,21 +96,28 @@ Item {
     FontMetrics {
         id: metrics
         font.family: block.fontFamily
-        font.pixelSize: block.sizePx
+        font.pixelSize: block._baseSize
         font.weight: Font.DemiBold
     }
     readonly property real _usualInner: Math.max(120, maxWidth - 2 * _padX - 2 * gutter)
     readonly property real _widestInner: Math.max(_usualInner, stretchWidth - 2 * _padX - 2 * gutter)
-    readonly property real _innerMax: {
+    // The widest line's need at the unshrunk size, per row
+    readonly property real _need: {
+        // advanceWidth() is a call: read a property so the binding follows font changes
+        if (metrics.height <= 0) return 0
         let need = 0
         for (let i = 0; i < shownLines.length; ++i)
             need = Math.max(need, metrics.advanceWidth((shownLines[i].label ? shownLines[i].label + ": " : "") + (shownLines[i].text || "")) / (maxLines * 0.92))
-        return Math.min(_widestInner, Math.max(_usualInner, need))
+        return need
     }
+    // With fit, a line that still does not fit the widest band shrinks (not below minFontScale)
+    readonly property real _fitScale: _fitted && _need > _widestInner
+        ? Math.max(fit.minFontScale !== undefined ? fit.minFontScale : 0.8, _widestInner / _need) : 1
+    readonly property real _innerMax: Math.min(_widestInner, Math.max(_usualInner, _need * _fitScale))
 
     // Band padding scales with the text so a big subtitle keeps its air
-    readonly property real _padX: Math.round(22 * Math.max(1, sizePx / 28))
-    readonly property real _padY: Math.round(12 * Math.max(1, sizePx / 28))
+    readonly property real _padX: Math.round(22 * Math.max(1, _baseSize / 28))
+    readonly property real _padY: Math.round(12 * Math.max(1, _baseSize / 28))
     // Room around the band for its shadow and the outline
     readonly property real gutter: 14
     readonly property int _anim: animate ? 120 : 0
@@ -149,6 +163,21 @@ Item {
         color: Qt.rgba(block.bandColor.r, block.bandColor.g, block.bandColor.b, block.bandOpacity)
         Behavior on width { NumberAnimation { duration: block._anim; easing.type: Easing.OutCubic } }
         Behavior on height { NumberAnimation { duration: block._anim; easing.type: Easing.OutCubic } }
+
+        // A split line: which part this is, quietly in the corner
+        Text {
+            visible: block._fitted && (block.fit.chunks || 1) > 1
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.rightMargin: Math.round(block._padX / 2)
+            anchors.topMargin: Math.round(block._padY / 3)
+            text: ((block.fit.chunk || 0) + 1) + "/" + (block.fit.chunks || 1)
+            textFormat: Text.PlainText
+            font.family: block.fontFamily
+            font.pixelSize: Math.max(10, Math.round(block._baseSize * 0.42))
+            font.weight: Font.Medium
+            color: "#c9c8c2"
+        }
 
         // Awaiting approval: a thin yellow strip at the left (Live's status strip)
         Rectangle {

@@ -1322,6 +1322,22 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
             const QRect frame(f.value(u"x").toInt(), f.value(u"y").toInt(), f.value(u"width").toInt(), f.value(u"height").toInt());
             m_overlay.frame = frame.isValid() ? toLogical(frame) : QRect();
         }
+        {
+            // Long translations: wrap to maxLines, shrink to minFontScale, widen to maxWidthFrac;
+            // chunk / chunks number the parts of a split line. Every key bounded.
+            const QJsonObject f = params.value(u"fit").toObject();
+            QVariantMap fit;
+            const auto num = [&](const char* k, double lo, double hi) {
+                const QJsonValue v = f.value(QLatin1String(k));
+                if (v.isDouble()) fit.insert(QLatin1String(k), qBound(lo, v.toDouble(), hi));
+            };
+            num("maxLines", 1, 8);
+            num("minFontScale", 0.5, 1);
+            num("maxWidthFrac", 0.2, 1);
+            num("chunk", 0, 99);
+            num("chunks", 1, 99);
+            m_overlay.fit = fit;
+        }
         m_overlay.text = params.value(u"text").toString().left(4000);
         m_overlay.sourceText = params.value(u"sourceText").toString().left(4000);
         m_overlay.lines.clear();

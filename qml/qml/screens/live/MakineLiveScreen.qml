@@ -102,7 +102,13 @@ Item {
     readonly property var _server: _state.server || ({})
     readonly property var _style: _state.style || ({})
     readonly property bool _reading: _state.running === true
-    readonly property bool _sourceOk: _consoleMode ? _hasSource : _hasRegion
+    // PC: no region needed any more, Live finds the subtitle band itself (autoRegion)
+    readonly property bool _sourceOk: _consoleMode ? _hasSource : true
+    readonly property var _auto: _state.autoRegion || ({ state: "off" })
+    readonly property string _autoText: _auto.state === "searching" ? qsTr("Altyazı aranıyor…")
+        : _auto.state === "found" ? qsTr("Bulundu")
+        : _auto.state === "locked" ? qsTr("Kilitlendi")
+        : _auto.state === "manual" ? qsTr("Elle seçildi") : ""
     readonly property bool _ready: _loginState === "signedIn" && _sourceOk && _server.maintenance !== true
     readonly property var _announcements: Array.isArray(_state.announcements) ? _state.announcements : []
     // This session's lines, newest first (plugin keeps ~50): [{source, text, kind}]
@@ -727,7 +733,8 @@ Item {
                                     ? (live._selectedInfo ? (live._selectedInfo.label || live._selectedInfo.title)
                                        : live._hasSource ? qsTr("Seçili") : qsTr("Henüz bulunamadı"))
                                     : (live._hasRegion ? qsTr("%1 × %2 seçili").arg(live._region.width).arg(live._region.height)
-                                       : qsTr("Seçilmedi"))
+                                       : live._autoText !== "" ? live._autoText
+                                       : qsTr("Başlat'a basınca Live kendisi bulur"))
                             actionText: live._consoleMode ? (live._hasSource ? qsTr("Değiştir") : qsTr("Bul"))
                                                           : (live._hasRegion ? qsTr("Değiştir") : qsTr("Bölge seç"))
                             actionStyle: live._sourceOk ? "gray" : "tinted"
@@ -806,6 +813,19 @@ Item {
                         }
                         SunsetScene {}
 
+                        // The subtitle band Live found (fraction of the game window / console video)
+                        Rectangle {
+                            readonly property var r: live._auto.rect || null
+                            visible: !!r && (live._auto.state === "found" || live._auto.state === "locked")
+                            x: r ? Math.round(r.x * scene.width) : 0
+                            y: r ? Math.round(r.y * scene.height) : 0
+                            width: r ? Math.round(r.width * scene.width) : 0
+                            height: r ? Math.round(r.height * scene.height) : 0
+                            color: "transparent"
+                            radius: 4
+                            border.width: 1
+                            border.color: live._auto.state === "locked" ? Theme.success : Theme.primary
+                        }
                         SubtitleBlock {
                             id: nowSubtitle
                             x: Math.round((scene.width - width) / 2)
@@ -1115,9 +1135,33 @@ Item {
                 Layout.rightMargin: Dimensions.pageMargin
                 visible: live._running
                 title: qsTr("Altyazı bölgesi")
-                footer: live._hasRegion ? ""
-                        : live._consoleMode ? qsTr("Konsolda bölge görüntünün içinde seçilir; görüntü penceresi açık olmalı.")
-                        : qsTr("Bölgeyi altyazının çıktığı satırlara sıkı çiz: ne kadar dar, o kadar hızlı ve doğru.")
+                footer: qsTr("Seçmezsen Live altyazının çıktığı bandı okurken kendisi bulur. Elle çizeceksen satırlara sıkı çiz: ne kadar dar, o kadar hızlı ve doğru.")
+
+                // Live finds the subtitle band itself
+                ListRow {
+                    visible: live._auto.state !== "off"
+                    icon: live._auto.state === "locked" || live._auto.state === "manual" ? Icons.circleCheck : Icons.scanSearch
+                    iconTint: live._auto.state === "locked" || live._auto.state === "manual" ? Theme.success : Theme.primary
+                    title: live._autoText
+                    subtitle: live._auto.state === "searching" ? qsTr("Okurken altyazının çıktığı bant aranıyor; birkaç satır yeter.")
+                            : live._auto.state === "found" ? qsTr("Altyazı bandı bulundu ve okunuyor; kabul edersen bu oyun için saklanır.")
+                            : live._auto.state === "locked" ? qsTr("Bu oyunun altyazı bandı saklandı; Live artık aramıyor.")
+                            : qsTr("Senin çizdiğin bölge okunuyor.")
+                    AppButton {
+                        visible: live._auto.state === "found"
+                        style: "tinted"
+                        text: qsTr("Kabul et")
+                        busy: live._busyMethod === "autoRegion.accept"
+                        onClicked: live._call("autoRegion.accept")
+                    }
+                    AppButton {
+                        visible: live._auto.state === "found" || live._auto.state === "locked" || live._auto.state === "manual"
+                        style: "gray"
+                        text: qsTr("Yeniden ara")
+                        onClicked: live._auto.state === "manual" || live._hasRegion ? resetConfirm.open()
+                                                                                     : live._call("autoRegion.reset")
+                    }
+                }
 
                 // Lines were read clipped, so this session's region grew: keep it?
                 ListRow {
@@ -1540,6 +1584,19 @@ Item {
                 text: logDialog.lines.length > 0 ? logDialog.lines.join("\n") : qsTr("Henüz kayıt yok.")
             }
         }
+    }
+
+    // autoRegion.reset also forgets a hand-drawn region
+    ConfirmDialog {
+        id: resetConfirm
+        parent: Overlay.overlay
+        width: 420
+        title: qsTr("Altyazı yeniden aransın mı?")
+        message: qsTr("Senin çizdiğin bölge de silinir; Live altyazının bandını baştan arar.")
+        confirmText: qsTr("Yeniden ara")
+        glyph: Icons.scanSearch
+        accentColor: Theme.primary
+        onConfirmed: live._call("autoRegion.reset")
     }
 
     // First console start: the pool is GTA VI's, every line goes there

@@ -1199,6 +1199,7 @@ ApplicationWindow {
         regionIsRead: window._liveReadsScreen
         movable: PluginManager ? PluginManager.overlayMovable : false
         frame: PluginManager ? PluginManager.overlayFrame : Qt.rect(0, 0, 0, 0)
+        fit: PluginManager ? PluginManager.overlayFit : ({})
     }
 
     // A Binding rather than `shown:` — the overlay assigns shown itself when new
