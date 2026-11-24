@@ -227,6 +227,13 @@ qt_add_qml_module(MakineLauncher
         qml/screens/WhatsNewScreen.qml
         qml/screens/CommunityScreen.qml
         qml/screens/live/MakineLiveScreen.qml
+        qml/screens/live/AppearanceSection.qml
+        qml/screens/live/CodeField.qml
+        qml/screens/live/LiveFold.qml
+        qml/screens/live/LiveStep.qml
+        qml/screens/live/PoolsSection.qml
+        qml/screens/live/SunsetScene.qml
+        qml/screens/live/TvInstallWizard.qml
 
         # Screens - Game Detail Sections
         qml/screens/detail/HeroSection.qml
@@ -341,7 +348,7 @@ qt_add_qml_module(MakineLauncher
         resources/images/logo.png
         resources/images/logo_white.png
         resources/images/logo_anim.webp
-        resources/images/logo_gta6.webp
+        resources/images/logo_gta6.png
         # Fonts (Inter - Google Fonts)
         resources/fonts/Inter-Regular.ttf
         resources/fonts/Inter-Medium.ttf
