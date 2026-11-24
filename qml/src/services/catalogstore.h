@@ -34,6 +34,12 @@ public:
         QString dirName;
         QString source;
         QVariantList contributors;  // [{name, role}] from index.json
+        // Patch alternatives (optional keys; absent = as before)
+        QString label;              // the default patch's own name ("" → "Türkçe yama")
+        QVariantMap gameVersion;    // {label, steamBuild, date}; empty = unknown
+        QVariantList alternatives;  // [{id, label, description, version, sizeBytes,
+                                    //   downloadSize, dataUrl, checksum, dirName,
+                                    //   contributors, gameVersion}] in index order
     };
 
     CatalogStore();
@@ -68,6 +74,11 @@ public:
     // --- Parsing ---
     void parseIndex(const QByteArray& data);
     static CatalogEntry parseCatalogEntry(const QJsonObject& obj);
+    /// "gameVersion" read defensively: {} when absent or not an object
+    static QVariantMap parseGameVersion(const QJsonValue& value);
+    /// "alternatives" read defensively: bad ids, repeats and entries without
+    /// a label are skipped, at most 20 kept
+    static QVariantList parseAlternatives(const QJsonValue& value);
 
     // --- Changed tracking (consumed by orchestrator for detail invalidation) ---
     QStringList takeChangedAppIds();

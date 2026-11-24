@@ -153,6 +153,8 @@ set(BACKEND_HEADERS
     src/services/manifestsyncservice.h
     src/services/catalogstore.h
     src/services/detailfetcher.h
+    src/services/patchcompat.h
+    src/services/steammanifest.h
     src/services/telemetryservice.h
     src/services/translationdownloader.h
     src/services/supportedgamesmodel.h

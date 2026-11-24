@@ -18,6 +18,8 @@
 #include "profiler.h"
 #include "crashreporter.h"
 
+#include <QDir>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -90,6 +92,13 @@ ManifestSyncService::ManifestSyncService(QObject* parent)
     m_pollTimer.setInterval(30 * 60 * 1000);
     connect(&m_pollTimer, &QTimer::timeout, this, [this]() { syncIfStale(25 * 60 * 1000); });
     m_pollTimer.start();
+
+    // Steam's latest builds for the compatibility warning: from disk now,
+    // from the CDN 2 s in, then every 6 hours and after a catalogue sync.
+    loadCachedGameBuilds();
+    m_gameBuildsTimer.setInterval(6 * 60 * 60 * 1000);
+    connect(&m_gameBuildsTimer, &QTimer::timeout, this, [this]() { fetchGameBuilds(true); });
+    m_gameBuildsTimer.start();
 }
 
 ManifestSyncService::~ManifestSyncService()
@@ -105,9 +114,102 @@ QString ManifestSyncService::catalogGameName(const QString& appId) const { retur
 int ManifestSyncService::catalogCount() const { return m_store->catalogCount(); }
 QString ManifestSyncService::lastSyncTime() const { return m_store->lastSyncTime(); }
 
-void ManifestSyncService::fetchPackageDetail(const QString& appId) { m_detailFetcher->fetch(appId); }
-QVariantMap ManifestSyncService::getPackageDetail(const QString& appId) const { return m_detailFetcher->get(appId); }
-bool ManifestSyncService::hasPackageDetail(const QString& appId) const { return m_detailFetcher->has(appId); }
+// The detail of the patch the catalogue entry describes now: the default,
+// or the alternative being installed / installed (?pkg=, its own cache file).
+void ManifestSyncService::fetchPackageDetail(const QString& appId) { m_detailFetcher->fetch(appId, activePackage(appId)); }
+QVariantMap ManifestSyncService::getPackageDetail(const QString& appId) const { return m_detailFetcher->get(appId, activePackage(appId)); }
+bool ManifestSyncService::hasPackageDetail(const QString& appId) const { return m_detailFetcher->has(appId, activePackage(appId)); }
+
+void ManifestSyncService::setActivePackageResolver(std::function<QString(const QString&)> resolver)
+{
+    m_activePkg = std::move(resolver);
+}
+
+QString ManifestSyncService::activePackage(const QString& appId) const
+{
+    return m_activePkg ? m_activePkg(appId) : QString();
+}
+
+// ========== Latest Steam builds (assets/game-builds.json) ==========
+//
+// Written by the Worker cron only when a build moved, so its ETag is stable
+// and a 304 costs nothing. Until the server side is deployed the file is a
+// 404: that, and every other failure, is silent — the game page simply has
+// no "latest build" to compare with.
+
+static QString gameBuildsFile()     { return AppPaths::cacheDir() + QStringLiteral("/game_builds.json"); }
+static QString gameBuildsEtagFile() { return AppPaths::cacheDir() + QStringLiteral("/game_builds_etag.txt"); }
+
+void ManifestSyncService::loadCachedGameBuilds()
+{
+    QFile f(gameBuildsFile());
+    if (f.open(QIODevice::ReadOnly))
+        m_gameBuilds = patchcompat::parseGameBuilds(f.readAll());
+    QFile e(gameBuildsEtagFile());
+    if (!m_gameBuilds.isEmpty() && e.open(QIODevice::ReadOnly))
+        m_gameBuildsEtag = QString::fromUtf8(e.readAll()).trimmed();
+}
+
+QVariantMap ManifestSyncService::latestGameBuild(const QString& appId) const
+{
+    const auto it = m_gameBuilds.constFind(appId);
+    if (it == m_gameBuilds.constEnd())
+        return {};
+    return {{QStringLiteral("steamBuild"), it->steamBuild},
+            {QStringLiteral("date"), it->date}};
+}
+
+void ManifestSyncService::fetchGameBuilds(bool force)
+{
+    constexpr qint64 kMinGapMs = 10LL * 60 * 1000;
+    constexpr qint64 kMaxAgeMs = 6LL * 60 * 60 * 1000;
+    if (m_gameBuildsInFlight)
+        return;
+    if (m_sinceGameBuildsFetch.isValid()) {
+        const qint64 age = m_sinceGameBuildsFetch.elapsed();
+        if (age < kMinGapMs || (!force && age < kMaxAgeMs))
+            return;
+    }
+    m_gameBuildsInFlight = true;
+    m_sinceGameBuildsFetch.start();
+
+    QNetworkRequest req{QUrl{QLatin1String(cdn::kGameBuilds)}};
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                     QNetworkRequest::SameOriginRedirectPolicy);
+    req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+    security::hardenRequest(req, 10000);
+    if (!m_gameBuildsEtag.isEmpty())
+        req.setRawHeader("If-None-Match", m_gameBuildsEtag.toUtf8());
+
+    QNetworkReply* reply = m_nam.get(req);
+    security::installSizeGuard(reply, 2 * 1024 * 1024);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        m_gameBuildsInFlight = false;
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (reply->error() != QNetworkReply::NoError || status == 304 || status < 200 || status >= 300) {
+            if (status != 304)
+                qCDebug(lcManifestSync) << "game-builds.json not fetched: HTTP" << status
+                                        << reply->errorString();
+            return;
+        }
+        const QByteArray data = reply->readAll();
+        auto builds = patchcompat::parseGameBuilds(data);
+        if (builds.isEmpty())
+            return;   // broken or empty: keep what we had
+        QDir().mkpath(AppPaths::cacheDir());
+        QFile f(gameBuildsFile());
+        if (f.open(QIODevice::WriteOnly))
+            f.write(data);
+        m_gameBuildsEtag = QString::fromUtf8(reply->rawHeader("ETag"));
+        QFile e(gameBuildsEtagFile());
+        if (e.open(QIODevice::WriteOnly))
+            e.write(m_gameBuildsEtag.toUtf8());
+        m_gameBuilds = std::move(builds);
+        qCDebug(lcManifestSync) << "game-builds.json:" << m_gameBuilds.size() << "games";
+        emit gameBuildsChanged();
+    });
+}
 
 // ========== URL Helpers ==========
 
@@ -405,6 +507,7 @@ void ManifestSyncService::fallbackToLegacySync()
 
         if (status == 304) {
             setOffline(false);
+            fetchGameBuilds(true);
             QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
             return;
         }
@@ -421,6 +524,7 @@ void ManifestSyncService::fallbackToLegacySync()
                                         << m_store->catalogCount() << "packages";
                 invalidateAndNotifyRefresh();
                 setOffline(false);
+                fetchGameBuilds(true);
                 QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
             } else {
                 emit syncError(tr("Katalog verisi boş veya geçersiz"));
@@ -440,6 +544,8 @@ void ManifestSyncService::finishSync(bool catalogChanged)
     m_syncTimeoutTimer.stop();
     emit syncStatusChanged();
     setOffline(false);
+    // With the catalogue, the builds its patches are compared with
+    fetchGameBuilds(true);
     if (catalogChanged)
         QTimer::singleShot(0, this, [this]() { emit catalogReady(); });
     TelemetryService::record(QStringLiteral("sync"), QStringLiteral("ok"), {},

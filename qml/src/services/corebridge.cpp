@@ -26,6 +26,8 @@
 #include <QStorageInfo>
 
 #include "vdfparser.h"
+#include "steammanifest.h"
+#include "patchcompat.h"
 #include "localpackagemanager.h"
 #include "installsteprules.h"
 #include "operationjournal.h"
@@ -359,6 +361,12 @@ void CoreBridge::doScanSteamReal(QList<DetectedGame>& outGames, QStringList& not
             game.steamAppId = appId;
             game.isVerified = false;
             game.hasTranslation = false;
+            {
+                const auto build = steammanifest::parseAppBuild(acfContent);
+                game.steamBuildId = build.buildId;
+                game.steamLastUpdated = build.lastUpdated;
+                game.steamManifest = steamappsDir.absoluteFilePath(acfFile);
+            }
 
             outGames.append(game);
             emit gameDetected(game.id, game.name);
@@ -428,6 +436,7 @@ void CoreBridge::doScanEpicReal(QList<DetectedGame>& outGames)
         game.source = "epic";
         game.isVerified = false;
         game.hasTranslation = false;
+        game.appVersion = obj["AppVersionString"].toString();
 
         outGames.append(game);
         emit gameDetected(game.id, game.name);
@@ -1625,6 +1634,10 @@ bool CoreBridge::hasTranslationUpdate(const QString& gameId)
     auto pkg = m_localPkgManager->getPackage(resolved);
     if (!pkg) return false;
 
+    // Another patch than the entry describes (an alternative the index no
+    // longer lists): there is no newer version of it to offer.
+    if (installed->pkg != pkg->pkg) return false;
+
     return !installed->version.isEmpty()
         && !pkg->version.isEmpty()
         && installed->version != pkg->version;
@@ -1792,7 +1805,13 @@ void CoreBridge::refreshPackageManifest()
         const auto detailFiles = dir.entryList({"*.json"}, QDir::Files);
         int enriched = 0;
         for (const QString& fileName : detailFiles) {
-            QString appId = fileName.chopped(5);  // remove ".json"
+            const QString key = fileName.chopped(5);  // remove ".json"
+            // "<appId>--<pkg>": an alternative's detail. Only the detail of
+            // the patch each entry describes is merged into it.
+            const qsizetype sep = key.indexOf(QStringLiteral("--"));
+            const QString appId = sep > 0 ? key.left(sep) : key;
+            if (key != patchcompat::detailKey(appId, m_localPkgManager->activePackage(appId)))
+                continue;
             if (m_localPkgManager->isDetailLoaded(appId))
                 continue;
 
@@ -1821,7 +1840,8 @@ bool CoreBridge::ensurePackageDetail(const QString& steamAppId)
         return true;
 
     // Check disk cache
-    QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(steamAppId);
+    // The active patch's detail: "<appId>.json", or "<appId>--<pkg>.json"
+    QString cachePath = AppPaths::packageDetailDir() + QStringLiteral("/%1.json").arg(detailKey(steamAppId));
     const QFileInfo cached(cachePath);
     if (cached.exists()) {
         // Second layer behind the index-version purge in refreshPackageManifest().
@@ -1865,6 +1885,79 @@ void CoreBridge::enrichPackageFromJson(const QString& steamAppId, const QByteArr
     if (m_localPkgManager->enrichPackageDetail(steamAppId, jsonData)) {
         emit packageDetailEnriched(steamAppId);
     }
+}
+
+// ========== Patch alternatives ==========
+
+QString CoreBridge::activePackage(const QString& gameId)
+{
+    if (!m_localPkgManager) return {};
+    const QString resolved = resolveToSteamAppId(gameId);
+    return resolved.isEmpty() ? QString() : m_localPkgManager->activePackage(resolved);
+}
+
+void CoreBridge::setPendingPackage(const QString& gameId, const QString& pkg)
+{
+    if (!m_localPkgManager) return;
+    const QString resolved = resolveToSteamAppId(gameId);
+    if (resolved.isEmpty()) return;
+    m_localPkgManager->setPendingPackage(resolved, pkg);
+    qCInfo(lcCoreBridge) << "Patch for" << resolved << "is now"
+                         << (m_localPkgManager->activePackage(resolved).isEmpty()
+                                 ? QStringLiteral("the default") : m_localPkgManager->activePackage(resolved));
+}
+
+void CoreBridge::clearPendingPackage(const QString& gameId)
+{
+    if (!m_localPkgManager) return;
+    const QString resolved = resolveToSteamAppId(gameId);
+    if (!resolved.isEmpty())
+        m_localPkgManager->clearPendingPackage(resolved);
+}
+
+QString CoreBridge::detailKey(const QString& steamAppId)
+{
+    return patchcompat::detailKey(steamAppId,
+        m_localPkgManager ? m_localPkgManager->activePackage(steamAppId) : QString());
+}
+
+QVariantMap CoreBridge::installedGameBuild(const QString& gameId)
+{
+    int idx = -1;
+    for (int i = 0; i < m_detectedGames.size(); ++i) {
+        if (m_detectedGames[i].id == gameId) { idx = i; break; }
+    }
+    if (idx < 0) {
+        const QString resolved = resolveToSteamAppId(gameId);
+        const QString key = resolved.isEmpty() ? gameId : resolved;
+        idx = m_steamAppIdToDetectedIndex.value(key, -1);
+    }
+    if (idx < 0 || idx >= m_detectedGames.size())
+        return {};
+
+    const DetectedGame& game = m_detectedGames[idx];
+    qint64 buildId = game.steamBuildId;
+    qint64 lastUpdated = game.steamLastUpdated;
+    // Steam may have updated the game since the scan: its manifest is small.
+    if (!game.steamManifest.isEmpty()) {
+        QFile f(game.steamManifest);
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            const auto build = steammanifest::parseAppBuild(f.readAll().toStdString());
+            if (build.buildId > 0) {
+                buildId = build.buildId;
+                lastUpdated = build.lastUpdated;
+            }
+        }
+    }
+    return {
+        {QStringLiteral("buildId"), buildId},
+        {QStringLiteral("lastUpdated"), lastUpdated},
+        {QStringLiteral("date"), lastUpdated > 0
+             ? QDateTime::fromSecsSinceEpoch(lastUpdated).toString(QStringLiteral("yyyy-MM-dd"))
+             : QString()},
+        {QStringLiteral("appVersion"), game.appVersion},
+        {QStringLiteral("source"), game.source},
+    };
 }
 
 } // namespace makine

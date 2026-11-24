@@ -124,6 +124,21 @@ bool LocalPackageManager::isDetailLoaded(const QString& steamAppId) const
     return m_catalog.isDetailLoaded(steamAppId.toStdString());
 }
 
+QString LocalPackageManager::activePackage(const QString& steamAppId) const
+{
+    return QString::fromStdString(m_catalog.activePackage(steamAppId.toStdString()));
+}
+
+void LocalPackageManager::setPendingPackage(const QString& steamAppId, const QString& pkg)
+{
+    m_catalog.setPendingPackage(steamAppId.toStdString(), pkg.toStdString());
+}
+
+void LocalPackageManager::clearPendingPackage(const QString& steamAppId)
+{
+    m_catalog.clearPendingPackage(steamAppId.toStdString());
+}
+
 // -- Conversion helper --------------------------------------------------------
 
 PackageInfo LocalPackageManager::fromCatalogEntry(const packages::PackageCatalogEntry& entry)
@@ -144,6 +159,8 @@ PackageInfo LocalPackageManager::fromCatalogEntry(const packages::PackageCatalog
     info.installMethodType   = QString::fromStdString(entry.installMethodType);
     info.installMethodTarget = QString::fromStdString(entry.installMethodTarget);
     info.installNotes  = QString::fromStdString(entry.installNotes);
+    info.pkg           = QString::fromStdString(entry.pkg);
+    info.label         = QString::fromStdString(entry.label);
 
     // Convert store IDs
     for (const auto& [store, id] : entry.storeIds) {
@@ -269,6 +286,8 @@ std::optional<InstalledPackageInfo> LocalPackageManager::getInstalledInfo(const 
     info.installedAt = state->installedAt;
     info.gameStoreVersion = QString::fromStdString(state->gameStoreVersion);
     info.gameSource = QString::fromStdString(state->gameSource);
+    info.pkg = QString::fromStdString(state->pkg);
+    info.dirName = QString::fromStdString(state->dirName);
     for (const auto& f : state->installedFiles)
         info.installedFiles.append(QString::fromStdString(f));
     for (const auto& f : state->addedFiles)
@@ -2185,6 +2204,8 @@ void LocalPackageManager::saveInstallState(const QString& steamAppId, const QStr
         packages::InstalledPackageState state;
         state.version = pkg.version.toStdString();
         state.gamePath = gamePath.toStdString();
+        state.pkg = pkg.pkg.toStdString();          // which patch (alternatives)
+        state.dirName = pkg.dirName.toStdString();
         for (const QString& f : installed)
             state.installedFiles.push_back(f.toStdString());
         for (const QString& f : added)
@@ -2227,6 +2248,10 @@ void LocalPackageManager::failInstall(const QString& steamAppId, const QString& 
                 state.version = version.toStdString();
                 state.gamePath = gamePath.toStdString();
                 state.installedAt = QDateTime::currentSecsSinceEpoch();
+                if (const auto entry = m_catalog.getPackage(steamAppId.toStdString())) {
+                    state.pkg = entry->pkg;
+                    state.dirName = entry->dirName;
+                }
             }
             record = steprules::mergeWrittenFiles(record, written, writtenReplaced);
             state.installedFiles = toStd(record.installed);
@@ -2527,6 +2552,8 @@ void LocalPackageManager::installPackage(const QString& steamAppId, const QStrin
                     packages::InstalledPackageState state;
                     state.version = pkg.version.toStdString();
                     state.gamePath = targetPath.toStdString();
+                    state.pkg = pkg.pkg.toStdString();
+                    state.dirName = pkg.dirName.toStdString();
                     for (const QString& f : installedFiles)
                         state.installedFiles.push_back(f.toStdString());
                     state.installedAt = QDateTime::currentSecsSinceEpoch();

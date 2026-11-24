@@ -37,6 +37,11 @@ struct DetectedGame {
     bool isVerified{false};
     bool hasTranslation{false};
     QString translationStatus;
+    // What the store says about the installed build (patch compatibility)
+    qint64 steamBuildId{0};      // appmanifest "buildid", 0 = unknown
+    qint64 steamLastUpdated{0};  // appmanifest "LastUpdated" (Unix seconds)
+    QString steamManifest;       // that appmanifest_<id>.acf, re-read on demand
+    QString appVersion;          // Epic "AppVersionString" (informational)
 };
 
 /**
@@ -309,6 +314,29 @@ public:
      * @brief Enrich catalog entry with per-game detail JSON data
      */
     void enrichPackageFromJson(const QString& steamAppId, const QByteArray& jsonData);
+
+    // ---- Patch alternatives -------------------------------------------
+
+    /**
+     * @brief Which patch of a game the catalogue entry describes ("" = default):
+     * the one being installed, else the installed one, else the default.
+     */
+    Q_INVOKABLE QString activePackage(const QString& gameId);
+    /// Install  pkg next: the entry (recipe, dirName, version) becomes that patch's
+    void setPendingPackage(const QString& gameId, const QString& pkg);
+    /// Back to the installed patch (or the default)
+    void clearPendingPackage(const QString& gameId);
+    /// The detail cache file stem of the active patch: "<appId>" or "<appId>--<pkg>"
+    QString detailKey(const QString& steamAppId);
+
+    /**
+     * @brief The installed copy's build, as its store reports it
+     * @return {buildId (Steam appmanifest buildid, 0 = unknown), lastUpdated
+     *         (Unix s), date ("YYYY-MM-DD" of lastUpdated), appVersion (Epic),
+     *         source}; {} for a game we did not detect. A Steam manifest is read
+     *         again, so an update Steam applied since the scan is seen.
+     */
+    Q_INVOKABLE QVariantMap installedGameBuild(const QString& gameId);
 
 signals:
     // Scanning signals

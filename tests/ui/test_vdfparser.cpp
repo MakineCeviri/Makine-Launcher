@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 #include "vdfparser.h"
+#include "steammanifest.h"
 
 namespace makine::testing {
 
@@ -197,6 +198,47 @@ TEST(VdfParser, MalformedMissingClosingBrace) {
     const auto* root = result->find("root");
     ASSERT_NE(root, nullptr);
     EXPECT_EQ(root->getString("child"), "value");
+}
+
+// ---- appmanifest buildid / LastUpdated (patch compatibility) ----------------
+
+TEST(SteamManifest, ReadsBuildIdAndLastUpdated) {
+    // Shape of a real appmanifest_1245620.acf
+    const auto b = steammanifest::parseAppBuild(R"(
+"AppState"
+{
+	"appid"		"1245620"
+	"Universe"		"1"
+	"name"		"ELDEN RING"
+	"StateFlags"		"4"
+	"installdir"		"ELDEN RING"
+	"LastUpdated"		"1732460000"
+	"SizeOnDisk"		"52313216546"
+	"buildid"		"16550001"
+	"LastOwner"		"76561198000000000"
+	"InstalledDepots"
+	{
+		"1245621"
+		{
+			"manifest"		"123"
+		}
+	}
+}
+)");
+    EXPECT_EQ(b.buildId, 16550001);
+    EXPECT_EQ(b.lastUpdated, 1732460000);
+}
+
+TEST(SteamManifest, MissingOrMalformedValuesAreUnknown) {
+    EXPECT_EQ(steammanifest::parseAppBuild(R"("AppState" { "appid" "1" })").buildId, 0);
+    const auto bad = steammanifest::parseAppBuild(
+        R"("AppState" { "buildid" "-5" "LastUpdated" "12a" })");
+    EXPECT_EQ(bad.buildId, 0);
+    EXPECT_EQ(bad.lastUpdated, 0);
+    EXPECT_EQ(steammanifest::parseAppBuild(R"("AppState" { "buildid" "99999999999999999999" })").buildId, 0);
+    EXPECT_EQ(steammanifest::parseAppBuild("").buildId, 0);
+    // No AppState wrapper: the keys at the top level are read
+    EXPECT_EQ(steammanifest::parseAppBuild(R"("buildid" "42")").buildId, 42);
 }
 
 } // namespace makine::testing

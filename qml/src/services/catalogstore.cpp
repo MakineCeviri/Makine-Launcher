@@ -66,6 +66,21 @@ QVariantList CatalogStore::catalog() const
             entry.insert(QStringLiteral("source"), ce.source);
         if (!ce.contributors.isEmpty())
             entry.insert(QStringLiteral("contributors"), ce.contributors);
+        if (!ce.label.isEmpty())
+            entry.insert(QStringLiteral("label"), ce.label);
+        if (!ce.gameVersion.isEmpty())
+            entry.insert(QStringLiteral("gameVersion"), ce.gameVersion);
+        if (!ce.alternatives.isEmpty()) {
+            QVariantList alts;
+            alts.reserve(ce.alternatives.size());
+            for (const QVariant& a : ce.alternatives) {
+                QVariantMap m = a.toMap();
+                m.insert(QStringLiteral("comingSoon"),
+                         !cdn::isCdnUrl(m.value(QStringLiteral("dataUrl")).toString()));
+                alts.append(m);
+            }
+            entry.insert(QStringLiteral("alternatives"), alts);
+        }
 
         m_catalogCache.append(entry);
     }
@@ -154,7 +169,95 @@ CatalogStore::CatalogEntry CatalogStore::parseCatalogEntry(const QJsonObject& en
         });
     }
 
+    ce.label = entry[QStringLiteral("label")].toString();
+    ce.gameVersion = parseGameVersion(entry[QStringLiteral("gameVersion")]);
+    ce.alternatives = parseAlternatives(entry[QStringLiteral("alternatives")]);
+
     return ce;
+}
+
+namespace {
+
+// ^[a-z0-9][a-z0-9-]{0,31}$ and never "default" (no <regex> on MinGW)
+bool validAlternativeId(const QString& id)
+{
+    if (id.isEmpty() || id.size() > 32 || id == QLatin1String("default"))
+        return false;
+    for (qsizetype i = 0; i < id.size(); ++i) {
+        const QChar c = id.at(i);
+        const bool alnum = (c >= QLatin1Char('a') && c <= QLatin1Char('z'))
+                        || (c >= QLatin1Char('0') && c <= QLatin1Char('9'));
+        if (!alnum && !(i > 0 && c == QLatin1Char('-')))
+            return false;
+    }
+    return true;
+}
+
+qint64 positiveInt(const QJsonValue& v)
+{
+    if (!v.isDouble()) return 0;
+    const double d = v.toDouble();
+    return (d > 0 && d < 9.0e15) ? static_cast<qint64>(d) : 0;
+}
+
+} // namespace
+
+QVariantMap CatalogStore::parseGameVersion(const QJsonValue& value)
+{
+    if (!value.isObject())
+        return {};
+    const QJsonObject o = value.toObject();
+    const QString label = o[QStringLiteral("label")].toString();
+    const qint64 build = positiveInt(o[QStringLiteral("steamBuild")]);
+    const QString date = o[QStringLiteral("date")].toString();
+    if (label.isEmpty() && build == 0 && date.isEmpty())
+        return {};
+    return {
+        {QStringLiteral("label"), label},
+        {QStringLiteral("steamBuild"), build},
+        {QStringLiteral("date"), date},
+    };
+}
+
+QVariantList CatalogStore::parseAlternatives(const QJsonValue& value)
+{
+    QVariantList out;
+    if (!value.isArray())
+        return out;
+    QStringList seen;
+    for (const QJsonValue& v : value.toArray()) {
+        if (!v.isObject()) continue;
+        const QJsonObject a = v.toObject();
+        const QString id = a[QStringLiteral("id")].toString();
+        const QString label = a[QStringLiteral("label")].toString();
+        if (!validAlternativeId(id) || label.isEmpty() || seen.contains(id))
+            continue;
+        seen.append(id);
+
+        QVariantList contributors;
+        for (const QJsonValue& c : a[QStringLiteral("contributors")].toArray()) {
+            if (!c.isObject()) continue;
+            const QJsonObject co = c.toObject();
+            contributors.append(QVariantMap{
+                {QStringLiteral("name"), co[QStringLiteral("name")].toString()},
+                {QStringLiteral("role"), co[QStringLiteral("role")].toString()}});
+        }
+        out.append(QVariantMap{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("label"), label},
+            {QStringLiteral("description"), a[QStringLiteral("description")].toString()},
+            {QStringLiteral("version"), a[QStringLiteral("v")].toString()},
+            {QStringLiteral("sizeBytes"), positiveInt(a[QStringLiteral("sizeBytes")])},
+            {QStringLiteral("downloadSize"), positiveInt(a[QStringLiteral("size")])},
+            {QStringLiteral("dataUrl"), a[QStringLiteral("dataUrl")].toString()},
+            {QStringLiteral("checksum"), a[QStringLiteral("checksum")].toString()},
+            {QStringLiteral("dirName"), a[QStringLiteral("dirName")].toString()},
+            {QStringLiteral("contributors"), contributors},
+            {QStringLiteral("gameVersion"), parseGameVersion(a[QStringLiteral("gameVersion")])},
+        });
+        if (out.size() >= 20) break;
+    }
+    return out;
 }
 
 void CatalogStore::parseIndex(const QByteArray& data)
@@ -197,7 +300,19 @@ void CatalogStore::parseIndex(const QByteArray& data)
     // Track version-changed packages for detail invalidation
     for (auto it = newCatalog.constBegin(); it != newCatalog.constEnd(); ++it) {
         auto old = m_catalog.constFind(it.key());
-        if (old != m_catalog.constEnd() && old->version != it->version) {
+        // An alternative's new version invalidates its detail too
+        const auto altVersions = [](const QVariantList& alts) {
+            QStringList out;
+            for (const QVariant& a : alts) {
+                const QVariantMap m = a.toMap();
+                out << m.value(QStringLiteral("id")).toString() + QLatin1Char('=')
+                           + m.value(QStringLiteral("version")).toString();
+            }
+            return out;
+        };
+        if (old != m_catalog.constEnd()
+            && (old->version != it->version
+                || altVersions(old->alternatives) != altVersions(it->alternatives))) {
             m_changedAppIds.append(it.key());
             qCDebug(lcCatalogStore) << "CatalogStore: version changed for" << it.key()
                                     << "(" << old->version << "->" << it->version << ")";

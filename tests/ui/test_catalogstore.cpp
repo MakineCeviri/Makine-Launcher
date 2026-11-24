@@ -316,6 +316,133 @@ TEST_F(CatalogStoreTest, ParseIndexHandlesEmptyPackages)
     EXPECT_EQ(store.catalogVersion(), 5);
 }
 
+// ========== Patch alternatives + game version (optional keys) ==========
+
+static QJsonObject makeAlt(const QString& id, const QString& label, const QString& v)
+{
+    QJsonObject a;
+    a["id"] = id;
+    a["label"] = label;
+    a["description"] = "Ses de Türkçe.";
+    a["v"] = v;
+    a["sizeBytes"] = 123;
+    a["size"] = 100;
+    a["dataUrl"] = "https://cdn.makineceviri.org/data/1245620--" + id + "-0123456789ab.makine";
+    a["checksum"] = "sha256:ab";
+    a["dirName"] = "ELDEN RING--" + id;
+    a["contributors"] = QJsonArray{QJsonObject{{"name", "B"}, {"role", "Seslendirme"}}};
+    a["gameVersion"] = QJsonObject{{"label", ""}, {"steamBuild", 16412345}, {"date", "2026-10-28"}};
+    return a;
+}
+
+static QVariantMap entryFor(const CatalogStore& store, const QString& appId)
+{
+    for (const QVariant& v : store.catalog())
+        if (v.toMap().value("steamAppId").toString() == appId)
+            return v.toMap();
+    return {};
+}
+
+TEST_F(CatalogStoreTest, EntryWithoutNewKeysHasNoNewFields)
+{
+    QJsonObject packages;
+    packages["111"] = makeEntry("Old", "1.0");
+    store.parseIndex(makeIndexJson(1, packages));
+
+    const QVariantMap e = entryFor(store, "111");
+    EXPECT_FALSE(e.contains("label"));
+    EXPECT_FALSE(e.contains("gameVersion"));
+    EXPECT_FALSE(e.contains("alternatives"));
+    EXPECT_EQ(e.value("version").toString(), "1.0");
+}
+
+TEST_F(CatalogStoreTest, ParsesLabelGameVersionAndAlternatives)
+{
+    QJsonObject entry = makeEntry("ELDEN RING", "2026-10-30");
+    entry["label"] = "Topluluk çevirisi";
+    entry["gameVersion"] = QJsonObject{{"label", "1.16.1"}, {"steamBuild", 16412345},
+                                       {"date", "2026-10-28"}};
+    QJsonObject offsite = makeAlt("eski", "Eski sürüm", "2026-01-01");
+    offsite["dataUrl"] = "https://example.com/x.makine";
+    entry["alternatives"] = QJsonArray{
+        makeAlt("dublaj", "Türkçe dublaj", "2026-11-02"),
+        QJsonObject{{"id", "Bad Id"}, {"label", "x"}},
+        QJsonObject{{"id", "dublaj"}, {"label", "duplicate"}},
+        QJsonObject{{"id", "nolabel"}},
+        QJsonObject{{"id", "default"}, {"label", "reserved"}},
+        offsite,
+    };
+    QJsonObject packages;
+    packages["1245620"] = entry;
+    store.parseIndex(makeIndexJson(2, packages));
+
+    const QVariantMap e = entryFor(store, "1245620");
+    EXPECT_EQ(e.value("label").toString(), QString::fromUtf8("Topluluk çevirisi"));
+    const QVariantMap gv = e.value("gameVersion").toMap();
+    EXPECT_EQ(gv.value("label").toString(), "1.16.1");
+    EXPECT_EQ(gv.value("steamBuild").toLongLong(), 16412345);
+    EXPECT_EQ(gv.value("date").toString(), "2026-10-28");
+
+    const QVariantList alts = e.value("alternatives").toList();
+    ASSERT_EQ(alts.size(), 2);
+    const QVariantMap d = alts[0].toMap();
+    EXPECT_EQ(d.value("id").toString(), "dublaj");
+    EXPECT_EQ(d.value("version").toString(), "2026-11-02");
+    EXPECT_EQ(d.value("downloadSize").toLongLong(), 100);
+    EXPECT_EQ(d.value("dirName").toString(), "ELDEN RING--dublaj");
+    EXPECT_EQ(d.value("contributors").toList().size(), 1);
+    EXPECT_EQ(d.value("gameVersion").toMap().value("steamBuild").toLongLong(), 16412345);
+    EXPECT_FALSE(d.value("comingSoon").toBool());
+    EXPECT_TRUE(alts[1].toMap().value("comingSoon").toBool());   // not on our CDN
+    // The default patch's own keys are untouched
+    EXPECT_EQ(e.value("version").toString(), "2026-10-30");
+    EXPECT_EQ(e.value("dirName").toString(), "test_game");
+}
+
+TEST_F(CatalogStoreTest, MalformedNewKeysReadAsAbsent)
+{
+    QJsonObject entry = makeEntry("Game", "1.0");
+    entry["label"] = 42;
+    entry["gameVersion"] = "1.16.1";
+    entry["alternatives"] = QJsonObject{{"id", "x"}};
+    QJsonObject other = makeEntry("Other", "2.0");
+    other["gameVersion"] = QJsonObject{{"steamBuild", "123"}, {"label", 7}};
+    other["alternatives"] = QJsonArray{42, "x", QJsonValue(),
+        QJsonObject{{"id", "ok"}, {"label", "Tamam"}, {"sizeBytes", "big"},
+                    {"contributors", "A"}, {"gameVersion", QJsonArray{}}}};
+    QJsonObject packages;
+    packages["1"] = entry;
+    packages["2"] = other;
+    store.parseIndex(makeIndexJson(3, packages));
+
+    EXPECT_EQ(store.catalogCount(), 2);
+    const QVariantMap e1 = entryFor(store, "1");
+    EXPECT_FALSE(e1.contains("label"));
+    EXPECT_FALSE(e1.contains("gameVersion"));
+    EXPECT_FALSE(e1.contains("alternatives"));
+    const QVariantMap e2 = entryFor(store, "2");
+    EXPECT_FALSE(e2.contains("gameVersion"));
+    const QVariantList alts = e2.value("alternatives").toList();
+    ASSERT_EQ(alts.size(), 1);
+    EXPECT_EQ(alts[0].toMap().value("sizeBytes").toLongLong(), 0);
+    EXPECT_TRUE(alts[0].toMap().value("gameVersion").toMap().isEmpty());
+}
+
+TEST_F(CatalogStoreTest, AlternativeVersionChangeMarksTheGameChanged)
+{
+    QJsonObject entry = makeEntry("ER", "1.0");
+    entry["alternatives"] = QJsonArray{makeAlt("dublaj", "Dublaj", "a")};
+    QJsonObject packages;
+    packages["7"] = entry;
+    store.parseIndex(makeIndexJson(1, packages));
+    store.takeChangedAppIds();
+
+    entry["alternatives"] = QJsonArray{makeAlt("dublaj", "Dublaj", "b")};
+    packages["7"] = entry;
+    store.parseIndex(makeIndexJson(2, packages));
+    EXPECT_EQ(store.takeChangedAppIds(), QStringList{"7"});
+}
+
 } // namespace makine::testing
 
 int main(int argc, char** argv)

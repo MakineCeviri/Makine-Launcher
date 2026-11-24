@@ -44,17 +44,86 @@ InstallFlowService::InstallFlowService(GameService* gameService,
             m_pendingGameId.clear();
             m_pendingGameName.clear();
             m_pendingUpdateFlow = false;
+            dropPendingPackage(appId);
             qCWarning(lcInstallFlow) << "Package detail unavailable for" << appId
                                      << "— not installing without its recipe";
             emit m_gameService->translationInstallCompleted(appId, false,
                 tr("Kurulum bilgileri alınamadı, yama kurulmadı.\n"
                    "İnternet bağlantınızı kontrol edip tekrar deneyin."));
         });
+
+    // A failed install of another patch: the game's entry goes back to the
+    // installed one (a successful one was recorded, which settles it).
+    // An install held for "Yine de kur" (the folder or version does not
+    // match the patch) reports a failure too, but is not over: its patch
+    // stays pending until the player answers.
+    connect(m_gameService, &GameService::installNeedsConfirmation, this,
+        [this](const QString& gameId, const QVariantMap&) { m_heldInstalls.insert(gameId); });
+    connect(m_gameService, &GameService::translationInstallCompleted, this,
+        [this](const QString& gameId, bool success, const QString&) {
+            if (m_heldInstalls.remove(gameId))
+                return;
+            if (!success)
+                dropPendingPackage(gameId);
+        });
+
+    // Switching patch: the install of the new one waits for the old one's
+    // uninstall, and does not start when that failed (its message is shown).
+    connect(m_gameService, &GameService::translationUninstalled, this,
+        [this](const QString& gameId, bool success, const QString&) {
+            const auto it = m_pendingSwitches.find(gameId);
+            if (it == m_pendingSwitches.end())
+                return;
+            const auto [gameName, pkg] = it.value();
+            m_pendingSwitches.erase(it);
+            if (!success) {
+                qCInfo(lcInstallFlow) << "Patch switch for" << gameId
+                                      << "stopped: the installed patch was not removed";
+                return;
+            }
+            startInstallPackage(gameId, gameName, pkg);
+        });
 }
 
 // ===== ENTRY POINT: Install =====
 
 void InstallFlowService::startInstall(const QString& gameId, const QString& gameName)
+{
+    // The patch the game describes on its own: the installed one, else the
+    // default. A patch picked on the game page comes through startInstallPackage.
+    m_coreBridge->clearPendingPackage(gameId);
+    beginInstall(gameId, gameName);
+}
+
+void InstallFlowService::startInstallPackage(const QString& gameId, const QString& gameName,
+                                             const QString& pkg)
+{
+    qCInfo(lcInstallFlow) << "Install of patch" << (pkg.isEmpty() ? QStringLiteral("(default)") : pkg)
+                          << "for" << gameId;
+    m_coreBridge->setPendingPackage(gameId, pkg);
+    beginInstall(gameId, gameName);
+}
+
+void InstallFlowService::startSwitchPackage(const QString& gameId, const QString& gameName,
+                                            const QString& pkg)
+{
+    if (!m_coreBridge->isPackageInstalled(gameId)) {
+        startInstallPackage(gameId, gameName, pkg);
+        return;
+    }
+    qCInfo(lcInstallFlow) << "Switching" << gameId << "from patch"
+                          << m_coreBridge->activePackage(gameId) << "to" << pkg;
+    // Recorded first: the uninstall may answer before it returns.
+    m_pendingSwitches.insert(gameId, {gameName, pkg});
+    m_gameService->uninstallTranslation(gameId);
+}
+
+void InstallFlowService::dropPendingPackage(const QString& gameId)
+{
+    m_coreBridge->clearPendingPackage(gameId);
+}
+
+void InstallFlowService::beginInstall(const QString& gameId, const QString& gameName)
 {
     m_pendingUpdateFlow = false;
 
@@ -87,6 +156,8 @@ void InstallFlowService::startInstall(const QString& gameId, const QString& game
 void InstallFlowService::startUpdate(const QString& gameId, const QString& gameName)
 {
     m_pendingUpdateFlow = true;
+    // An update is of the installed patch
+    m_coreBridge->clearPendingPackage(gameId);
 
     if (!ensurePackageDetail(gameId, gameName))
         return;
@@ -190,6 +261,7 @@ void InstallFlowService::onOptionsConfirmed(const QStringList& selectedIds)
 
 void InstallFlowService::onOptionsCancelled()
 {
+    dropPendingPackage(m_pendingInstallOptionsData.value(QStringLiteral("gameId")).toString());
     m_pendingInstallOptionsData.clear();
     m_pendingUpdateFlow = false;
 }
@@ -240,6 +312,7 @@ void InstallFlowService::onVariantSelected(const QString& variant)
 
 void InstallFlowService::onVariantCancelled()
 {
+    dropPendingPackage(m_pendingVariantData.value(QStringLiteral("gameId")).toString());
     m_pendingVariantData.clear();
     m_pendingUpdateFlow = false;
 }
@@ -359,6 +432,7 @@ void InstallFlowService::onDownloadFailed(const QString& appId, const QString& e
 
     QString gameId = it.value().gameId;
     m_pendingDownloads.erase(it);
+    dropPendingPackage(gameId);
     emit installError(gameId, error);
 }
 
