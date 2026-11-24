@@ -186,10 +186,12 @@ kanalında hepsi sayılır:
 | `tool_missing` · `tool_stage_failed` | Program pakette yok · geçici kopya hazırlanamadı |
 | `tool_start_failed` · `tool_exit_code` · `tool_timeout` · `elevation_declined` | Başlamadı · 0 dışı kod · 2 saat · UAC'ye "Hayır" |
 | `tool_version_mismatch` · `tool_blocked_by_policy` | 0 dışı kod, çıktısı nedenini söylüyor (`steprules::toolOutputCause`): oyunun bu sürümünü tanımadı (`FARKLI SURUM`) · Windows'un uygulama denetimi (Device Guard / App Control) programı engelledi (taraf `user`). Oyuncu da nedeni adımın ayrıntısında görür |
-| `program_no_change` | Program 0 ile çıktı ama oyunda hiçbir şey değişmedi (kurulum olmamış sayıldı) |
+| `tool_blocked_by_antivirus` · `tool_write_denied` · `tool_foreign_files` | 0 dışı kod, çıktının sonu (betiğin "Kurulum yapilamadi" yardımından önceki son neden; en sondaki kazanır): `cmd` programı başlatamadı (antivirüs) · oyunun dosyası kilitli/salt okunur · başka bir yamadan kalma klasör (ER `TurkceYama`). Taraf `user` (uyarı); sayfada nedene göre tek bir "Çözüm" |
+| `tool_no_game` | Program oyunun klasörünü bulamadı/tanımadı: tarif klasörü vermiyor (`args` yok) — tarif hatası, taraf `system` |
+| `program_no_change` | Program 0 ile çıktı ama oyunda hiçbir şey değişmedi (kurulum olmamış sayıldı). Çıktısı "zaten kurulu" diyorsa kurulu sayılır (kayıtta `_program:*`, kaldırma programı yine çalışır) |
 | `game_version_differs` · `fingerprint_mismatch` | Parmak izi: oyun başka sürüm · klasör yamanın oyununa benzemiyor; kurulum oyuncuya soruldu (yalnız sayım, Sentry'ye gitmez) |
 | `uninstall_tool` | Kaldırma programı başarısız (mesajda neden: bulunamadı, kod …) |
-| `uninstall_tool_no_change` | Kaldırma programı oyunda hiçbir şey değiştirmedi |
+| `uninstall_tool_no_change` | Kaldırma programı oyunda hiçbir şey değiştirmedi (uyarı; çıktısının sonu kayıtta). "Durdur" = `cancelled`, yalnız sayılır |
 | `uninstall_tool_skipped` | İki hatadan sonra programsız kaldırıldı, mağaza onarımı başladı |
 
 `just telemetry-check` sıralı listeyi verir; geliştirme sürümlerinin olayları `development` ortamındadır.
@@ -199,6 +201,10 @@ kanalında hepsi sayılır:
 - Paketin içine **`game.bin`** koy (OyunBul: `OyunBul.exe ornekle <oyun_klasörü>`): **temiz** kurulumdan al,
   yamanın değiştireceği dosyaları `--haric` ile dışarıda bırak (`--haric "*.forge;update_4.rpf"`). Launcher
   kurmadan önce oyuncunun oyununu onunla karşılaştırır, başka sürümse sorar, `${exeDir}`'i ondan bulur.
+- **Tarif klasörü argümanla vermeli**: `KUR.bat`/`KALDIR.bat` tarifinde `"args": ["--oyun", "${gamePath}"]` ve
+  `"uninstallArgs"` aynısı. Argümansız tarifte araç oyunu kendi arar: Ubisoft/elle kurulumda bulamaz ("Oyun
+  bulunamadi", Watch Dogs) ya da başka bir kopyayı yamalar; kaldırma "hiçbir şey değiştirmedi" olur. Araçlarımız
+  `MAKINE_OYUN`'u okumuyor (2026-11-24: 19 tarif düzeltildi, katalog v109).
 - Oyun klasörünü **argümanla** al (`--oyun <klasör>`, `--game <klasör>`, `%1`) ya da `MAKINE_OYUN` ortam
   değişkeninden / oyun klasöründeki `.makine`'den oku. Betikte sabit yazdıysan launcher düzeltir.
 - Kaldırma komutu olsun (`restore <klasör>`, `--kaldir`); yoksa "Kaldır" yamayı geri alamaz.
