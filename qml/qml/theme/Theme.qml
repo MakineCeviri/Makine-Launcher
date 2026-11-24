@@ -218,6 +218,9 @@ QtObject {
     readonly property var gta6Sun: ["#FFC46B", "#FF6AA6", "#9A6BFF"]
     /// The subtitle band of the "GTA VI" look (style.bandColor; TV, phone and OBS get the same)
     readonly property color gta6Band: "#150A22"
+    /// An optional background image behind the Live page (Sezer's pick); it fades out
+    /// at the edges with EdgeFade/TopDissolve so the copy keeps its contrast
+    readonly property real gta6BackdropOpacity: 0.15
 
     // =========================================================================
     // SPECIAL

@@ -62,8 +62,9 @@ Item {
     // The GTA VI look (docs/design.md "GTA VI görünümü"): console mode is GTA VI's.
     // The sunset surface is a dark one, so the light theme keeps the stock hero.
     readonly property bool _gta6: _consoleMode && Theme.darkMode
-    // Official art comes from our CDN at run time (never bundled); false = palette only
-    readonly property bool _gta6ArtOn: true
+    // Official art comes from our CDN at run time (never bundled); false = palette only.
+    // Off until Sezer decides on Rockstar's art in the Store app: flip this one line.
+    readonly property bool _gta6ArtOn: false
     readonly property string _gta6ArtUrl: "https://cdn.makineceviri.org/site/gta6/art/vice_city_postcard_landscape-960.webp"
     readonly property var _region: _state.region ? _state.region[_consoleMode ? "console" : "pc"] || null : null
     readonly property bool _hasRegion: !!_region && _region.width > 0 && _region.height > 0
@@ -328,7 +329,7 @@ Item {
     component SunsetScene: Rectangle {
         anchors.fill: parent
         radius: Dimensions.radiusLG
-        visible: live._consoleMode
+        visible: live._gta6
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.gta6Sky }
             GradientStop { position: 0.42; color: Theme.gta6Sun[2] }
@@ -599,7 +600,7 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             // The copy keeps clear of the art on the right
-                            Layout.rightMargin: live._gta6 && live._gta6ArtOn ? Math.round(heroCol.width * 0.44) : 0
+                            Layout.rightMargin: live._gta6 && sunsetArt.status === Image.Ready ? Math.round(heroCol.width * 0.44) : 0
                             spacing: 6
                             Text {
                                 visible: live._gta6

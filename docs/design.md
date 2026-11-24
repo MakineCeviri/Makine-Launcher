@@ -158,8 +158,8 @@ Sitenin `/live/` sayfasındaki gün batımının launcher'daki karşılığı. B
 ince bir katman: `Theme.gta6*` tokenları, yalnız `MakineLiveScreen.qml` kullanır.
 
 - **Ne zaman:** `mode === "console"` (konsol havuzu GTA VI'nın) ve koyu görünüm (`live._gta6`).
-  Açık görünümde kahraman kabı olağan hâlinde kalır; önizleme sahnesi ve "GTA VI" altyazı biçimi
-  iki görünümde de vardır.
+  Açık görünümde sayfa olağan hâlinde kalır (kahraman da önizleme de); yalnız "GTA VI" altyazı
+  biçimi konsol modunda iki görünümde de seçilebilir.
 - **Nerede:** kahraman kabı (erik moru gece `gta6Plum` → `gta6Ink`, sağ üstte alçak güneş
   `gta6Orange`/`gta6Pink`, üst kenarda `gta6Sun` çizgisi, "GTA VI · PS5 / XBOX" üst yazısı, zincirin
   bağları pembe, bekleyen durak turuncu); "Şu an" ve Görünüm önizlemesindeki sahne (`SunsetScene`:
@@ -175,8 +175,13 @@ ince bir katman: `Theme.gta6*` tokenları, yalnız `MakineLiveScreen.qml` kullan
   depoya, ne pakete, ne de çalışırken CDN'den.
 - **Resmî çizim:** kahramanın sağında, çalışırken CDN'den (`site/gta6/art/…-960.webp`, oyun
   kapakları gibi), %60 opak, sola doğru eriyerek. Depoda ve pakette yoktur; çevrimdışıyken ya da
-  dosya CDN'den kaldırılınca gece ve güneş tek başına kalır. `_gta6ArtOn: false` yalnız paletle
-  bırakır. VI logosu ve GTA biçimli "Makine Çeviri" yazısı launcher'da kullanılmaz.
+  dosya CDN'den kaldırılınca gece ve güneş tek başına kalır, yazı da sağa yayılır. Şimdilik kapalı:
+  `_gta6ArtOn: false` (`MakineLiveScreen.qml`, tek satır) — Rockstar çizimini Store uygulamasında
+  kullanmaya Sezer karar verince açılır. Açılmadan önce: çizim oyun kapakları gibi diske önbelleğe
+  alınmalı (`ImageCache` şimdilik yalnız appId ile çözer; QML `Image` URL'yi önbelleksiz indirir). VI logosu ve GTA biçimli "Makine Çeviri" yazısı launcher'da kullanılmaz.
+- **Arka plan görseli (yalnız token, henüz çizilmiyor):** Sezer bir görsel seçerse sayfanın
+  arkasına `Theme.gta6BackdropOpacity` (0.15) ile konacak ve kenarlarda `EdgeFade`/`TopDissolve`
+  ile eriyecek; yazı onun üstünde kontrastını korur.
 - **Altyazı "GTA VI":** yeni bir ön ayar adı değil; `preset: "band"` + `bandColor: #150A22` +
   `bandOpacity: 0.92`, beyaz Inter. Böylece overlay, Makine TV, telefon ve OBS sayfaları değişmeden
   aynı bandı çizer. Onay bekleyen satırın sarı çizgisi durur.
