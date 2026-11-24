@@ -26,7 +26,8 @@ pragma ComponentBehavior: Bound
  * preset band · contrast · classic · minimal, font, sizePx, maxLines,
  * textColor, bandColor, bandOpacity, outlinePx, shadow, showSource.
  * `lines`: [{text, sourceText?, kind?, label?}]; kind "verified" = approved; label is the
- * speaker (one entry per speaker), shown untranslated and quiet above the line.
+ * speaker (one entry per speaker), untranslated, inline before the text in the quieter
+ * colour ("Jason: Ne oldu?"), as in the game's own subtitles.
  *
  * Self-contained on purpose (no launcher module import): a preview harness can
  * load it on its own.
@@ -96,7 +97,7 @@ Item {
     readonly property real _innerMax: {
         let need = 0
         for (let i = 0; i < shownLines.length; ++i)
-            need = Math.max(need, metrics.advanceWidth(shownLines[i].text || "") / (maxLines * 0.92))
+            need = Math.max(need, metrics.advanceWidth((shownLines[i].label ? shownLines[i].label + ": " : "") + (shownLines[i].text || "")) / (maxLines * 0.92))
         return Math.min(_widestInner, Math.max(_usualInner, need))
     }
 
@@ -182,20 +183,10 @@ Item {
 
                 readonly property real _innerMax: block._innerMax
 
-                // The speaker (one entry per speaker): untranslated, small and quiet, above the line
-                SubtitleLine {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    visible: (entry.modelData.label || "") !== ""
-                    text: entry.modelData.label || ""
-                    pixelSize: Math.round(block.sizePx * 0.62)
-                    weight: Font.Medium
-                    color: "#c9c8c2"
-                    innerMax: entry._innerMax
-                    outline: Math.min(block.outlinePx, 1)
-                }
                 SubtitleLine {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: entry.modelData.text || ""
+                    label: entry.modelData.label || ""
                     pixelSize: block.sizePx
                     weight: Font.DemiBold
                     color: block.textColor
@@ -224,6 +215,12 @@ Item {
         property color color: "#FFFFFF"
         property real innerMax: 800
         property real outline: block.outlinePx
+        // Speaker, inline before the text in the quieter colour (same weight: the outline
+        // copies are plain text and must lay out exactly like the face)
+        property string label: ""
+        readonly property string _prefix: label === "" ? "" : (label.endsWith(":") ? label : label + ":") + " "
+        readonly property string _plain: _prefix + text
+        function _esc(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") }
 
         width: face.width
         height: face.height
@@ -239,7 +236,7 @@ Item {
             x: 0
             y: Math.max(1, Math.round(lineRoot.pixelSize / 14))
             width: face.width
-            text: face.text
+            text: lineRoot._plain
             font: face.font
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
@@ -257,7 +254,7 @@ Item {
                 x: modelData[0] * lineRoot._r
                 y: modelData[1] * lineRoot._r
                 width: face.width
-                text: face.text
+                text: lineRoot._plain
                 font: face.font
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
@@ -269,12 +266,13 @@ Item {
         TextMetrics {
             id: natural
             font: face.font
-            text: lineRoot.text
+            text: lineRoot._plain
         }
         Text {
             id: face
             width: Math.min(Math.ceil(natural.advanceWidth) + 2, lineRoot.innerMax)
-            text: lineRoot.text
+            text: lineRoot.label === "" ? lineRoot.text
+                : "<font color=\"#c9c8c2\">" + lineRoot._esc(lineRoot._prefix) + "</font>" + lineRoot._esc(lineRoot.text)
             font.family: block.fontFamily
             font.pixelSize: lineRoot.pixelSize
             font.weight: lineRoot.weight
@@ -283,7 +281,7 @@ Item {
             styleColor: "#000000"
             wrapMode: Text.Wrap
             horizontalAlignment: Text.AlignHCenter
-            textFormat: Text.PlainText
+            textFormat: lineRoot.label === "" ? Text.PlainText : Text.StyledText
         }
     }
 }
