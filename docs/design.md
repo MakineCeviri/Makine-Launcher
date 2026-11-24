@@ -163,17 +163,21 @@ kapları ve yazısı aynıdır: yalnız ışığı değişir. Tema çatalı değ
   "GTA VI" altyazı biçimi konsol modunda iki görünümde de seçilebilir.
 - **Arka plan (`backdrop`):** başlığın ve kahraman kabının arkasında, sayfayla birlikte kayar.
   Sağ üstte alçak bir güneş (bizim: `gta6Orange` %14 → `gta6Pink` %6 → saydam); arkasında, varsa,
-  bir görsel `gta6BackdropOpacity` ile (0,16; gözle ayarlanır, 0,12–0,20 arası). İkisi de
+  resmî bir ekran görüntüsü `gta6BackdropOpacity` × görselin `gain`'i ile (gözle ayarlandı: gece
+  silüeti `vice_city_27` 0,20, puslu gün batımı `port_gellhorn_06` 0,32). İkisi de
   `EdgeFade` ile sayfaya erir (üst 40 px, alt %60). Görsel ön planda resim olarak kullanılmaz,
   üstündeki yazının kontrastı sayfanınkiyle aynı kalır. Görsel çalışırken CDN'den gelir
-  (`_gta6ArtUrl`), depoda ve pakette yoktur; çevrimdışıyken ya da CDN'den kaldırılınca güneş tek
+  (`_gta6Art`), depoda ve pakette yoktur; çevrimdışıyken ya da CDN'den kaldırılınca güneş tek
   başına kalır ve sayfa eksiksizdir. Görseli sürüm çıkmadan `assets/launcher.json` açar/kapatır:
   `"live": {"gta6Art": true|false}`; anahtar yoksa ya da dosya okunamadıysa launcher'ın kendi
-  varsayılanı geçer (`_gta6ArtDefault`, şimdilik `false` — 2560×1080 manzara `site/gta6/launcher/`
-  altına konunca `true` gönderilir). Görsel kapaklar gibi `ImageCache`'ten gelir (`resolveUrl`: yalnız kendi CDN'imiz; bir kez iner, birkaç günde bir ETag ile sorulur).
+  varsayılanı geçer (`_gta6ArtDefault`, `true`). Seçim ölçütü: üst yarısı gökyüzü (görünen kısım
+  orası), sol üst sakin, yüz ve yazı yok. Her ziyarette biri; sıradaki, sayfa gizliyken seçilir. Görsel kapaklar gibi `ImageCache`'ten gelir (`resolveUrl`: yalnız kendi CDN'imiz; bir kez iner, birkaç günde bir ETag ile sorulur).
 - **Kahraman kabı:** olağan `Card`; köşe ışığı pembe (`glowColor: gta6Pink`), üst kenarı `gta6Sun`
   çizgisi, başlığın üstünde "GTA VI · PS5 / XBOX" (11 px, kalın, aralıklı, `gta6Orange`), zincirin
-  bağları pembe, bekleyen durak turuncu.
+  bağları pembe, bekleyen durak turuncu. Sağ üstünde gün batımı renklerindeki Makine işareti
+  (`resources/images/logo_gta6.webp`, 76 px; bizim işaretimiz, depoda durur): sayfanın ön plandaki
+  tek resmi, ışıltısız ve hareketsiz. 40 px altında palmiye dokusu gürültüye döner: kenar çubuğuna
+  ve oyunun üstündeki altyazıya konmaz.
 - **Önizleme sahnesi (`SunsetScene`):** "Şu an" ve Görünüm'de gökyüzü → ufuk → koyu zemin;
   altyazının en zor okunduğu yer, bizim geçişimiz.
 - **Nerede değil:** kenar çubuğu, sayfa başlığı ve Başlat düğmesi (vurgu rengi kullanıcınındır),
@@ -188,7 +192,7 @@ kapları ve yazısı aynıdır: yalnız ışığı değişir. Tema çatalı değ
   `bandOpacity: 0.92`, beyaz Inter. Böylece overlay, Makine TV, telefon ve OBS sayfaları değişmeden
   aynı bandı çizer. Onay bekleyen satırın sarı çizgisi durur.
 - **Hareket:** arka plan moda girince 400 ms'de belirir, çıkınca solar; görsel geldiğinde aynı
-  sürede belirir. Dönen, atan, kayan hiçbir şey yok (oyun çalışırken sayfa ucuz kalır).
+  sürede belirir; görsel yalnız sayfa gizliyken değişir. Dönen, atan, kayan hiçbir şey yok (oyun çalışırken sayfa ucuz kalır).
 
 ## Tuzaklar
 

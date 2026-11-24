@@ -219,7 +219,7 @@ QtObject {
     readonly property color gta6Band: "#150A22"
     /// An optional background image behind the Live page (Sezer's pick); it fades out
     /// at the edges with EdgeFade/TopDissolve so the copy keeps its contrast
-    readonly property real gta6BackdropOpacity: 0.16
+    readonly property real gta6BackdropOpacity: 0.20
 
     // =========================================================================
     // SPECIAL

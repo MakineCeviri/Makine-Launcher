@@ -63,15 +63,14 @@ Item {
     // Its light is made for the dark page, so the light theme keeps the stock page.
     readonly property bool _gta6: _consoleMode && Theme.darkMode
     // The backdrop picture comes from our CDN at run time (never bundled); false = palette only.
-    // Off by default until the 2560×1080 landscape is on the CDN (site/gta6/launcher/).
     // launcher.json `live.gta6Art` switches it without a release; not said (or not
     // read yet, offline) = this built-in default.
-    readonly property bool _gta6ArtDefault: false
+    readonly property bool _gta6ArtDefault: true
     readonly property bool _gta6ArtOn: UpdateService.liveGta6Art < 0 ? _gta6ArtDefault : UpdateService.liveGta6Art === 1
     // Through the image cache: downloaded once, asked about again every few days,
     // "" while offline or before the download lands (the sun stands alone)
     property string _gta6ArtSrc: ""
-    function _resolveArt() { _gta6ArtSrc = _gta6 && _gta6ArtOn ? ImageCache.resolveUrl(_gta6ArtUrl) : "" }
+    function _resolveArt() { _gta6ArtSrc = _gta6 && _gta6ArtOn ? ImageCache.resolveUrl(_gta6Art[_gta6ArtIdx].url) : "" }
     on_Gta6Changed: _resolveArt()
     on_Gta6ArtOnChanged: _resolveArt()
     Connections {
@@ -79,7 +78,16 @@ Item {
         enabled: live._gta6 && live._gta6ArtOn && live._gta6ArtSrc === ""
         function onImageReady() { live._resolveArt() }
     }
-    readonly property string _gta6ArtUrl: "https://cdn.makineceviri.org/site/gta6/art/vice_city_postcard_landscape-960.webp"
+    // Official screenshots, sky in the upper half (the part the backdrop shows): a
+    // sunset and the night skyline. One per visit; the next is picked while the page
+    // is hidden, so nothing changes in front of the player. `gain` scales
+    // Theme.gta6BackdropOpacity: the hazy sunset needs more than the lit skyline.
+    readonly property var _gta6Art: [
+        { url: "https://cdn.makineceviri.org/site/gta6/shots/port_gellhorn_06-1920.webp", gain: 1.6 },
+        { url: "https://cdn.makineceviri.org/site/gta6/shots/vice_city_27-1920.webp", gain: 1.0 }
+    ]
+    property int _gta6ArtIdx: Math.floor(Math.random() * _gta6Art.length)
+    onVisibleChanged: if (!visible) { _gta6ArtIdx = (_gta6ArtIdx + 1) % _gta6Art.length; _resolveArt() }
     readonly property var _region: _state.region ? _state.region[_consoleMode ? "console" : "pc"] || null : null
     readonly property bool _hasRegion: !!_region && _region.width > 0 && _region.height > 0
     readonly property var _selected: _state.selectedSource || null
@@ -401,7 +409,7 @@ Item {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 // Offline or removed from the CDN: the sun stands alone
-                opacity: status === Image.Ready ? Theme.gta6BackdropOpacity : 0
+                opacity: status === Image.Ready ? Theme.gta6BackdropOpacity * live._gta6Art[live._gta6ArtIdx].gain : 0
                 Behavior on opacity { NumberAnimation { duration: Dimensions.animSlow; easing.type: Easing.OutCubic } }
             }
             Shape {
@@ -594,6 +602,18 @@ Item {
                                       ? qsTr("PS5 ya da Xbox görüntüsünü bilgisayarda açtığın pencereden okur; okunan her satır GTA VI havuzuna yazılır, bu yüzden yalnız GTA VI oynarken başlat.")
                                       : qsTr("Seçtiğin bölgedeki İngilizce altyazıyı oyun öndeyken okur, Türkçesini oyunun üstüne yazar.")
                             }
+                        }
+                        // Our own mark in the sunset's colours: the one picture in
+                        // front of the page. No glow, no motion.
+                        Image {
+                            visible: live._gta6
+                            Layout.alignment: Qt.AlignTop
+                            Layout.preferredWidth: 76
+                            Layout.preferredHeight: 76
+                            source: "qrc:/qt/qml/MakineLauncher/resources/images/logo_gta6.webp"
+                            sourceSize: Qt.size(256, 256)
+                            mipmap: true
+                            asynchronous: true
                         }
                     }
 
