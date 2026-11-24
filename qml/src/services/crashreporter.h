@@ -13,6 +13,7 @@
  */
 
 #include <QHash>
+#include <QJsonObject>
 #include <QString>
 
 namespace makine {
@@ -61,6 +62,19 @@ public:
      */
     static void captureMessage(const char* message, const char* level = "info",
                                const QHash<QString, QString>& eventTags = {});
+
+    /**
+     * @brief A report from a plugin Makine ships (host API telemetry.capture),
+     * or about it (its host process died).
+     *
+     * Gated like every other report (consent, one per (plugin, reason) per
+     * install per day) with its own session cap; `reason` is the issue's
+     * fingerprint, `tags` are allow-listed (telemetryrules.h pluginTags).
+     * Returns true when the event went to Sentry.
+     */
+    static bool reportPlugin(const QString& pluginId, const QString& pluginVersion,
+                             const QString& reason, const QString& level,
+                             const QString& message, const QJsonObject& tags = {});
 
     /// Breadcrumb naming the game the next operation is about (no tags:
     /// failure events carry game.id/game.name themselves)

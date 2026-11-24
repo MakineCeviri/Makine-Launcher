@@ -75,6 +75,25 @@ doğrular, bekçi sahayı.
 
 ---
 
+## Eklentiler — Makine Live (2026-11-24)
+
+Live portalının hata/çökme/sürüm bilgisi Sentry'den okunur (Sezer'in kararı: aynı veri
+iki kez toplanmaz); tasarım Makine-WEB `docs/live-sentry.md`. Launcher tarafı:
+
+- Makine'nin gönderdiği eklentiler (`bundledDir` dolu) host API `telemetry.capture`
+  `{reason, level, message, tags}` ve `telemetry.breadcrumb` ile **launcher'ın SDK'sı**
+  üzerinden rapor verir (`CrashReporter::reportPlugin`). Aynı rıza, aynı kapı: anahtar
+  `plugin|<id>|<reason>` kurulum başına 24 saatte bir, oturumda tüm eklentiler için en
+  fazla 10 (launcher'ın 30'undan ayrı). `reason` parmak izidir: mesaj OCR metni taşısa
+  bile bir hata tek issue kalır. Etiketler izin listesinden (`telemetryrules.h`
+  `pluginTags`): `mode` `game` `source_app` `output` `phase` `component` + launcher'ın
+  `plugin` `plugin_version` `plugin.reason`'ı.
+- Eklenti süreci beklenmedik kapanınca launcher bildirir: pencerenin ilk çöküşü
+  `host_exit`, vazgeçince `host_gave_up` (her yeniden başlatma değil).
+- Sentry'de filtre: `plugin:org.makineceviri.live`.
+
+---
+
 ## Neden
 
 Launcher, indirme/çıkarma/kurulum/yedek/senkron akışlarında **~71 farklı hata mesajı**

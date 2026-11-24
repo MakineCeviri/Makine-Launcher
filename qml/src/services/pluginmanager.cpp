@@ -2,6 +2,8 @@
 // Copyright (c) 2026 Makine Çeviri
 
 #include "pluginmanager.h"
+#include "crashreporter.h"
+#include "telemetryrules.h"
 #include "apppaths.h"
 #include "capturehide.h"
 #include "cdnconfig.h"
@@ -583,6 +585,14 @@ void PluginManager::onFinished(const QString& id, PluginProcess* proc, bool requ
     p->crashTimes.append(now);
     p->crashTimes.removeIf([now](qint64 t) { return now - t > kCrashWindowMs; });
     appendLog(*p, MAKINE_LOG_ERROR, tr("Eklenti beklenmedik şekilde kapandı."));
+    // Sentry: the first exit of a crash window, and giving up; not every restart.
+    if (!p->bundledDir.isEmpty() && (p->crashTimes.size() == 1 || p->crashTimes.size() >= kMaxCrashes)) {
+        const bool gaveUp = p->crashTimes.size() >= kMaxCrashes;
+        CrashReporter::reportPlugin(id, p->manifest->version, gaveUp ? QStringLiteral("host_gave_up") : QStringLiteral("host_exit"),
+                                    QStringLiteral("error"),
+                                    gaveUp ? QStringLiteral("Plugin host exited %1 times in 5 minutes; stopped").arg(p->crashTimes.size())
+                                           : QStringLiteral("Plugin host exited unexpectedly"));
+    }
     if (p->crashTimes.size() >= kMaxCrashes) {
         const QString reason = tr("Eklenti 5 dakika içinde %1 kez çöktü ve durduruldu.").arg(p->crashTimes.size());
         setState(*p, QStringLiteral("crashed"), reason);
@@ -1300,6 +1310,22 @@ void PluginManager::handleRequest(Installed& p, const QJsonValue& callId, const 
         if (!needs("overlay")) return;
         hideOverlayOf(p.id);
         return reply(true);
+    }
+    // Defect reports through the launcher's Sentry (docs/plugins/README.md): one SDK, one consent,
+    // one gate. Only plugins Makine ships may use it; their reports land in our project.
+    if (method == QLatin1String("telemetry.capture") || method == QLatin1String("telemetry.breadcrumb")) {
+        if (p.bundledDir.isEmpty()) return fail(MAKINE_E_DENIED, QStringLiteral("telemetry is for plugins Makine ships"));
+        if (method == QLatin1String("telemetry.breadcrumb")) {
+            const QByteArray category = (QStringLiteral("plugin.") + p.id).toUtf8();
+            const QByteArray message = params.value(u"message").toString().left(200).toUtf8();
+            const QByteArray level = telemetryrules::pluginLevel(params.value(u"level").toString(QStringLiteral("info"))).toUtf8();
+            CrashReporter::addBreadcrumb(category.constData(), message.constData(), level.constData());
+            return reply(true);
+        }
+        const QString reason = telemetryrules::pluginToken(params.value(u"reason").toString());
+        if (reason.isEmpty()) return fail(MAKINE_E_INVALID_ARGUMENT, QStringLiteral("telemetry.capture needs a reason code"));
+        return reply(CrashReporter::reportPlugin(p.id, m.version, reason, params.value(u"level").toString(),
+                                                 params.value(u"message").toString(), params.value(u"tags").toObject()));
     }
     fail(MAKINE_E_NOT_FOUND, QStringLiteral("unknown method %1").arg(method));
 }

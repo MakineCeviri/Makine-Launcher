@@ -318,3 +318,39 @@ TEST(TelemetryRules, FailuresWithoutAGameCarryNoGameTag)
     EXPECT_FALSE(scan.contains(QStringLiteral("game.id")));
     EXPECT_EQ(scan.value(QStringLiteral("subject")), QStringLiteral("empty"));
 }
+
+// Plugin reports (host API telemetry.capture): the reason is the gate key and
+// the fingerprint, so it must come out stable whatever the plugin sends.
+TEST(TelemetryRules, PluginReasonIsAStableToken)
+{
+    EXPECT_EQ(pluginToken(QStringLiteral("  OCR init ")), QStringLiteral("ocr_init"));
+    EXPECT_EQ(pluginToken(QStringLiteral("loop/exception: \"Çöktü\"")), QStringLiteral("loopexception_kt"));
+    EXPECT_TRUE(pluginToken(QStringLiteral("ÇĞÜ")).isEmpty());
+    EXPECT_EQ(pluginToken(QString(80, QLatin1Char('a'))).size(), 48);
+    EXPECT_EQ(pluginSentryKey(QStringLiteral("org.makineceviri.live"), QStringLiteral("ocr_init")),
+              QStringLiteral("plugin|org.makineceviri.live|ocr_init"));
+    EXPECT_EQ(sentryRepeatWindowFor(pluginSentryKey(QStringLiteral("x"), QStringLiteral("y"))), kSentryRepeatWindowMs);
+}
+
+TEST(TelemetryRules, PluginLevelNeverFatal)
+{
+    EXPECT_EQ(pluginLevel(QStringLiteral("warning")), QStringLiteral("warning"));
+    EXPECT_EQ(pluginLevel(QStringLiteral("info")), QStringLiteral("info"));
+    EXPECT_EQ(pluginLevel(QStringLiteral("fatal")), QStringLiteral("error"));
+    EXPECT_EQ(pluginLevel({}), QStringLiteral("error"));
+}
+
+TEST(TelemetryRules, PluginTagsAreAllowListedAndTheLaunchersWin)
+{
+    const QJsonObject fromPlugin{{"mode", "Konsol"}, {"game", "gta-vi"}, {"user", "someone"},
+                                 {"plugin", "spoof"}, {"plugin_version", "9.9"}, {"phase", ""}};
+    const auto tags = pluginTags(QStringLiteral("org.makineceviri.live"), QStringLiteral("1.2.0"),
+                                 QStringLiteral("ocr_init"), fromPlugin);
+    EXPECT_EQ(tags.value(QStringLiteral("mode")), QStringLiteral("konsol"));
+    EXPECT_EQ(tags.value(QStringLiteral("game")), QStringLiteral("gta-vi"));
+    EXPECT_FALSE(tags.contains(QStringLiteral("user")));
+    EXPECT_FALSE(tags.contains(QStringLiteral("phase")));   // empty after cleaning
+    EXPECT_EQ(tags.value(QStringLiteral("plugin")), QStringLiteral("org.makineceviri.live"));
+    EXPECT_EQ(tags.value(QStringLiteral("plugin_version")), QStringLiteral("1.2.0"));
+    EXPECT_EQ(tags.value(QStringLiteral("plugin.reason")), QStringLiteral("ocr_init"));
+}

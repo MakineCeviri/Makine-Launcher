@@ -43,6 +43,8 @@ static std::atomic<bool> s_enabled{false};
 static QRecursiveMutex s_gateMutex;
 static int s_sessionEvents = 0;
 
+static int s_pluginEvents = 0;   // plugins have their own cap (telemetryrules.h)
+
 static bool admitToSentry(const QString& key)
 {
     // Checked before the quota: an event that is never sent must not use up
@@ -52,7 +54,10 @@ static bool admitToSentry(const QString& key)
 
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     QMutexLocker lock(&s_gateMutex);
-    if (s_sessionEvents >= makine::telemetryrules::kSentryEventsPerSession)
+    const bool plugin = key.startsWith(makine::telemetryrules::kPluginKeyPrefix);
+    int& count = plugin ? s_pluginEvents : s_sessionEvents;
+    if (count >= (plugin ? makine::telemetryrules::kPluginEventsPerSession
+                         : makine::telemetryrules::kSentryEventsPerSession))
         return false;
 
     QSettings settings;
@@ -64,7 +69,7 @@ static bool admitToSentry(const QString& key)
 
     sent.insert(key, now);
     settings.setValue(QStringLiteral("telemetry/sentrySent"), sent);
-    ++s_sessionEvents;
+    ++count;
     return true;
 }
 
@@ -701,6 +706,42 @@ void CrashReporter::captureMessage(const char* message, const char* level,
     Q_UNUSED(message)
     Q_UNUSED(level)
     Q_UNUSED(eventTags)
+#endif
+}
+
+bool CrashReporter::reportPlugin(const QString& pluginId, const QString& pluginVersion,
+                                 const QString& reason, const QString& level,
+                                 const QString& message, const QJsonObject& tags)
+{
+    namespace rules = makine::telemetryrules;
+    const QString code = rules::pluginToken(reason);
+    if (code.isEmpty() || !admitToSentry(rules::pluginSentryKey(pluginId, code)))
+        return false;
+#ifdef MAKINE_HAS_SENTRY
+    const QString lvl = rules::pluginLevel(level);
+    const sentry_level_t sentryLevel = lvl == QLatin1String("info") ? SENTRY_LEVEL_INFO
+        : lvl == QLatin1String("warning") ? SENTRY_LEVEL_WARNING : SENTRY_LEVEL_ERROR;
+    const std::string text = sanitizePath(message.left(rules::kPluginMessageMax).toUtf8().constData());
+    sentry_value_t event = sentry_value_new_message_event(sentryLevel, "plugin", text.c_str());
+    sentry_value_t eventTags = sentry_value_new_object();
+    const auto all = rules::pluginTags(pluginId, pluginVersion, code, tags);
+    for (auto it = all.cbegin(); it != all.cend(); ++it)
+        sentry_value_set_by_key(eventTags, it.key().toUtf8().constData(),
+                                sentry_value_new_string(it.value().toUtf8().constData()));
+    sentry_value_set_by_key(event, "tags", eventTags);
+    // One issue per (plugin, reason): the message may quote game text and must not split it.
+    sentry_value_t fp = sentry_value_new_list();
+    for (const QString& part : {QStringLiteral("plugin"), pluginId, code})
+        sentry_value_append(fp, sentry_value_new_string(part.toUtf8().constData()));
+    sentry_value_set_by_key(event, "fingerprint", fp);
+    sentry_capture_event(event);
+    return true;
+#else
+    Q_UNUSED(level)
+    Q_UNUSED(message)
+    Q_UNUSED(tags)
+    Q_UNUSED(pluginVersion)
+    return false;
 #endif
 }
 

@@ -25,6 +25,7 @@
 #include <QJsonObject>
 #include <QList>
 #include <QString>
+#include <QStringList>
 #include <QVariantMap>
 
 namespace makine::telemetryrules {
@@ -342,6 +343,76 @@ inline QHash<QString, QString> failureTags(const QString& operation, const QStri
         tags.insert(QStringLiteral("game.id"), game);
     for (auto it = extra.cbegin(); it != extra.cend(); ++it)
         tags.insert(it.key(), it.value());
+    return tags;
+}
+
+// ---- Plugin reports (host API telemetry.capture) ----------------------------
+//
+// Plugins Makine ships (Makine Live) report through the launcher's one Sentry
+// SDK, under the same consent and the same per-install gate, so the portal can
+// read their defects from Sentry instead of a second pipeline of our own. A
+// plugin names each defect with a stable reason code: it is the gate key and
+// the issue fingerprint, so a message that quotes OCR'd game text can never
+// split one defect into thousands of issues. Plugins get their own session
+// cap: a busy plugin must not use up the launcher's 30.
+
+inline constexpr int kPluginEventsPerSession = 10;
+inline constexpr int kPluginMessageMax = 300;
+inline constexpr QLatin1StringView kPluginKeyPrefix{"plugin|"};
+
+/// Tag keys a plugin may set; anything else is dropped (tags are indexed and
+/// searchable, so they must stay a small, known set).
+inline bool pluginTagAllowed(const QString& key)
+{
+    static const QStringList allowed{QStringLiteral("mode"), QStringLiteral("game"),
+                                     QStringLiteral("source_app"), QStringLiteral("output"),
+                                     QStringLiteral("phase"), QStringLiteral("component")};
+    return allowed.contains(key);
+}
+
+/// A reason code or tag value as Sentry gets it: [a-z0-9_.-], at most `max`
+/// characters, lower-cased; empty when nothing usable is left.
+inline QString pluginToken(const QString& raw, int max = 48)
+{
+    QString out;
+    for (const QChar c : raw.trimmed().toLower()) {
+        if (out.size() >= max) break;
+        const char16_t u = c.unicode();
+        if ((u >= 'a' && u <= 'z') || (u >= '0' && u <= '9') || u == '_' || u == '.' || u == '-')
+            out += c;
+        else if (u == ' ')
+            out += QLatin1Char('_');
+    }
+    return out;
+}
+
+/// Sentry level for a plugin report: info, warning or error; fatal belongs to
+/// real crashes and is never taken from a plugin.
+inline QString pluginLevel(const QString& raw)
+{
+    if (raw == QLatin1String("info") || raw == QLatin1String("warning")) return raw;
+    return QStringLiteral("error");
+}
+
+inline QString pluginSentryKey(const QString& pluginId, const QString& reason)
+{
+    return kPluginKeyPrefix + pluginId + QLatin1Char('|') + reason;
+}
+
+/// The tags one plugin event carries: the plugin's own (allow-listed, cleaned)
+/// first, then the launcher's, which a plugin cannot override.
+inline QHash<QString, QString> pluginTags(const QString& pluginId, const QString& pluginVersion,
+                                          const QString& reason, const QJsonObject& fromPlugin)
+{
+    QHash<QString, QString> tags;
+    for (auto it = fromPlugin.constBegin(); it != fromPlugin.constEnd(); ++it) {
+        if (!pluginTagAllowed(it.key())) continue;
+        const QString v = pluginToken(it.value().toVariant().toString(), 64);
+        if (!v.isEmpty()) tags.insert(it.key(), v);
+    }
+    tags.insert(QStringLiteral("plugin"), pluginId);
+    tags.insert(QStringLiteral("plugin_version"), pluginVersion);
+    tags.insert(QStringLiteral("plugin.reason"), reason);
     return tags;
 }
 

@@ -210,6 +210,17 @@ plugins that come with the launcher; Makine Live (`org.makineceviri.live`) is on
 | `ui.state` | `{…any JSON object…}`: replaces the plugin's screen state (fire-and-forget via `emitEvent` is the normal use) | |
 | `overlay.pickRegion` | optional `{within: {x, y, width, height}}`: the selection is clamped to that rectangle (a console window's video area) | `overlay` |
 | `overlay.show` | optional `style` object (below), optional `lines: [{text, sourceText?}]` instead of `text` for a multi-line subtitle | `overlay` |
+| `telemetry.capture` | `{reason, level?: info\|warning\|error, message?, tags?}` → `true` when it went to Sentry. `reason` (`[a-z0-9_.-]`, ≤ 48) is the issue's fingerprint and gate key; `message` ≤ 300 chars, paths redacted; `tags` only `mode` `game` `source_app` `output` `phase` `component`. The launcher adds `plugin`, `plugin_version`, `plugin.reason`. | plugins Makine ships |
+| `telemetry.breadcrumb` | `{message, level?}`: context for the next event (≤ 200 chars) | plugins Makine ships |
+
+**Telemetry** goes through the launcher's own Sentry: the user's "Çökme ve Hata
+Raporlarını Gönder" setting, the gate (one event per plugin and reason per install
+per day, 10 per session for all plugins) and path redaction all apply. A plugin that
+has its own usage-report switch checks it before calling. Never put OCR'd or game
+text in `message`; the reason code carries the meaning. A host that exits
+unexpectedly is reported by the launcher (`plugin.reason:host_exit`, once per crash
+window, and `host_gave_up` when it stops restarting). Third-party plugins get
+`E_DENIED`. Why: `docs/telemetry.md` "Eklentiler".
 
 The subtitle is drawn by `components/SubtitleBlock.qml` (the overlay and the Live
 page share it). One direction, readability first (Fable, 2026-11-24): an ink band
