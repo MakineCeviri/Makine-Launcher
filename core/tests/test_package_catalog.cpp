@@ -958,3 +958,249 @@ TEST(SplitCommandLine, EmptyInputYieldsNoExecutable) {
     EXPECT_TRUE(makine::packages::splitCommandLine("").first.empty());
     EXPECT_TRUE(makine::packages::splitCommandLine("   ").first.empty());
 }
+
+// =========================================================================
+// PATCH ALTERNATIVES + GAME VERSION (all optional keys)
+// =========================================================================
+
+namespace makine::testing {
+
+namespace {
+
+json altIndex() {
+    json index;
+    index["packages"] = {
+        {"1245620", {
+            {"name", "ELDEN RING"}, {"v", "2026-10-30"}, {"dirName", "ELDEN RING"},
+            {"sizeBytes", 1000}, {"exe", json::array({"eldenring.exe"})},
+            {"label", "Topluluk çevirisi"},
+            {"gameVersion", {{"label", "1.16.1"}, {"steamBuild", 16412345}, {"date", "2026-10-28"}}},
+            {"contributors", json::array({{{"name", "A"}, {"role", "Çevirmen"}}})},
+            {"alternatives", json::array({
+                {{"id", "dublaj"}, {"label", "Türkçe dublaj"}, {"description", "Ses de Türkçe."},
+                 {"v", "2026-11-02"}, {"sizeBytes", 123}, {"size", 100},
+                 {"dataUrl", "https://cdn.makineceviri.org/data/1245620--dublaj-0123456789ab.makine"},
+                 {"checksum", "sha256:ab"}, {"dirName", "ELDEN RING--dublaj"},
+                 {"contributors", json::array({{{"name", "B"}, {"role", "Seslendirme"}}})},
+                 {"gameVersion", {{"label", ""}, {"steamBuild", 16412345}, {"date", "2026-10-28"}}}},
+                {{"id", "Bad Id"}, {"label", "skipped"}},
+                {{"id", "dublaj"}, {"label", "duplicate, skipped"}},
+                {{"id", "nolabel"}},
+                {{"id", "default"}, {"label", "reserved, skipped"}},
+                {{"id", "eski"}, {"label", "Eski sürüm"}, {"v", "2026-01-01"}}
+            })}
+        }},
+        {"391540", {{"name", "Undertale"}, {"v", "1.0.0"}, {"dirName", "undertale"}, {"sizeBytes", 512}}}
+    };
+    return index;
+}
+
+} // namespace
+
+TEST_F(PackageCatalogTest, EntryWithoutNewKeysIsUnchanged) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    auto pkg = catalog_.getPackage("1716740");
+    ASSERT_TRUE(pkg.has_value());
+    EXPECT_EQ(pkg->pkg, "");
+    EXPECT_EQ(pkg->label, "");
+    EXPECT_EQ(pkg->gameVersion.steamBuild, 0);
+    EXPECT_TRUE(pkg->alternatives.empty());
+    EXPECT_EQ(catalog_.activePackage("1716740"), "");
+}
+
+TEST_F(PackageCatalogTest, IndexParsesLabelGameVersionAndAlternatives) {
+    std::ofstream(indexPath_) << altIndex().dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    auto pkg = catalog_.getPackage("1245620");
+    ASSERT_TRUE(pkg.has_value());
+    EXPECT_EQ(pkg->label, "Topluluk çevirisi");
+    EXPECT_EQ(pkg->gameVersion.label, "1.16.1");
+    EXPECT_EQ(pkg->gameVersion.steamBuild, 16412345);
+    EXPECT_EQ(pkg->gameVersion.date, "2026-10-28");
+    ASSERT_EQ(pkg->alternatives.size(), 2u);   // bad id, duplicate, no label, "default" dropped
+    EXPECT_EQ(pkg->alternatives[0].id, "dublaj");
+    EXPECT_EQ(pkg->alternatives[0].downloadSize, 100);
+    EXPECT_EQ(pkg->alternatives[0].dirName, "ELDEN RING--dublaj");
+    EXPECT_EQ(pkg->alternatives[0].contributors.size(), 1u);
+    EXPECT_EQ(pkg->alternatives[0].gameVersion.steamBuild, 16412345);
+    EXPECT_EQ(pkg->alternatives[1].id, "eski");
+    // The entry itself is still the default patch
+    EXPECT_EQ(pkg->pkg, "");
+    EXPECT_EQ(pkg->version, "2026-10-30");
+    EXPECT_EQ(pkg->dirName, "ELDEN RING");
+}
+
+TEST_F(PackageCatalogTest, MalformedNewKeysDoNotThrowOrClearTheCatalogue) {
+    json index = altIndex();
+    auto& e = index["packages"]["1245620"];
+    e["label"] = 42;
+    e["gameVersion"] = "1.16.1";
+    e["alternatives"] = {{"id", "x"}};                  // object, not array
+    index["packages"]["391540"]["gameVersion"] = {{"steamBuild", "16412345"}, {"label", 7}};
+    index["packages"]["391540"]["alternatives"] = json::array({42, "x", nullptr,
+        {{"id", "ok"}, {"label", "Tamam"}, {"sizeBytes", "big"}, {"contributors", "A"},
+         {"gameVersion", json::array()}}});
+    // An entry whose existing keys have the wrong type costs only that game
+    index["packages"]["999"] = {{"name", 5}, {"v", json::array()}};
+    std::ofstream(indexPath_) << index.dump();
+
+    bool loaded = false;
+    ASSERT_NO_THROW(loaded = catalog_.loadFromIndex(indexPath_, cachePath_));
+    ASSERT_TRUE(loaded);
+    auto er = catalog_.getPackage("1245620");
+    ASSERT_TRUE(er.has_value());
+    EXPECT_EQ(er->label, "");
+    EXPECT_EQ(er->gameVersion.steamBuild, 0);
+    EXPECT_TRUE(er->alternatives.empty());
+
+    auto ut = catalog_.getPackage("391540");
+    ASSERT_TRUE(ut.has_value());
+    EXPECT_EQ(ut->gameVersion.steamBuild, 0);
+    EXPECT_EQ(ut->gameVersion.label, "");
+    ASSERT_EQ(ut->alternatives.size(), 1u);
+    EXPECT_EQ(ut->alternatives[0].sizeBytes, 0);
+    EXPECT_TRUE(ut->alternatives[0].contributors.empty());
+    EXPECT_FALSE(catalog_.hasPackage("999"));
+}
+
+TEST_F(PackageCatalogTest, DetailParsesLabelAndGameVersionDefensively) {
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    json detail;
+    detail["label"] = "Yama";
+    detail["gameVersion"] = {{"label", "1.2"}, {"steamBuild", 77}, {"date", "2026-01-02"}};
+    detail["alternatives"] = json::array({{{"id", "alt"}, {"label", "Alt"}, {"v", "x"}}});
+    detail["latestBuild"] = {{"steamBuild", 99}};
+    ASSERT_TRUE(catalog_.enrichPackage("1716740", detail.dump()));
+    auto pkg = catalog_.getPackage("1716740");
+    EXPECT_EQ(pkg->label, "Yama");
+    EXPECT_EQ(pkg->gameVersion.steamBuild, 77);
+    ASSERT_EQ(pkg->alternatives.size(), 1u);
+
+    json bad;
+    bad["label"] = json::array();
+    bad["gameVersion"] = 5;
+    bad["alternatives"] = "nope";
+    bool enriched = false;
+    EXPECT_NO_THROW(enriched = catalog_.enrichPackage("391540", bad.dump()));
+    EXPECT_TRUE(enriched);
+    EXPECT_EQ(catalog_.getPackage("391540")->label, "");
+}
+
+TEST_F(PackageCatalogTest, PendingAlternativeRebuildsTheEntryAndUnloadsDetail) {
+    std::ofstream(indexPath_) << altIndex().dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    ASSERT_TRUE(catalog_.enrichPackage("1245620", makeEnrichmentJson()));
+    ASSERT_TRUE(catalog_.isDetailLoaded("1245620"));
+
+    catalog_.setPendingPackage("1245620", "dublaj");
+    EXPECT_EQ(catalog_.activePackage("1245620"), "dublaj");
+    auto pkg = catalog_.getPackage("1245620");
+    EXPECT_EQ(pkg->version, "2026-11-02");
+    EXPECT_EQ(pkg->dirName, "ELDEN RING--dublaj");
+    EXPECT_EQ(pkg->label, "Türkçe dublaj");
+    EXPECT_EQ(pkg->gameName, "ELDEN RING");
+    EXPECT_FALSE(pkg->detailLoaded);
+    EXPECT_TRUE(pkg->installSteps.empty());           // the default's recipe is gone
+    EXPECT_EQ(pkg->storeIds.at("epic"), "epic_eldenring");  // game-level detail kept
+    ASSERT_EQ(pkg->contributors.size(), 1u);
+    EXPECT_EQ(pkg->contributors[0].name, "B");
+
+    // No dirName of its own: <dirName>--<id>, never the default's folder
+    catalog_.setPendingPackage("1245620", "eski");
+    EXPECT_EQ(catalog_.getPackage("1245620")->dirName, "ELDEN RING--eski");
+
+    // Unknown or malformed ids leave the default
+    catalog_.setPendingPackage("1245620", "yok");
+    EXPECT_EQ(catalog_.activePackage("1245620"), "");
+    catalog_.clearPendingPackage("1245620");
+    catalog_.setPendingPackage("1245620", "../x");
+    EXPECT_EQ(catalog_.activePackage("1245620"), "");
+
+    catalog_.setPendingPackage("1245620", "dublaj");
+    catalog_.clearPendingPackage("1245620");
+    EXPECT_EQ(catalog_.activePackage("1245620"), "");
+    EXPECT_EQ(catalog_.getPackage("1245620")->version, "2026-10-30");
+}
+
+TEST_F(PackageCatalogTest, InstalledAlternativeStaysActiveAcrossReloads) {
+    std::ofstream(indexPath_) << altIndex().dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+
+    catalog_.setPendingPackage("1245620", "dublaj");
+    packages::InstalledPackageState st;
+    st.version = "2026-11-02";
+    st.gamePath = "C:/Games/ER";
+    st.pkg = "dublaj";
+    st.dirName = "ELDEN RING--dublaj";
+    catalog_.markInstalled("1245620", st);   // clears the pending one
+    EXPECT_EQ(catalog_.activePackage("1245620"), "dublaj");
+
+    const fs::path statePath = testDir_ / "installed_packages.json";
+    catalog_.saveInstalledState(statePath);
+    {
+        std::ifstream f(statePath);
+        const json saved = json::parse(f);
+        EXPECT_EQ(saved["1245620"]["pkg"], "dublaj");
+        EXPECT_EQ(saved["1245620"]["dirName"], "ELDEN RING--dublaj");
+    }
+
+    packages::PackageCatalog fresh;
+    ASSERT_TRUE(fresh.loadFromIndex(indexPath_, cachePath_));
+    fresh.loadInstalledState(statePath);
+    EXPECT_EQ(fresh.activePackage("1245620"), "dublaj");
+    EXPECT_EQ(fresh.getInstalledState("1245620")->pkg, "dublaj");
+    // Reloading the index keeps describing the installed patch
+    ASSERT_TRUE(fresh.loadFromIndex(indexPath_, cachePath_));
+    EXPECT_EQ(fresh.getPackage("1245620")->version, "2026-11-02");
+
+    // Uninstalled: back to the default
+    fresh.markUninstalled("1245620");
+    EXPECT_EQ(fresh.activePackage("1245620"), "");
+}
+
+TEST_F(PackageCatalogTest, OldRecordsWithoutPkgAreTheDefault) {
+    std::ofstream(indexPath_) << altIndex().dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    const fs::path statePath = testDir_ / "installed_old.json";
+    {
+        json old;
+        old["1245620"] = {{"version", "2026-10-30"}, {"gamePath", "C:/G"}, {"installedAt", 1}};
+        old["391540"] = "1.0.0";                                       // legacy string form
+        old["1716740"] = {{"version", "2.0.0"}, {"pkg", 5}, {"dirName", json::array()}};
+        std::ofstream(statePath) << old.dump();
+    }
+    catalog_.loadInstalledState(statePath);
+    EXPECT_EQ(catalog_.getInstalledState("1245620")->pkg, "");
+    EXPECT_EQ(catalog_.getInstalledState("391540")->pkg, "");
+    EXPECT_EQ(catalog_.getInstalledState("1716740")->pkg, "");
+    EXPECT_EQ(catalog_.getInstalledState("1716740")->dirName, "");
+    EXPECT_EQ(catalog_.activePackage("1245620"), "");
+}
+
+TEST_F(PackageCatalogTest, RecordOfAnAlternativeTheIndexDroppedFallsBackToDefault) {
+    std::ofstream(indexPath_) << altIndex().dump();
+    ASSERT_TRUE(catalog_.loadFromIndex(indexPath_, cachePath_));
+    packages::InstalledPackageState st;
+    st.version = "x";
+    st.pkg = "gizli";
+    catalog_.markInstalled("1245620", st);
+    EXPECT_EQ(catalog_.activePackage("1245620"), "");
+    EXPECT_EQ(catalog_.getInstalledState("1245620")->pkg, "gizli");  // the record keeps it
+}
+
+TEST(AlternativeId, FollowsTheCatalogueShape) {
+    using makine::packages::isValidAlternativeId;
+    EXPECT_TRUE(isValidAlternativeId("dublaj"));
+    EXPECT_TRUE(isValidAlternativeId("v2-eski"));
+    EXPECT_TRUE(isValidAlternativeId("0"));
+    EXPECT_TRUE(isValidAlternativeId(std::string(32, 'a')));
+    EXPECT_FALSE(isValidAlternativeId(std::string(33, 'a')));
+    EXPECT_FALSE(isValidAlternativeId(""));
+    EXPECT_FALSE(isValidAlternativeId("default"));
+    EXPECT_FALSE(isValidAlternativeId("-x"));
+    EXPECT_FALSE(isValidAlternativeId("Dublaj"));
+    EXPECT_FALSE(isValidAlternativeId("a_b"));
+    EXPECT_FALSE(isValidAlternativeId("../x"));
+}
+
+} // namespace makine::testing

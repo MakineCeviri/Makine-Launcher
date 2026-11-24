@@ -174,10 +174,66 @@ struct FingerprintMatch {
 };
 
 /**
+ * @brief The game version a patch was made for ("gameVersion" in the catalogue)
+ *
+ * Every part is optional: steamBuild 0 means unknown, and so do empty strings.
+ */
+struct GameVersionInfo {
+    std::string label;       // readable, "1.16.1" ("" allowed)
+    int64_t steamBuild{0};   // Steam public-branch buildid
+    std::string date;        // YYYY-MM-DD
+};
+
+/**
+ * @brief One more patch for a game besides its default ("alternatives" in index.json)
+ *
+ * The default patch stays the entry's own keys (what older launchers install);
+ * an alternative carries the same package keys under its own id.
+ */
+struct PackageAlternative {
+    std::string id;           // ^[a-z0-9][a-z0-9-]{0,31}$, never "default"
+    std::string label;
+    std::string description;
+    std::string version;      // "v"
+    int64_t sizeBytes{0};
+    int64_t downloadSize{0};  // "size"
+    std::string dataUrl;
+    std::string checksum;
+    std::string dirName;
+    std::vector<ContributorInfo> contributors;
+    GameVersionInfo gameVersion;
+};
+
+/**
+ * @brief Whether an alternative id has the catalogue's shape
+ *
+ * ^[a-z0-9][a-z0-9-]{0,31}$ and not "default" — checked by hand, <regex>
+ * is broken on MinGW 13.1. The id ends up in a file name and a URL query,
+ * so anything else is dropped.
+ */
+inline bool isValidAlternativeId(std::string_view id)
+{
+    if (id.empty() || id.size() > 32 || id == "default") return false;
+    for (size_t i = 0; i < id.size(); ++i) {
+        const char c = id[i];
+        const bool alnum = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+        if (!alnum && !(i > 0 && c == '-')) return false;
+    }
+    return true;
+}
+
+/**
  * @brief Full metadata for a translation package in the catalog
  *
  * Represents one entry in the manifest, enriched with filesystem
  * information (file count, total size) from scanning.
+ *
+ * A game may have several patches. The entry always describes ONE of them —
+ * `pkg` ("" = the default) — and its package fields (version, dirName,
+ * sizeBytes, contributors, recipe…) are that patch's. Which one is the
+ * active package: the one being installed, else the installed one, else
+ * the default (PackageCatalog::activePackage). `alternatives` lists every
+ * alternative whichever is active.
  */
 struct PackageCatalogEntry {
     std::string packageId;
@@ -206,6 +262,12 @@ struct PackageCatalogEntry {
     std::unordered_map<std::string, VariantConfig> variantInstallOptions; // variant -> options config
     std::optional<GameFingerprint> fingerprint;  // File-based identification data
     bool detailLoaded{false};  // true after enrichPackage merges per-game detail
+
+    // Patch alternatives (all optional in the catalogue)
+    std::string pkg;                 // which patch this entry describes: "" = default
+    std::string label;               // that patch's own name; "" → "Türkçe yama"
+    GameVersionInfo gameVersion;     // what that patch was made for
+    std::vector<PackageAlternative> alternatives;  // index order
 };
 
 /**
@@ -222,6 +284,8 @@ struct InstalledPackageState {
     std::string gameStoreVersion;                 // Store buildid at install time
     std::string gameSource;                       // "steam", "epic", "gog"
     int64_t installedAt{0};
+    std::string pkg;        // which patch: "" = the default (every record before alternatives)
+    std::string dirName;    // its extraction folder under packages/ ("" = unknown, old record)
 };
 
 // =============================================================================
@@ -421,6 +485,33 @@ public:
         const std::string& steamAppId) const;
 
     // =========================================================================
+    // PATCH ALTERNATIVES
+    // =========================================================================
+
+    /**
+     * @brief Which patch the entry of @p steamAppId describes ("" = default)
+     *
+     * The pending one while an install of it runs, else the installed one,
+     * else the default. A pkg the index no longer lists falls back to the default.
+     */
+    [[nodiscard]] std::string activePackage(const std::string& steamAppId) const;
+
+    /**
+     * @brief Make @p pkg the entry's patch until it is installed or cleared
+     *
+     * The entry is rebuilt from the index for that patch with its detail
+     * unloaded (the alternative's recipe comes from its own detail). Recorded
+     * even for an appId the index does not hold yet. markInstalled with the
+     * same pkg clears it.
+     */
+    void setPendingPackage(const std::string& steamAppId, const std::string& pkg);
+
+    /**
+     * @brief Drop a pending patch: the entry goes back to the installed one (or the default)
+     */
+    void clearPendingPackage(const std::string& steamAppId);
+
+    // =========================================================================
     // PERSISTENCE
     // =========================================================================
 
@@ -464,8 +555,20 @@ private:
 
     void deriveFingerprint(PackageCatalogEntry& entry) const;
 
+    // The patch the entry should describe now (mutex_ held)
+    std::string wantedPackageLocked(const std::string& steamAppId) const;
+    // Rebuild the entry from indexBase_ when it describes another patch (mutex_ held)
+    void applyActiveLocked(const std::string& steamAppId);
+
     // steamAppId -> PackageCatalogEntry
     std::unordered_map<std::string, PackageCatalogEntry> packages_;
+
+    // steamAppId -> the entry as the index gave it (default patch, no detail):
+    // what an entry is rebuilt from when its patch changes
+    std::unordered_map<std::string, PackageCatalogEntry> indexBase_;
+
+    // steamAppId -> patch being installed (setPendingPackage)
+    std::unordered_map<std::string, std::string> pendingPkg_;
 
     // steamAppId -> InstalledPackageState
     std::unordered_map<std::string, InstalledPackageState> installed_;
