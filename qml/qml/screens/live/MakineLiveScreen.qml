@@ -148,7 +148,9 @@ Item {
         function onInvokeFinished(id, method, ok, result) {
             if (id !== live.pluginId) return
             if (live._busyMethod === method) live._busyMethod = ""
-            if (!ok) live._error = String(result || "")
+            // Console start needs the one-time GTA VI consent first
+            if (!ok && method === "start" && String(result || "").indexOf("consent_required") >= 0) consoleConfirm.open()
+            else if (!ok) live._error = String(result || "")
             else if (method === "state" && result && typeof result === "object") live._applyState(result)
         }
     }
@@ -190,7 +192,15 @@ Item {
             tv_offline:     { text: qsTr("Makine TV'ye ulaşılamıyor: TV açık ve aynı ağda mı?"), fixText: "" },
             quota:          { text: qsTr("Bugünkü çeviri hakkın doldu; yarın yeniden açılır."), fixText: "" }
         }
-        if (_running && _state.reason && reasons[_state.reason]) return reasons[_state.reason]
+        // {code, text, action}: the plugin's own sentence; action is the method that fixes it
+        const r = _state.reason
+        if (_running && r && typeof r === "object" && r.code) {
+            const known = reasons[r.code] || {}
+            return { text: r.text || known.text || r.code,
+                     fixText: r.action ? (known.fixText || qsTr("Düzelt")) : "",
+                     fix: r.action ? "invoke:" + r.action : "" }
+        }
+        if (_running && typeof r === "string" && reasons[r]) return reasons[r]
         if (_error !== "") return { text: _error, fixText: "" }
         return null
     }
@@ -198,6 +208,7 @@ Item {
         if (kind === "restart") PluginManager.restart(pluginId)
         else if (kind === "enable") PluginManager.setEnabled(pluginId, true)
         else if (kind === "sources") _call("console.sources")
+        else if (kind && kind.indexOf("invoke:") === 0) _call(kind.slice(7))
     }
 
     // Clipboard: QML has none of its own
@@ -914,11 +925,11 @@ Item {
                 // Firewall: said once, before the first TV search or phone page
                 ListRow {
                     visible: live._consoleMode && (live._output === "tv" || live._output === "phone") && !seen.firewallSeen
-                             && !!(live._web.firewallNote || live._tv.firewallNote)
+                             && !!(live._web.firewallHeadsUp || live._web.firewallNote || live._tv.firewallNote)
                     icon: Icons.shield
                     iconTint: Theme.warning
                     title: qsTr("Windows bir izin sorabilir")
-                    subtitle: live._web.firewallNote || live._tv.firewallNote || ""
+                    subtitle: live._web.firewallHeadsUp || live._web.firewallNote || live._tv.firewallNote || ""
                     AppButton {
                         style: "tinted"
                         text: qsTr("Anladım")
@@ -951,7 +962,7 @@ Item {
                         style: "tinted"
                         text: qsTr("Ara")
                         busy: live._tv.searching === true || live._busyMethod === "tv.discover"
-                        enabled: seen.firewallSeen || !(live._web.firewallNote || live._tv.firewallNote)
+                        enabled: seen.firewallSeen || !(live._web.firewallHeadsUp || live._web.firewallNote || live._tv.firewallNote)
                         onClicked: live._call("tv.discover")
                     }
                 }
@@ -1197,7 +1208,11 @@ Item {
         confirmText: qsTr("Anladım, başlat")
         glyph: Icons.gamepad2
         accentColor: Theme.primary
-        onConfirmed: { seen.consoleWarned = true; live._call("start") }
+        onConfirmed: {
+            seen.consoleWarned = true
+            live._call("consoleConsent.set", { enabled: true })
+            live._call("start")
+        }
     }
 
     // ── 6. Görünüm: preview + the few choices that matter ────────────────────
