@@ -2,6 +2,8 @@ Sürüm 0.3.0 — Makine Live
 
 • Makine Live launcher'ın içinde: oyundaki İngilizce altyazıyı okur, Türkçesini oyunun üstüne altyazı olarak yazar. Sen Başlat'a basmadan hiçbir şey okunmaz; görüntü bilgisayarından çıkmaz, sunucuya yalnız okunan metin gider.
 • GTA VI'yı PS5 ya da Xbox'ta Türkçe altyazıyla oyna: PS Remote Play, chiaki, Asobi, Xbox uygulaması, Greenlight ya da yakalama kartı. (GTA VI adı yalnız oyunu anmak içindir; Rockstar Games ile bağlantısı yoktur.)
-• Altyazı istediğin yerde: bu ekranda, TV'de (Makine TV) ya da telefonun tarayıcısında; OBS için ayrı bir kaynak.
+• Altyazı istediğin yerde: bu ekranda, TV'de (Makine TV; Android TV, Google TV, Fire TV ve LG'ye launcher'dan kurulur) ya da telefonun tarayıcısında; OBS için ayrı bir kaynak.
 • Okunur altyazı: koyu bant, kontur ve gölge; boy, satır, renk ve yer önizlemeyle ayarlanır.
-• Eklentiler artık her sürümde; her biri kendi ayrı sürecinde çalışır ve ilk kullanıldığında açılır.
+• Oyun havuzları: oyunlarının onaylı çevirileri bilgisayarına iner, yeni onaylananlar kendiliğinden gelir.
+• Bir oyuna birden fazla yama: istediğin çeviriyi seç; oyun yamadan sonra güncellendiyse sayfa uyarır.
+• Eklentiler artık her sürümde; onaylı olanlar kendiliğinden güncellenir, istemediğini kaldırabilirsin.

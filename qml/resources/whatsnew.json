@@ -6,11 +6,12 @@
       "title": "Makine Live",
       "summary": "Makine Live artık launcher'ın içinde: oyundaki İngilizce altyazıyı okur, Türkçesini oyunun üstüne yazar. GTA VI'yı PS5 ya da Xbox'ta Türkçe oynamak için Remote Play penceresi, Makine TV ya da telefon yeter.",
       "changes": [
-        { "type": "new", "text": "Makine Live: kenar çubuğunda, Kütüphanem'in altında. Altyazıyı senin seçtiğin bölgeden ya da konsol görüntüsünün penceresinden okur, Türkçesini ortak çeviri havuzundan getirir. Sen Başlat'a basmadan hiçbir şey okunmaz; görüntü bilgisayarından çıkmaz, sunucuya yalnız okunan metin gider." },
+        { "type": "new", "text": "Makine Live: kenar çubuğunda, Kütüphanem'in altında. Altyazıyı senin seçtiğin bölgeden ya da konsol görüntüsünün penceresinden okur, Türkçesini ortak çeviri havuzundan getirir; koyu bant, kontur ve gölgeyle her sahnede okunur. Sen Başlat'a basmadan hiçbir şey okunmaz; görüntü bilgisayarından çıkmaz, sunucuya yalnız okunan metin gider." },
         { "type": "new", "text": "Konsolda GTA VI: PS5 için PS Remote Play, chiaki ya da Asobi; Xbox için Xbox uygulaması ya da Greenlight; ya da bir yakalama kartı. Sayfa ne bulduğunu ve eksik olanı adım adım söyler." },
-        { "type": "new", "text": "Altyazı istediğin yerde: bu ekranda, TV'de (Makine TV; Android TV, Google TV ve Fire TV'ye buradan kurulur, LG'de adım adım) ya da telefonun tarayıcısında. OBS için ayrı bir altyazı kaynağı da var." },
-        { "type": "new", "text": "Okunur altyazı: koyu bant, kontur ve gölge; boy, satır, renk, bant ve yer önizlemeyle ayarlanır. Altyazı varsayılan olarak yayına ve ekran görüntülerine girmez, \"Yayında göster\" ile açılır." },
-        { "type": "improved", "text": "Eklentiler artık her sürümde. Her eklenti kendi ayrı sürecinde çalışır ve ilk kullanıldığında açılır; launcher'ın açılışı yavaşlamaz, bir eklenti çökse de launcher'a bir şey olmaz." }
+        { "type": "new", "text": "Altyazı istediğin yerde: bu ekranda, TV'de (Makine TV; Android TV, Google TV, Fire TV ve LG'ye buradan, tek tıkla kurulur) ya da telefonun tarayıcısında. OBS için ayrı bir altyazı kaynağı da var." },
+        { "type": "new", "text": "Bir oyuna birden fazla yama: farklı çeviriler varsa oyunun sayfasında istediğini seçersin. Oyun, yamanın hazırlandığı sürümden sonra güncellendiyse sayfa söyler; bir sorun görürsen Discord'dan bize bildirebilirsin." },
+        { "type": "new", "text": "Oyun havuzları: oyunlarının onaylı çevirileri bilgisayarına iner, Live önce onlara bakar. Yeni onaylananlar kendiliğinden gelir." },
+        { "type": "improved", "text": "Eklentiler artık her sürümde. Her eklenti kendi ayrı sürecinde çalışır ve ilk kullanıldığında açılır. Makine'nin onayladığı eklentiler izin sormadan kurulur ve kendiliğinden güncellenir; istemediğin eklentiyi Ayarlar › Eklentiler'den kaldırabilirsin." }
       ]
     },
     {
