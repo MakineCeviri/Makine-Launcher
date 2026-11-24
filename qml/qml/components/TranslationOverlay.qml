@@ -44,6 +44,13 @@ Window {
     property var lines: []
     property var overlayStyle: ({})
 
+    // Whether the plugin reads the screen under the region (Live's PC mode). If so and
+    // the overlay is visible to capture (exclusion failed, or "Yayında göster"), the band
+    // goes just above the region instead of over the line being read.
+    property bool regionIsRead: false
+    property bool _excluded: true
+    readonly property bool _above: regionIsRead && _inRegion && (!_excluded || _showOnStream)
+
     // Off when a plugin drives the overlay and hides it itself
     property bool autoHide: true
 
@@ -102,6 +109,7 @@ Window {
        ? Math.round((_inRegion ? sourceRegion.x + sourceRegion.width / 2 : _screenRect.x + _screenRect.width / 2) - width / 2)
        : sourceRegion.x + (sourceRegion.width - width) / 2
     y: !_subtitle ? sourceRegion.y + sourceRegion.height + 6
+       : _above ? Math.round(sourceRegion.y - height + subtitle.gutter - 4)
        : _inRegion ? Math.round(sourceRegion.y + sourceRegion.height / 2 - height / 2)
        : _position === "top" ? _screenRect.y + _marginPx - subtitle.gutter
        : _screenRect.y + _screenRect.height - height - _marginPx + subtitle.gutter
@@ -124,7 +132,7 @@ Window {
     // Out of screen capture once it has a native window (and again if the style changes)
     function _applyCapture() {
         if (visible && typeof PluginManager !== "undefined" && PluginManager)
-            PluginManager.keepOutOfCapture(overlayWindow, !_showOnStream)
+            _excluded = PluginManager.keepOutOfCapture(overlayWindow, !_showOnStream) && !_showOnStream
     }
     onVisibleChanged: _applyCapture()
     on_ShowOnStreamChanged: _applyCapture()
@@ -170,7 +178,8 @@ Window {
             id: subtitle
             visible: overlayWindow._subtitle
             x: Math.round((parent.width - width) / 2)
-            y: overlayWindow._inRegion ? Math.round((parent.height - height) / 2)
+            y: overlayWindow._above ? parent.height - height
+             : overlayWindow._inRegion ? Math.round((parent.height - height) / 2)
              : overlayWindow._position === "top" ? 0
              : parent.height - height
             lines: overlayWindow.lines

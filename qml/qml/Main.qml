@@ -1089,6 +1089,7 @@ ApplicationWindow {
     // ===== PLUGIN REQUESTS =====
     // A plugin asks, the user answers through these; the request id ties the two.
     property int _regionRequestId: 0
+    property bool _liveReadsScreen: false
     property int _attachRequestId: 0
     property string _attachPluginName: ""
     property string _attachGameName: ""
@@ -1124,6 +1125,12 @@ ApplicationWindow {
 
     Connections {
         target: PluginManager
+        // Live in PC mode reads the screen under the overlay's region
+        function onPluginStateChanged(id) {
+            if (id !== "org.makineceviri.live") return
+            const mode = PluginManager.pluginState(id).mode
+            window._liveReadsScreen = mode !== undefined && mode !== "console"
+        }
         function onRegionRequested(requestId, pluginId, pluginName) {
             window._regionRequestId = requestId
             regionSelector.pluginName = pluginName
@@ -1184,6 +1191,7 @@ ApplicationWindow {
         ocrText: PluginManager ? PluginManager.overlaySourceText : ""
         lines: PluginManager ? PluginManager.overlayLines : []
         overlayStyle: PluginManager ? PluginManager.overlayStyle : ({})
+        regionIsRead: window._liveReadsScreen
     }
 
     // A Binding rather than `shown:` — the overlay assigns shown itself when new

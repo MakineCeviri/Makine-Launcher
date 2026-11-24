@@ -714,17 +714,19 @@ void PluginManager::invoke(const QString& id, const QString& method, const QVari
     }, [this, id, method](const QString& why) { emit invokeFinished(id, method, false, why); });
 }
 
-void PluginManager::keepOutOfCapture(QObject* window, bool excluded)
+bool PluginManager::keepOutOfCapture(QObject* window, bool excluded)
 {
     auto* w = qobject_cast<QWindow*>(window);
-    if (!w) return;
+    if (!w) return false;
     unsigned long error = 0;
     // winId() creates the native window if it is not there yet. Before Windows 10 2004
     // this fails and the window simply stays capturable (WDA_NONE).
-    if (capturehide::setExcluded(static_cast<std::uintptr_t>(w->winId()), excluded, &error))
+    if (capturehide::setExcluded(static_cast<std::uintptr_t>(w->winId()), excluded, &error)) {
         qCDebug(lcPlugin) << "window" << (excluded ? "excluded from" : "shown to") << "screen capture";
-    else
-        qCDebug(lcPlugin) << "capture affinity not set, error" << error;
+        return true;
+    }
+    qCDebug(lcPlugin) << "capture affinity not set, error" << error;
+    return false;
 }
 
 bool PluginManager::openUrl(const QString& url)

@@ -499,9 +499,21 @@ Item {
                             model: [{ value: "console", text: qsTr("Konsolda (PS5 / Xbox)") },
                                     { value: "pc", text: qsTr("Bu bilgisayarda") }]
                             currentValue: live._consoleMode ? "console" : "pc"
+                            // Locked while reading: switching mid-read would mix two sources
+                            enabled: !live._reading
+                            opacity: enabled ? 1 : 0.5
                             onActivated: (value) => { live._askedSources = false; live._call("mode.set", { mode: value }) }
                         }
-                        Item { Layout.fillWidth: true }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: live._reading
+                            text: qsTr("Değiştirmek için önce Durdur'a bas.")
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            font.pixelSize: Dimensions.footnote
+                            color: Theme.textMuted
+                        }
+                        Item { Layout.fillWidth: true; visible: !live._reading }
                     }
 
                     // Konsol görüntüsü (or the region) → Makine Live → Altyazı

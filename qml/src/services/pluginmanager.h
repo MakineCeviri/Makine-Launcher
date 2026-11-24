@@ -143,7 +143,8 @@ public:
     /// Keeps a window (the plugin overlay, the region picker) out of screen capture, so a
     /// plugin reading the screen never reads its own subtitles; `excluded` false lets
     /// capture see it ("yayında göster"). Idempotent; a no-op off Windows or before 2004.
-    Q_INVOKABLE void keepOutOfCapture(QObject* window, bool excluded = true);
+    /// Returns whether the window is now in the asked state (false before Windows 10 2004).
+    Q_INVOKABLE bool keepOutOfCapture(QObject* window, bool excluded = true);
 
     Q_INVOKABLE void answerAttach(int requestId, bool allow, bool remember);
     /// Qt logical global coordinates; the plugin receives physical pixels. width <= 0 means the user cancelled.
