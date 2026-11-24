@@ -171,6 +171,7 @@ Item {
                 // and when another game is opened.
                 root.viewModel.installErrorMessage = message || qsTr("Yama kaldırılamadı")
             }
+            root.viewModel.refreshPatches()
         }
         function onPatchIntegrityChecked(gId, ok, message) {
             if (gId !== root.viewModel.gameId || ok) return
@@ -260,8 +261,16 @@ Item {
                     // an update went over — and then "Kaldır" is the way out.
                     root.viewModel.packageInstalled = GameService.getGameById(gId).packageInstalled === true
                 }
+                root.viewModel.refreshPatches()
             }
         }
+    }
+
+    // ===== PATCHES: a new catalogue or Steam's latest builds =====
+    Connections {
+        target: ManifestSync
+        function onGameBuildsChanged() { root.viewModel.refreshPatches() }
+        function onCatalogReady() { root.viewModel.refreshPatches() }
     }
 
     // ===== BACKUP RESTORE SIGNAL =====
@@ -302,6 +311,30 @@ Item {
         confirmText: qsTr("Yamayı kaldır")
         glyph: Icons.trash2
         onConfirmed: GameService.uninstallTranslation(root.viewModel.gameId)
+    }
+
+    // One patch per game: switching takes the installed one out first
+    ConfirmDialog {
+        id: switchConfirm
+        property string targetPkg: ""
+        readonly property var _target: {
+            const opts = root.viewModel.patchOptions
+            for (let i = 0; i < opts.length; ++i)
+                if (opts[i].pkg === switchConfirm.targetPkg) return opts[i]
+            return null
+        }
+        parent: Overlay.overlay
+        width: 480
+        glyph: Icons.refreshCw
+        title: qsTr("Yama değiştirilsin mi?")
+        message: qsTr("Şu an %1 kurulu; %2 yamasına geçilsin mi?")
+                     .arg(root.viewModel.patchLabel(root.viewModel.installedPatch))
+                     .arg(root.viewModel.patchLabel(switchConfirm._target))
+                 + "\n\n"
+                 + qsTr("Kurulu yama kaldırılır, yedeklenen oyun dosyaları geri yüklenir; ardından seçtiğin yama indirilip kurulur.")
+        confirmText: qsTr("Bu yamaya geç")
+        onConfirmed: installFlow.startSwitchFlow(root.viewModel.gameId, root.viewModel.gameName,
+                                                 switchConfirm.targetPkg)
     }
 
     ConfirmDialog {
@@ -465,6 +498,12 @@ Item {
                 // The installed button turns into "Kaldır" under the pointer; a
                 // click meant for the page took the patch off without a word.
                 onUninstallClicked: uninstallConfirm.open()
+                onInstallPatchRequested: (pkg) => installFlow.startInstallPackageFlow(
+                    root.viewModel.gameId, root.viewModel.gameName, pkg)
+                onSwitchPatchRequested: (pkg) => {
+                    switchConfirm.targetPkg = pkg
+                    switchConfirm.open()
+                }
             }
 
             // =================================================================

@@ -55,7 +55,22 @@ QtObject {
             console.warn("InstallFlowController: viewModel not set")
             return
         }
+        // A game with several patches installs the one picked on its page
+        if (viewModel.gameId === gameId && viewModel.hasAlternatives) {
+            InstallFlowService.startInstallPackage(gameId, gameName, viewModel.selectedPkg)
+            return
+        }
         InstallFlowService.startInstall(gameId, gameName)
+    }
+
+    // One of the game's patches ("" = the default)
+    function startInstallPackageFlow(gameId, gameName, pkg) {
+        InstallFlowService.startInstallPackage(gameId, gameName, pkg)
+    }
+
+    // The installed patch out, the other one in
+    function startSwitchFlow(gameId, gameName, pkg) {
+        InstallFlowService.startSwitchPackage(gameId, gameName, pkg)
     }
 
     function startUpdateFlow(gameId, gameName) {

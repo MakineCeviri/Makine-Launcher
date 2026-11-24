@@ -93,6 +93,14 @@ QtObject {
     // ===== UPDATE IMPACT =====
     property var updateImpact: null
 
+    // ===== PATCHES (alternatives) + GAME VERSION =====
+    // GameService.patchOptions: {anyInstalled, installedPkg, current: {build,
+    // source, date}, options: [{pkg, label, description, contributors, version,
+    // sizeBytes, downloadSize, gameVersion, installed, action, comingSoon, warn}]}
+    property var patchInfo: ({})
+    // The patch picked on the page ("" = the default); follows the installed one
+    property string selectedPkg: ""
+
     // ===== UI STATE =====
     property bool descriptionExpanded: false
 
@@ -112,6 +120,21 @@ QtObject {
     readonly property string developersText: developers.join(", ")
     readonly property string publishersText: publishers.join(", ")
     readonly property string genresText: genres.join(", ")
+
+    // Patches: the default first, then the alternatives in catalogue order
+    readonly property var patchOptions: patchInfo && patchInfo.options ? patchInfo.options : []
+    readonly property bool hasAlternatives: patchOptions.length > 1
+    readonly property var selectedPatch: {
+        for (let i = 0; i < patchOptions.length; ++i)
+            if (patchOptions[i].pkg === selectedPkg) return patchOptions[i]
+        return patchOptions.length > 0 ? patchOptions[0] : null
+    }
+    readonly property var installedPatch: {
+        for (let i = 0; i < patchOptions.length; ++i)
+            if (patchOptions[i].installed) return patchOptions[i]
+        return null
+    }
+    readonly property var gameBuild: patchInfo && patchInfo.current ? patchInfo.current : ({})
 
     // ===== FUNCTIONS =====
 
@@ -136,6 +159,64 @@ QtObject {
         installConsole = ""; folderChecking = false; patchProgram = ""; installErrorOnFolder = false
         patchUndoes = false; isUndoing = false
         updateImpact = null; descriptionExpanded = false
+        patchInfo = ({}); selectedPkg = ""
+    }
+
+    // The patches and the game's build again: after an install, an uninstall,
+    // a catalogue sync or new game-builds.json. The pick stays unless it is
+    // gone; with nothing picked yet it is the installed patch.
+    function refreshPatches() {
+        if (gameId === "" || !hasTranslation) { patchInfo = ({}); return }
+        const info = GameService.patchOptions(gameId)
+        patchInfo = info || ({})
+        const opts = patchInfo.options || []
+        let keep = false
+        for (let i = 0; i < opts.length; ++i)
+            if (opts[i].pkg === selectedPkg) keep = true
+        if (!keep || !_pickedByUser)
+            selectedPkg = patchInfo.anyInstalled ? (patchInfo.installedPkg || "") : ""
+    }
+    property bool _pickedByUser: false
+    function selectPatch(pkg) {
+        _pickedByUser = true
+        selectedPkg = pkg
+    }
+
+    // ---- Patch text (picker, compatibility line) ----
+    function patchLabel(opt) {
+        return opt && opt.label ? opt.label : qsTr("Türkçe yama")
+    }
+    // "2026-10-28" → "28 Ekim 2026"; anything else as it is
+    function dateText(iso) {
+        if (!iso) return ""
+        const d = new Date(iso + "T00:00:00")
+        return isNaN(d.getTime()) ? iso : d.toLocaleDateString(Qt.locale("tr_TR"), "d MMMM yyyy")
+    }
+    function sizeText(bytes) {
+        if (!bytes || bytes <= 0) return ""
+        const mb = bytes / 1048576
+        if (mb >= 1024) return qsTr("%1 GB").arg((mb / 1024).toLocaleString(Qt.locale("tr_TR"), "f", 1))
+        if (mb >= 1) return qsTr("%1 MB").arg(mb.toLocaleString(Qt.locale("tr_TR"), "f", 1))
+        return qsTr("%1 KB").arg(Math.max(1, Math.round(bytes / 1024)))
+    }
+    // {label, steamBuild, date} → "1.16.1 (build 16412345, 28 Ekim 2026)"
+    function gameVersionText(gv) {
+        if (!gv) return ""
+        const parts = []
+        if (gv.steamBuild > 0) parts.push(qsTr("build %1").arg(gv.steamBuild))
+        const dt = dateText(gv.date || "")
+        if (dt !== "") parts.push(dt)
+        if (gv.label) return parts.length > 0 ? gv.label + " (" + parts.join(", ") + ")" : gv.label
+        return parts.join(", ")
+    }
+    function translatorsText(contributors) {
+        const names = []
+        for (let i = 0; i < (contributors || []).length; ++i) {
+            const c = contributors[i]
+            if (c && c.name && c.name !== "Türkiye Oyuncu Topluluğu" && names.indexOf(c.name) < 0)
+                names.push(c.name)
+        }
+        return names.join(", ")
     }
 
     function loadGame(d) {
@@ -173,6 +254,9 @@ QtObject {
         // Check for translation package update (installed version vs catalog)
         if (packageInstalled && gameId !== "")
             hasTranslationUpdate = GameService.hasTranslationUpdate(gameId)
+
+        _pickedByUser = false
+        refreshPatches()
 
         // Fetch additional game details (sync)
         _applyGameDetails()
