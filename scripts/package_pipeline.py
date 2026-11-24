@@ -16,6 +16,14 @@ Usage:
     python scripts/package_pipeline.py --app-id 1716740    # Process single package
     python scripts/package_pipeline.py --dry-run            # Preview without writing
     python scripts/package_pipeline.py --verify 1716740     # Verify a .makine file
+    python scripts/package_pipeline.py --app-id 1245620 --alt dublaj   # One of a game's other patches
+
+A game's other patches ("alternatives" in index.json, patch_alternatives.py)
+are packages of their own: --alt reads the alternative's dirName and writes
+{appId}--{altId}-{sha12}.makine (never overwritten, like the panel's files);
+--update-manifest then sets that alternative's size/checksum/dataUrl/v. The
+index's other keys, new ones included, are kept as they are, and an index
+whose patch keys the launcher would drop is not written.
 
 Output:
     {output}/data/{appId}.makine   -- Encrypted compressed package
@@ -32,7 +40,9 @@ import sys
 import tarfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
+
+import patch_alternatives
 
 try:
     import zstandard as zstd
@@ -195,8 +205,11 @@ def process_package(
     output_dir: Path,
     key: bytes,
     dry_run: bool = False,
+    file_name: Optional[Callable[[str], str]] = None,
 ) -> Optional[dict]:
-    """Process a single translation package through the pipeline."""
+    """Process a single translation package through the pipeline.
+
+    file_name(checksum) names the output; default {appId}.makine."""
     if not dir_path.exists():
         return {"appId": app_id, "error": f"Directory not found: {dir_path}"}
 
@@ -221,7 +234,7 @@ def process_package(
     checksum = sha256_digest(mkpkg)
 
     # Step 4: Write output
-    output_path = output_dir / f"{app_id}.makine"
+    output_path = output_dir / (file_name(checksum) if file_name else f"{app_id}.makine")
     if not dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(mkpkg)
@@ -239,6 +252,7 @@ def process_package(
         "compressTime": round(t1 - t0, 2),
         "encryptTime": round(t2 - t1, 2),
         "outputPath": str(output_path) if not dry_run else "(dry-run)",
+        "fileName": output_path.name,
     }
 
 
@@ -321,8 +335,10 @@ def update_manifest(
     Adds to packages/{appId}.json:
       - compressedSize, compressedChecksum, dataUrl
     """
-    # Build lookup: appId -> result
-    result_map = {r["appId"]: r for r in results if "error" not in r}
+    # Build lookup: appId -> result (the default patch's)
+    result_map = {r["appId"]: r for r in results if "error" not in r and not r.get("alt")}
+    if not result_map and any("error" not in r and r.get("alt") for r in results):
+        result_map = {r["appId"]: r for r in results if "error" not in r}
 
     if not result_map:
         return {"updated": 0, "error": "No successful results to apply"}
@@ -334,7 +350,32 @@ def update_manifest(
     today = time.strftime("%Y-%m-%d", time.gmtime())
 
     updated_count = 0
+    # One of a game's other patches: its own entry under "alternatives"
+    for r in results:
+        if "error" in r or not r.get("alt"):
+            continue
+        entry = index.get("packages", {}).get(r["appId"]) or {}
+        for alt in entry.get("alternatives") or []:
+            if isinstance(alt, dict) and alt.get("id") == r["alt"]:
+                alt["size"] = r["encryptedSize"]
+                alt["sizeBytes"] = r["rawSize"]
+                alt["dataUrl"] = f"{r2_base_url}/{r['fileName']}"
+                alt["checksum"] = r["checksum"]   # sha256_digest: "sha256:<hex>"
+                alt["v"] = today
+                if not alt.get("dirName"):
+                    alt["dirName"] = r["dirName"]
+                updated_count += 1
+
+    problems = patch_alternatives.check_index(index)
+    if problems:
+        for p in problems:
+            print(f"  ALT: {p}", file=sys.stderr)
+        return {"indexUpdated": 0, "perGameUpdated": 0, "r2BaseUrl": r2_base_url,
+                "error": f"index.json yazılmadı: {len(problems)} yama anahtarı sorunu"}
+
     for app_id, r in result_map.items():
+        if r.get("alt"):
+            continue
         if app_id in index.get("packages", {}):
             entry = index["packages"][app_id]
             entry["size"] = r["encryptedSize"]
@@ -352,6 +393,8 @@ def update_manifest(
     # Update per-game JSONs
     per_game_updated = 0
     for app_id, r in result_map.items():
+        if r.get("alt"):
+            continue   # an alternative's detail lives in D1 only
         pkg_path = packages_dir / f"{app_id}.json"
         if not pkg_path.exists():
             continue
@@ -397,6 +440,9 @@ def main():
     parser.add_argument("--key", default="scripts/.encryption_key",
                         help="Path to encryption key file")
     parser.add_argument("--app-id", help="Process single package by app ID")
+    parser.add_argument("--alt", metavar="ALT_ID",
+                        help="With --app-id: package one of the game's other patches "
+                             "(index.json alternatives[].id)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Preview without writing files")
     parser.add_argument("--verify", metavar="APP_ID",
@@ -436,6 +482,34 @@ def main():
 
     packages = index.get("packages", {})
     packages_dir = Path(args.packages_dir)
+
+    # One of a game's other patches: its own folder and file
+    if args.alt:
+        if not args.app_id or args.app_id not in packages:
+            print("ERROR: --alt needs --app-id of a game in the manifest", file=sys.stderr)
+            sys.exit(1)
+        entry = packages[args.app_id]
+        alt = dict(patch_alternatives.iter_alternatives(entry)).get(args.alt)
+        if alt is None:
+            print(f"ERROR: {args.app_id} has no alternative '{args.alt}'", file=sys.stderr)
+            sys.exit(1)
+        dir_name = alt.get("dirName") or f"{entry.get('dirName') or args.app_id}--{args.alt}"
+        result = process_package(
+            args.app_id, data_dir / dir_name, output_dir, key, args.dry_run,
+            file_name=lambda sha: f"{args.app_id}--{args.alt}-{sha.split(':')[-1][:12]}.makine")
+        if not result or "error" in result:
+            print(f"ERROR: {result.get('error') if result else 'unknown'}", file=sys.stderr)
+            sys.exit(1)
+        result["alt"] = args.alt
+        result["dirName"] = dir_name
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        if args.update_manifest and not args.dry_run:
+            m = update_manifest(manifest_path, packages_dir, [result], args.r2_base_url)
+            if m.get("error"):
+                print(f"ERROR: {m['error']}", file=sys.stderr)
+                sys.exit(1)
+            print(f"  index.json: {m['indexUpdated']} alternative updated")
+        return
 
     # Filter to single app if specified
     if args.app_id:
@@ -557,6 +631,9 @@ def main():
             results=results,
             r2_base_url=args.r2_base_url,
         )
+        if manifest_result.get("error"):
+            print(f"  ERROR: {manifest_result['error']}", file=sys.stderr)
+            sys.exit(1)
         print(f"  index.json: {manifest_result['indexUpdated']} entries updated")
         print(f"  packages/:  {manifest_result['perGameUpdated']} files updated")
         print(f"  R2 base:    {manifest_result['r2BaseUrl']}")

@@ -27,6 +27,11 @@ because a user hit it:
   NODATA      listed to users with nothing to download and no redirect.
   EMPTY       data file present but zero bytes.
   TRAVERSAL   a step destination that escapes the game directory.
+  ALT         a malformed optional patch key ("label", "gameVersion",
+              "alternatives"): the launcher drops an alternative with a bad or
+              repeated id or no label without a word (patch_alternatives.py).
+              Each well-formed alternative's own recipe (?pkg=<id>) and data
+              file go through every rule above, reported as <appId>/<id>.
 
 Usage:
     python scripts/catalog_validate.py
@@ -43,6 +48,8 @@ import urllib.error
 import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+
+import patch_alternatives
 
 for _s in (sys.stdout, sys.stderr):
     if hasattr(_s, "reconfigure"):
@@ -157,15 +164,19 @@ def walk_steps(im):
                     yield f"variant:{vname}/{key}", s
 
 
-def check_package(app_id, meta, no_network):
+def check_package(app_id, meta, no_network, alt_id=None):
+    """One patch: the default (alt_id None) or an alternative, whose detail
+    is ?pkg=<id> and whose data file is its own (meta = the alternative)."""
     findings = []
+    shown_id = f"{app_id}/{alt_id}" if alt_id else app_id
+    shown_name = meta.get("name") or meta.get("label") or ""
 
     def add(code, detail):
-        findings.append({"appId": app_id, "name": meta.get("name", ""),
+        findings.append({"appId": shown_id, "name": shown_name,
                          "code": code, "detail": detail})
 
     try:
-        pkg = fetch(f"{API}/games/{app_id}")
+        pkg = fetch(f"{API}/games/{app_id}" + (f"?pkg={alt_id}" if alt_id else ""))
     except Exception as exc:
         # Not a defect for a redirect row: hangar rows have no D1 entry and
         # the launcher sends the user to externalUrl instead.
@@ -264,10 +275,20 @@ def main():
           f"· {index.get('generatedAt', '')}", file=sys.stderr)
 
     findings = []
+    # Optional patch keys first: a malformed alternative never reaches anyone.
+    for problem in patch_alternatives.check_index(index):
+        app_id = problem.split("/", 1)[0].split(":", 1)[0]
+        findings.append({"appId": app_id,
+                         "name": (packages.get(app_id) or {}).get("name", ""),
+                         "code": "ALT", "detail": problem})
+
     # The site's WAF starts rate-limiting above 6 parallel requests.
     with ThreadPoolExecutor(max_workers=6) as pool:
         futures = [pool.submit(check_package, aid, meta, args.no_network)
                    for aid, meta in packages.items()]
+        futures += [pool.submit(check_package, aid, alt, args.no_network, alt_id)
+                    for aid, meta in packages.items()
+                    for alt_id, alt in patch_alternatives.iter_alternatives(meta)]
         for f in futures:
             findings.extend(f.result())
 
@@ -277,7 +298,7 @@ def main():
         by_code = defaultdict(list)
         for f in findings:
             by_code[f["code"]].append(f)
-        order = ["MANGLED", "ACTION", "FIELD", "SHAPE", "TRAVERSAL",
+        order = ["MANGLED", "ACTION", "FIELD", "SHAPE", "TRAVERSAL", "ALT",
                  "DETAIL404", "NODATA", "EMPTY", "HTTP", "GATE"]
         print("=" * 78)
         print(f"  KATALOG DOĞRULAMA — {len(findings)} bulgu / {len(packages)} paket")
@@ -294,7 +315,7 @@ def main():
 
     # MANGLED and FIELD break installs silently; they gate the exit code.
     blocking = [f for f in findings
-                if f["code"] in {"MANGLED", "ACTION", "FIELD", "SHAPE", "TRAVERSAL"}]
+                if f["code"] in {"MANGLED", "ACTION", "FIELD", "SHAPE", "TRAVERSAL", "ALT"}]
     if args.strict and blocking:
         print(f"\nSTRICT: {len(blocking)} engelleyici bulgu", file=sys.stderr)
         return 1
